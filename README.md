@@ -34,10 +34,10 @@
     ```
 
 2. 在Module的 **build.gradle** 中添加依赖项
-   [![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/ktoast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/ktoast)
+   [![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/KToast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/KToast)
 
     ```gradle
-   implementation 'io.github.logan0817:ktoast:1.0.0' // 替换为上方徽章显示的最新版本
+   implementation 'io.github.logan0817:KToast:1.0.0' // 替换为上方徽章显示的最新版本
     ```
 
 ## 效果展示

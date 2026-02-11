@@ -35,10 +35,10 @@ Chinese document [中文文档](./README.md)
     ```
 
 2. Add the dependency to your Module's **build.gradle**
-   [![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/ktoast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/ktoast)
+   [![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/KToast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/KToast)
 
     ```gradle
-   implementation 'io.github.logan0817:ktoast:1.0.0' // Replace with the latest version shown by the badge above
+   implementation 'io.github.logan0817:KToast:1.0.0' // Replace with the latest version shown by the badge above
     ```
 
 ## Demo Effect
