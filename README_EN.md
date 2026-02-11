@@ -6,6 +6,11 @@
 
 Chinese document [中文文档](./README.md)
 
+**KToast** is a modern, lightweight, and highly customizable Toast library designed for Android.
+
+It provides a stunning custom UI experience **across all Android versions (5.0+)**, while elegantly solving the native Toast restrictions introduced in Android 11+.
+
+---
 ## Documentation
 
 ### ✨ Key Features

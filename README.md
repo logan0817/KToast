@@ -6,8 +6,10 @@
 
 英文文档 [English Document](./README_EN.md)
 
-**KToast** 是一个专为 Android 设计的现代化、轻量级且高度可定制的 Toast 框架。基于 Kotlin 编写，完美适配 Android 11+。
+**KToast** 是一个专为 Android 设计的现代化、轻量级且高度可定制的 Toast 框架。基于 Kotlin 编写，完美兼容 Android 5.0 至最新系统。
 
+它在旧版本上提供了一致的现代化 UI 体验，同时优雅地解决了 Android 11+ (API 30+) 对自定义 Toast 的限制。
+---
 ### ✨ 核心特性
 
 * 🚀 **极简调用**：Kotlin 扩展函数支持，一行代码搞定显示。
