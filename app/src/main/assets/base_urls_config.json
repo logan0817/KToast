@@ -1,0 +1,42 @@
+{
+  "release_defaults": [
+    {
+      "configKey": "searchApiDomain",
+      "url": "https://www.google.com/",
+      "select": true,
+      "remark": "google Environment"
+    },
+    {
+      "configKey": "githubDomain",
+      "url": "https://github.com/",
+      "select": true,
+      "remark": "github Environment"
+    }
+  ],
+  "debug_defaults": [
+    {
+      "configKey": "searchApiDomain",
+      "url": "https://www.google.com/",
+      "select": true,
+      "remark": "google Environment"
+    },
+    {
+      "configKey": "searchApiDomain",
+      "url": "https://www.bing.com/",
+      "select": false,
+      "remark": "bing Environment"
+    },
+    {
+      "configKey": "gitDomain",
+      "url": "https://www.github.com/",
+      "select": true,
+      "remark": "github Environment"
+    },
+    {
+      "configKey": "gitDomain",
+      "url": "https://www.gitee.com/",
+      "select": false,
+      "remark": "gitee Environment"
+    }
+  ]
+}

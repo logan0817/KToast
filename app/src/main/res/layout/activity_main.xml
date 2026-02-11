@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:animateLayoutChanges="true"
+    android:background="@color/white"
+    tools:context="com.logan.ktoastapp.MainActivity">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/autumn_wave"
+        app:layout_constraintTop_toTopOf="parent"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        app:theme="@style/AppTheme.Toolbar"
+        app:titleTextColor="@android:color/white" />
+
+    <LinearLayout
+        android:id="@+id/llGlobalEvent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="KToast 功能调试面板"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnBasic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="基础文本 Toast" />
+
+                <Button
+                    android:id="@+id/btnLong"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="长时间显示 (Long)" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="样式定制 (DSL)" />
+
+                <Button
+                    android:id="@+id/btnColor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="修改背景/文字颜色" />
+
+                <Button
+                    android:id="@+id/btnIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="带图标的 Toast" />
+
+                <Button
+                    android:id="@+id/btnShape"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="方形直角 + 边距调整" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="位置与偏移" />
+
+                <Button
+                    android:id="@+id/btnGravityTop"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="顶部显示" />
+
+                <Button
+                    android:id="@+id/btnGravityCenter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="居中显示" />
+
+                <Button
+                    android:id="@+id/btnOffset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="侧边偏移 (xOffset)" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="高级功能" />
+
+                <Button
+                    android:id="@+id/btnAnimSlow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="慢动作动画 (800ms)" />
+
+                <Button
+                    android:id="@+id/btnInteractive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="可点击消失 (CancelOnTouch)" />
+
+                <Button
+                    android:id="@+id/btnThread"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="子线程调用 (Thread Safe)" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="延时任务" />
+
+                <Button
+                    android:id="@+id/btnDelayed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="延时 2秒 显示" />
+
+                <Button
+                    android:id="@+id/btnDelayedCancel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="发起延时并在 1秒后撤回" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="调试模式" />
+
+                <Switch
+                    android:id="@+id/switchDebug"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:text="开启 Debug Mode" />
+
+                <Button
+                    android:id="@+id/btnDebugShow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="测试 DebugShow" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="兼容与扩展" />
+
+                <Button
+                    android:id="@+id/btnJava"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Java 风格调用" />
+
+                <Button
+                    android:id="@+id/btnAppExtSuccess"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="App 层自定义 Success" />
+
+                <Button
+                    android:id="@+id/btnAppExtError"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="App 层自定义 Error" />
+
+                <Button
+                    android:id="@+id/btnAppExtWarning"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="App 层自定义 Warning" />
+
+                <Button
+                    android:id="@+id/btnCancelAll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="40dp"
+                    android:backgroundTint="#FF5252"
+                    android:text="全部取消 (Cancel All)" />
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
