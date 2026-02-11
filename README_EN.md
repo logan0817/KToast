@@ -64,17 +64,16 @@ Initialize it in your `Application` class:
 class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-
-        // 1. Init
+        //✅ 场景一：最简初始化 (什么都不配)
         KToast.init(this)
-
-        // 2. (Optional) Enable Debug Mode
-        KToast.debugMode = BuildConfig.DEBUG
-
-        // 3. (Optional) Global Configuration
-        KToast.config {
-            backgroundColor = Color.parseColor("#333333")
+        //✅ 场景二：只开 Debug (常用)
+        KToast.init(this, isDebug = BuildConfig.DEBUG)
+        //✅ 场景三：全功能初始化 (一步到位)
+        KToast.init(this, isDebug = BuildConfig.DEBUG) {
+            textColor = Color.WHITE
+            backgroundColor = Color.parseColor("#E6323232")
             backgroundRadius = 24f
+            gravity = Gravity.CENTER
         }
     }
 }
@@ -137,10 +136,18 @@ Only shows when `KToast.debugMode = true`.
 #### Java Usage
 
 ```java
+// init
 KToast.init(application);
-KToast.
 
-show("Hello from Java");
+KToast.init(this, true);
+
+KToast.init(this, true, config -> {
+        config.setBackgroundColor(Color.RED);
+    return Unit.INSTANCE;
+});
+
+// show
+KToast.show("Hello from Java");
 ```
 
 ### ⚙️ Configuration (KToastConfig)

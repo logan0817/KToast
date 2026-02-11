@@ -57,17 +57,16 @@
 class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        
-        // 1. 初始化
+        //✅ 场景一：最简初始化 (什么都不配)
         KToast.init(this)
-        
-        // 2. (可选) 开启 Debug 模式
-        KToast.debugMode = BuildConfig.DEBUG
-        
-        // 3. (可选) 配置全局默认样式
-        KToast.config {
-            backgroundColor = Color.parseColor("#333333")
+        //✅ 场景二：只开 Debug (常用)
+        KToast.init(this, isDebug = BuildConfig.DEBUG)
+        //✅ 场景三：全功能初始化 (一步到位)
+        KToast.init(this, isDebug = BuildConfig.DEBUG) {
+            textColor = Color.WHITE
+            backgroundColor = Color.parseColor("#E6323232")
             backgroundRadius = 24f
+            gravity = Gravity.CENTER
         }
     }
 }
@@ -130,6 +129,15 @@ KToast.cancel()
 ```java
 // 初始化
 KToast.init(application);
+
+// 或者传 debug
+KToast.init(application, true);
+
+// 或者全部传 (Lambda 写法)
+KToast.init(application, true, config -> {
+        config.setBackgroundColor(Color.RED);
+    return Unit.INSTANCE;
+});
 // 显示
 KToast.show("来自 Java 的调用");
 ```

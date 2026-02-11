@@ -61,12 +61,25 @@ object KToast {
      * @param app Application 实例，用于获取上下文和注册生命周期监听。
      */
     @JvmStatic
-    fun init(app: Application) {
+    @JvmOverloads
+    fun init(
+        app: Application,
+        isDebug: Boolean = false,
+        configBlock: (KToastConfig.() -> Unit)? = null
+    ) {
         this.context = app
-        // 注册 Activity 生命周期监听，核心功能：感知前后台、获取 TopActivity
+        this.debugMode = isDebug
+
+        // 注册 Activity 生命周期监听
         KActivityStack.register(app)
-        // 使用工厂类创建默认配置（自动适配系统 Offset 和深色模式）
+
+        // 先使用工厂创建系统适配的默认配置
         globalConfig = KToastConfigFactory.createDefault(app)
+
+        // 如果用户传了配置块，则覆盖默认配置
+        configBlock?.let {
+            globalConfig.apply(it)
+        }
     }
 
     /**

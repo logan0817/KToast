@@ -10,12 +10,12 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // 初始化框架
-        KToast.init(this)
-        //设置调试模式开关
-        KToast.debugMode = BuildConfig.DEBUG
-        //(可选) 配置全局默认样式
-        KToast.config {
+        //✅ 场景一：最简初始化 (什么都不配)
+//        KToast.init(this)
+        //✅ 场景二：只开 Debug (常用)
+//        KToast.init(this, isDebug = BuildConfig.DEBUG)
+        //✅ 场景三：全功能初始化 (一步到位)
+        KToast.init(this, isDebug = BuildConfig.DEBUG) {
             textColor = Color.WHITE
             backgroundColor = Color.parseColor("#E6323232")
             backgroundRadius = 24f
