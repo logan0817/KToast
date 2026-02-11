@@ -39,7 +39,7 @@
    [![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/KToast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/KToast)
 
     ```gradle
-   implementation 'io.github.logan0817:KToast:1.0.0' // 替换为上方徽章显示的最新版本
+   implementation 'io.github.logan0817:KToast:1.0.1' // 替换为上方徽章显示的最新版本
     ```
 
 ## 效果展示
@@ -165,7 +165,7 @@ KToast.show("来自 Java 的调用");
 ### 💡 最佳实践 (Best Practices)
 
 **强烈建议**在你的 App 模块中创建一个扩展文件 `AppToastExt.kt`，根据你的 UI 设计规范封装统一的样式。这能保持 Library 的纯净，同时让业务调用更简单。
-
+#### APP层扩展 可以参考 [AppToastExt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt)
 ```kotlin
 // AppToastExt.kt
 

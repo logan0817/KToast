@@ -43,7 +43,7 @@ It provides a stunning custom UI experience **across all Android versions (5.0+)
    [![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/KToast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/KToast)
 
     ```gradle
-   implementation 'io.github.logan0817:KToast:1.0.0' // Replace with the latest version shown by the badge above
+   implementation 'io.github.logan0817:KToast:1.0.1' // Replace with the latest version shown by the badge above
     ```
 
 ## Demo Effect
@@ -170,10 +170,31 @@ Properties available in `KToast.config {}` or `.toast {}`:
 | `icon`              | Int?    | null      | Icon Resource ID                   |
 | `iconSize`          | Float   | 24f       | Icon size (dp)                     |
 
-### 🔒 Proguard
+### 💡 Best Practices
 
-The library includes `consumer-rules.pro`, so **no extra configuration is needed**.
+**Strongly Recommended**Create an extension file `AppToastExt.kt` in your app module to encapsulate a consistent style according to your UI design guidelines. This will keep the library clean and simplify business logic calls.
+#### For APP layer extensions, please refer to [AppToastExt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt)
+```kotlin
+// AppToastExt.kt
 
+/** 显示成功提示 (绿色) */
+fun CharSequence.showSuccess() {
+    this.toast {
+        backgroundColor = Color.parseColor("#4CAF50")
+        icon = R.drawable.ic_check_circle
+    }
+}
+
+/** 显示错误提示 (红色) */
+fun CharSequence.showError() {
+    this.toast {
+        backgroundColor = Color.parseColor("#F44336")
+        icon = R.drawable.ic_error
+    }
+}
+
+// 调用
+"登录成功".showSuccess()
 ```
 
 ### License
