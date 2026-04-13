@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#1E3F63</color>
+    <color name="colorPrimaryDark">#152E4A</color>
+    <color name="colorAccent">#C79543</color>
+    <color name="autumn_wave">#C7B18B</color>
+    <color name="demo_page_top">#F6F0E7</color>
+    <color name="demo_page_bottom">#EDE3D6</color>
+    <color name="demo_surface">#FFFDF9</color>
+    <color name="demo_surface_alt">#F7F0E7</color>
+    <color name="demo_card_stroke">#D9CAB7</color>
+    <color name="demo_text_primary">#17324B</color>
+    <color name="demo_text_secondary">#667789</color>
+    <color name="demo_primary_action">#1E4A73</color>
+    <color name="demo_primary_action_dark">#173B5C</color>
+    <color name="demo_secondary_action">#F2E5D3</color>
+    <color name="demo_secondary_text">#27496B</color>
+    <color name="demo_success">#3B705C</color>
+    <color name="demo_warning">#A8782D</color>
+    <color name="demo_danger">#9B5146</color>
+    <color name="demo_chip_bg">#F5ECDD</color>
+    <color name="demo_status_neutral">#5D7085</color>
+    <color name="demo_hero_start">#1A334E</color>
+    <color name="demo_hero_end">#274B70</color>
+    <color name="demo_hero_text">#FFFFFF</color>
+    <color name="demo_hero_text_secondary">#D7E2EE</color>
+    <color name="demo_hero_border">#3A5C80</color>
+    <color name="demo_badge_fill">#F3E3C6</color>
+    <color name="demo_badge_text">#7B5520</color>
+    <color name="demo_status_panel_fill">#1AFFFFFF</color>
+    <color name="demo_status_panel_border">#26FFFFFF</color>
+    <color name="demo_shadow">#140E2033</color>
+    <color name="demo_toolbar_surface">#E9DDCD</color>
+    <color name="demo_toolbar_stroke">#D3C3AD</color>
+    <color name="demo_danger_surface">#F7E8E4</color>
+    <color name="demo_danger_text">#87433A</color>
+</resources>

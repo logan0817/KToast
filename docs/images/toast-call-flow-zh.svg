@@ -1,0 +1,70 @@
+<svg width="1200" height="980" viewBox="0 0 1200 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 34px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 18px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #475569; }
+      .boxTitle { font: 700 24px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #0f172a; }
+      .boxBody { font: 400 18px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #334155; }
+      .branch { font: 700 22px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #1e293b; }
+      .small { font: 400 16px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="980" rx="28" fill="#F8FAFC"/>
+  <text x="70" y="70" class="title">KToast 一次普通 Toast 的调用链</text>
+  <text x="70" y="105" class="subtitle">以 "保存成功".toast { ... } 为例</text>
+
+  <rect x="380" y="140" width="440" height="92" rx="20" fill="#DBEAFE" stroke="#93C5FD" stroke-width="2"/>
+  <text x="600" y="178" text-anchor="middle" class="boxTitle">调用方</text>
+  <text x="600" y="208" text-anchor="middle" class="boxBody">"保存成功".toast { ... }</text>
+
+  <line x1="600" y1="232" x2="600" y2="272" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="350" y="280" width="500" height="100" rx="20" fill="#E0F2FE" stroke="#7DD3FC" stroke-width="2"/>
+  <text x="600" y="318" text-anchor="middle" class="boxTitle">toast() 扩展函数</text>
+  <text x="600" y="348" text-anchor="middle" class="boxBody">统一把请求转发到 KToast.show(...)</text>
+
+  <line x1="600" y1="380" x2="600" y2="420" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="320" y="430" width="560" height="150" rx="20" fill="#EDE9FE" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="600" y="470" text-anchor="middle" class="boxTitle">KToast.show(...)</text>
+  <text x="600" y="505" text-anchor="middle" class="boxBody">1. 切回主线程</text>
+  <text x="600" y="535" text-anchor="middle" class="boxBody">2. 取消上一个 Toast</text>
+  <text x="600" y="565" text-anchor="middle" class="boxBody">3. 合并全局配置与本次局部配置</text>
+
+  <line x1="600" y1="580" x2="600" y2="620" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <polygon points="600,630 760,720 600,810 440,720" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2"/>
+  <text x="600" y="710" text-anchor="middle" class="branch">应用是否在前台？</text>
+  <text x="600" y="738" text-anchor="middle" class="small">并且当前能拿到有效 Activity</text>
+
+  <line x1="760" y1="720" x2="900" y2="720" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="810" y="700" class="branch">是</text>
+
+  <rect x="890" y="650" width="250" height="160" rx="20" fill="#DCFCE7" stroke="#86EFAC" stroke-width="2"/>
+  <text x="1015" y="690" text-anchor="middle" class="boxTitle">ModernToastStrategy</text>
+  <text x="1015" y="725" text-anchor="middle" class="boxBody">获取 Top Activity</text>
+  <text x="1015" y="755" text-anchor="middle" class="boxBody">通过 WindowManager</text>
+  <text x="1015" y="782" text-anchor="middle" class="boxBody">添加自定义气泡 View</text>
+
+  <line x1="1015" y1="810" x2="1015" y2="870" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="845" y="880" width="340" height="70" rx="18" fill="#ECFCCB" stroke="#A3E635" stroke-width="2"/>
+  <text x="1015" y="923" text-anchor="middle" class="boxBody">执行进场动画，并启动自动消失定时器</text>
+
+  <line x1="440" y1="720" x2="300" y2="720" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="352" y="700" class="branch">否</text>
+
+  <rect x="60" y="650" width="250" height="160" rx="20" fill="#FCE7F3" stroke="#F9A8D4" stroke-width="2"/>
+  <text x="185" y="690" text-anchor="middle" class="boxTitle">SystemToastStrategy</text>
+  <text x="185" y="728" text-anchor="middle" class="boxBody">自动降级为系统原生 Toast</text>
+  <text x="185" y="760" text-anchor="middle" class="boxBody">Toast.makeText(...)</text>
+
+  <line x1="185" y1="810" x2="185" y2="870" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="55" y="880" width="260" height="70" rx="18" fill="#FDF2F8" stroke="#F472B6" stroke-width="2"/>
+  <text x="185" y="923" text-anchor="middle" class="boxBody">显示系统默认样式 Toast</text>
+</svg>

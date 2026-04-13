@@ -1,0 +1,47 @@
+<resources>
+
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/demo_page_top</item>
+    </style>
+
+    <style name="AppTheme.Toolbar" parent="ThemeOverlay.AppCompat.Light">
+        <item name="android:textColorPrimary">@color/demo_text_primary</item>
+        <item name="android:textColorSecondary">@color/demo_text_secondary</item>
+    </style>
+
+    <style name="DemoButton.Primary" parent="Widget.AppCompat.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:minHeight">54dp</item>
+        <item name="android:background">@drawable/bg_demo_button_primary</item>
+        <item name="android:paddingLeft">18dp</item>
+        <item name="android:paddingRight">18dp</item>
+    </style>
+
+    <style name="DemoButton.Secondary" parent="Widget.AppCompat.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/demo_secondary_text</item>
+        <item name="android:minHeight">50dp</item>
+        <item name="android:background">@drawable/bg_demo_button_secondary</item>
+        <item name="android:paddingLeft">18dp</item>
+        <item name="android:paddingRight">18dp</item>
+    </style>
+
+    <style name="DemoButton.Danger" parent="Widget.AppCompat.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/demo_danger_text</item>
+        <item name="android:minHeight">50dp</item>
+        <item name="android:background">@drawable/bg_demo_button_danger</item>
+        <item name="android:paddingLeft">18dp</item>
+        <item name="android:paddingRight">18dp</item>
+    </style>
+
+</resources>
