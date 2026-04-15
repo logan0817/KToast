@@ -289,7 +289,7 @@ import com.logan.ktoast.toast
 fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#4CAF50")
-        icon = android.R.drawable.ic_dialog_info
+        icon = android.R.drawable.ic_dialog_success
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -298,7 +298,7 @@ fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_delete
+        icon = android.R.drawable.ic_error
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -307,7 +307,7 @@ fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_alert
+        icon = android.R.drawable.ic_dialog_warning
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -320,17 +320,18 @@ fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
 
 第一次接入通常只会改这些高频项：
 
-| 配置项 | 类型 | 默认值 | 说明 |
-| :--- | :--- | :--- | :--- |
-| `textColor` | Int | `White` | 文本颜色 |
-| `backgroundColor` | Int | `#E6323232` | 背景色 |
-| `backgroundRadius` | Float | `24f` | 圆角 |
-| `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | 显示位置 |
-| `yOffset` | Int | `64` | 纵向偏移 |
-| `animationDuration` | Long | `250` | 动画时长 |
-| `cancelOnTouch` | Boolean | `false` | 是否点击关闭 |
-| `icon` | Int? | `null` | 图标资源 |
-| `maxLines` | Int | `4` | 最大行数 |
+| 配置项 | 类型 | 默认值 | 说明      |
+| :--- | :--- | :--- |:--------|
+| `textColor` | Int | `White` | 文本颜色    |
+| `backgroundColor` | Int | `#E6323232` | 背景色     |
+| `backgroundRadius` | Float | `24f` | 圆角      |
+| `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | 显示位置    |
+| `xOffset` | Int | `64` | 横向偏移    |
+| `yOffset` | Int | `64` | 纵向偏移    |
+| `animationDuration` | Long | `250` | 动画时长    |
+| `cancelOnTouch` | Boolean | `false` | 是否点击关闭  |
+| `icon` | Int? | `null` | 图标资源    |
+| `maxLines` | Int | `4` | 最大行数    |
 | `contentFactory` | `KToastContentFactory?` | `null` | 自定义内容工厂 |
 
 完整配置可查看 [KToastConfig.kt](./library-android/src/main/java/com/logan/ktoast/config/KToastConfig.kt)。

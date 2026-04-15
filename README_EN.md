@@ -298,7 +298,7 @@ fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_delete
+        icon = android.R.drawable.ic_success
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -307,7 +307,7 @@ fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_alert
+        icon = android.R.drawable.ic_dialog_warning
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -320,17 +320,18 @@ The example uses built-in Android drawables so it compiles out of the box. Repla
 
 These are the high-frequency options most users tweak first:
 
-| Option | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `textColor` | Int | `White` | Text color |
-| `backgroundColor` | Int | `#E6323232` | Background color |
-| `backgroundRadius` | Float | `24f` | Corner radius |
-| `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | Position |
-| `yOffset` | Int | `64` | Vertical offset |
-| `animationDuration` | Long | `250` | Animation duration |
-| `cancelOnTouch` | Boolean | `false` | Dismiss on tap |
-| `icon` | Int? | `null` | Icon resource |
-| `maxLines` | Int | `4` | Max text lines |
+| Option | Type | Default | Description            |
+| :--- | :--- | :--- |:-----------------------|
+| `textColor` | Int | `White` | Text color             |
+| `backgroundColor` | Int | `#E6323232` | Background color       |
+| `backgroundRadius` | Float | `24f` | Corner radius          |
+| `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | Position               |
+| `xOffset` | Int | `64` | horizontal offset      |
+| `yOffset` | Int | `64` | Vertical offset        |
+| `animationDuration` | Long | `250` | Animation duration     |
+| `cancelOnTouch` | Boolean | `false` | Dismiss on tap         |
+| `icon` | Int? | `null` | Icon resource          |
+| `maxLines` | Int | `4` | Max text lines         |
 | `contentFactory` | `KToastContentFactory?` | `null` | Custom content factory |
 
 For the full set, see [KToastConfig.kt](./library-android/src/main/java/com/logan/ktoast/config/KToastConfig.kt).
