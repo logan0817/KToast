@@ -2,7 +2,7 @@
 
 ## 当前状态与产物
 
-当前为本地候选验证阶段，尚未满足全部正式发布门槛。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；本地候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留中间候选或沟通过程记录。
+当前候选已通过 API 21、30、31、35、36 云端关键设备矩阵，尚未满足全部正式发布门槛。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留中间候选或沟通过程记录。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -37,14 +37,14 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | API 24 | 28 项核心设备回归通过；R8 Release 新进程 PASS | 7 项高版本专用用例由 SDK 过滤，不计成功 |
 | API 37、16KB 页面大小 | 原 33 项、交互时长 2 项、自由窗口 1 项分三次 Runner 通过；R8 Release 新进程 PASS | 缺口与自由窗口仅覆盖专用模拟器场景 |
 | 超大内容复核 | 修正为显式 6000px 布局宽度的同一用例在 API 24/37 各通过 | 重复复核不计新增独立用例 |
-| API 21 | 未验证 | 最低版本必需运行验证；测试镜像下载暂缓 |
-| API 30/31 | 未验证 | 需平台行为变化代表版本 |
-| API 35/36 | 未验证 | 需近期系统代表版本；此前 API 36 真机安装被 USB 策略拒绝 |
+| API 21 | 云端专用模拟器 28 项必需回归通过；R8 Release 新进程 PASS | 8 项由 SDK 过滤、无逐项状态，不计成功 |
+| API 30/31 | 两个版本各 31 项必需回归通过；R8 Release 新进程均 PASS | 每个版本 5 项专用 fixture 明确跳过，不计成功 |
+| API 35/36 | 两个版本各 31 项必需回归通过；R8 Release 新进程均 PASS | 每个版本 5 项专用 fixture 明确跳过；不替代厂商真机 |
 | 更多厂商与分屏 | 未验证 | 不将自由窗口结果推广到全部厂商和窗口模式 |
 
 API 33 的旧验证仅对应更早稳定性阶段，不用于认证当前完整 1.1 候选。设备测试的 SDK 过滤、fixture 跳过、失败和成功必须分别记录。无障碍、显示缺口、自由窗口的专用配置及恢复要求见 [TROUBLESHOOTING.md](../TROUBLESHOOTING.md)。
 
-当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。下述云端运行矩阵已启动，设备项按真实运行报告更新；未通过项和官方支持范围风险继续保留，不能仅凭工作流配置或推送成功标为通过。
+当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。下述云端关键矩阵已运行通过，设备项按原始 Runner、R8 日志和产物报告核对；官方支持范围风险及专用场景覆盖限制继续保留。
 
 ## 云端设备矩阵
 
@@ -64,6 +64,35 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。发布评估应保存工作流 URL、提交 SHA、各 result.json、instrumentation.txt、device-logcat.txt 与 R8 日志，核对 success=true、必需用例集合、实际 API、指纹、ABI、AAR/APK SHA 与新进程 PID。模拟器启动或下载失败只表示环境验证失败，不能改为通过；14 天后会过期，发版前应归档必要证据。远程运行通过后再更新上表，不能提前勾选发布门槛。AGP/compileSdk 支持范围仍需独立决策，设备矩阵不会改变其官方支持状态。
 
+### 已核验的云端结果
+
+2026-10-10 的 [矩阵运行 #3](https://github.com/logan0817/KToast/actions/runs/38038268507) 整体成功，耗时 13 分 41 秒。运行源码提交为 67f63203b74900e8f5c4c329a9ab286b7fae1530，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、41 项 Python 工具回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建。
+
+| 实际 API | 系统镜像构建标识 | ABI | 通过 | 显式跳过 | 未报告 | R8 新进程 PID |
+| --- | --- | --- | --- | --- | --- | --- |
+| 21 | Android 5.0.2 / LSY66K / 4174711 | x86 | 28 | 0 | 8 | 2704 |
+| 30 | Android 11 / RSR1.240422.006 / 12134477 | x86_64 | 31 | 5 | 0 | 5917 |
+| 31 | Android 12 / SE1A.220826.008 / 10564458 | x86_64 | 31 | 5 | 0 | 5087 |
+| 35 | Android 15 / AE3A.240806.043 / 12960925 | x86_64 | 31 | 5 | 0 | 4666 |
+| 36 | Android 16 / BE2A.250530.026.F3 / 13894323 | x86_64 | 31 | 5 | 0 | 5343 |
+
+五个版本均无失败、无必需用例缺失，Runner 正常返回 -1，独立 R8 消费者新进程均输出 PASS，覆盖旧 Java、页面 Java/Kotlin、队列及延时取消。普通矩阵不启用无障碍时长、显示缺口、自由窗口 fixture；不能将这些跳过项写成已验证。API 35 的动态输入法用例同时观察宿主与独立提示子窗口，保持实际位置上移及完整避让断言，本轮未修改库定位实现。
+
+所有设备复用以下同批产物，报告中的构建/运行提交及 SHA-256 已与下载字节核对：
+
+| 产物 | SHA-256 |
+| --- | --- |
+| Release AAR（141877 字节） | 2d7cf6040949cdcf212a0fda4d58abebbe5636f0fb5d709f86419b8ac2ad79a0 |
+| Demo Debug APK | 9ed54c5d0b278551673aedc838cbd12eb5976f1c2e7b324cb25245a5f3754432 |
+| 设备测试 APK | d6b57a4afed5e6ae1541409b558b44c31e3149ea7f29e5eea6fe70bef61d6828 |
+| 旧 AGP R8 Release 消费者 APK | 9076036ea23dbcb7776fcb237e8b1f1a0ee6f889b983f5e67246348a7b44bec4 |
+| sources JAR | a0e0a7f4f796501d52966478eced8aaeb5b009ea730b9f1eb33524a60dd6603c |
+| javadoc JAR | efb7dfe5395d7383a6cfc6398d18ba53da69152b70a1299b16c3e7711889c85d |
+
+本次原始 ZIP（同批输入、构建诊断、五个设备报告）已按 Actions 展示的 digest 校验，归档在维护者本地 build/reports/device-matrix-cloud/38038268507；verified-summary.json 汇总核验结果，各 ZIP 保留完整设备指纹和原始日志。该目录受忽略规则保护，不进入源码提交；本地归档仍需维护者保留，不能依赖 Actions 14 天保留期作为永久存档。
+
+本次 Actions 提示部分固定版本使用已弃用的 Node 20，并由托管 Runner 强制使用 Node 24；setup-java v4 也提示弃用。构建和设备任务已实际成功，这些提示不改变 Android 消费者门槛；后续维护 CI 时须单独验证 Action 迁移，不能与库生产依赖升级混为一谈。
+
 ## 本地检查顺序
 
 选择 Android Studio 项目相同的 JDK 17 和 SDK，在项目根目录执行：
@@ -80,7 +109,7 @@ PATH 中的 javap 须来自现有 JDK，也可给校验脚本传 --javap。Gradl
 
 ## 正式发布门槛
 
-- [ ] API 21、API 30/31、API 35/36 代表版本的关键运行回归完成，记录真实设备、结果和未覆盖项。
+- [x] API 21、API 30/31、API 35/36 代表版本的关键运行回归完成，记录真实设备、结果和未覆盖项。
 - [ ] AGP/compileSdk 官方支持范围完成评估并明确构建组合。
 - [ ] 最终候选的 API、metadata、依赖、源码包、R8 消费者及相关运行结果可追溯，验证报告与产物 SHA 一致。
 - [ ] README 中英文、页面说明、CHANGELOG、注释和实际行为一致；过程记录、敏感信息和临时文件不进入提交。
