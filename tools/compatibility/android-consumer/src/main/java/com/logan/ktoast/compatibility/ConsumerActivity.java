@@ -28,6 +28,10 @@ public final class ConsumerActivity extends Activity {
         verified = true;
         status.post(() -> {
             try {
+                KToast.setDebugMode(true);
+                if (!KToast.INSTANCE.getDebugMode()) throw new AssertionError("Java debug setter did not enable debugging");
+                KToast.setDebugMode(false);
+                if (KToast.INSTANCE.getDebugMode()) throw new AssertionError("Java debug setter did not disable debugging");
                 KToast.show("legacy Java", Toast.LENGTH_SHORT);
                 KToast.cancel();
                 scope = KToastScope.create(this);

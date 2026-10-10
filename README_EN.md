@@ -59,8 +59,8 @@ These are the 4 default rules most users care about first:
 
 1. Initialization: automatic by default. Only call `KToast.init(app)` if you disable App Startup.
 2. Display policy: default mode is `REPLACE`.
-3. Foreground vs background: foreground prefers custom UI, background falls back to system Toast.
-4. Threading: normal `toast()` calls are marshalled to the main thread automatically.
+3. Foreground vs background: the legacy global API prefers custom UI in the foreground and attempts system fallback in the background or without a valid Activity. The 1.1 Activity scope cancels when its host stops and never transfers to system Toast.
+4. Threading: window operations and callbacks run on the main thread. Per-call style DSL runs on the calling thread and should avoid View operations.
 
 ## Quick Start
 
@@ -298,7 +298,7 @@ fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_success
+        icon = android.R.drawable.ic_dialog_alert
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -343,12 +343,14 @@ For the full set, see [KToastConfig.kt](./library-android/src/main/java/com/loga
 Because App Startup is enabled by default. Only call this manually if you disable it:
 
 ```kotlin
+import com.logan.ktoast.KToast
+
 KToast.init(application)
 ```
 
 ### 2. Why is foreground custom but background system-native?
 
-That is the built-in fallback policy. Foreground uses the custom bubble path. Background or no valid `Activity` falls back to system Toast.
+That is the legacy global API's fallback policy: it prefers custom rendering in the foreground and attempts system Toast in the background or without a valid Activity. The 1.1 Activity scope cancels when its host stops or rendering fails, without transferring to another Activity or system Toast.
 
 ### 3. Why is this needed on Android 11+?
 
@@ -364,13 +366,17 @@ Usually no. The library already ships with `consumer-rules.pro`.
 
 ## Demo and Source Entry Points
 
-1. The sample app lives in the [`app`](./app) module. 2. [MainActivity.kt](./app/src/main/java/com/logan/ktoastapp/MainActivity.kt) contains the current Demo page and its capability entry points. 3. App-level wrapper examples live in [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt). 4. You can also download the [Demo APK](https://raw.githubusercontent.com/logan0817/KToast/master/app/apk/app-debug.apk).
+1. The sample app lives in the [`app`](./app) module.
+2. [MainActivity.kt](./app/src/main/java/com/logan/ktoastapp/MainActivity.kt) contains the current Demo page and its capability entry points.
+3. App-level wrapper examples live in [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt).
+4. The repository retains a [historical Demo APK](./app/apk/app-debug.apk). Build from source to try the current 1.1 candidate; the archived APK does not verify the new features.
 
 ## Advanced Capabilities
 
 ### 1. Lifecycle callbacks
 
 ```kotlin
+import com.logan.ktoast.toastHandle
 import com.logan.ktoast.runtime.KToastCallbacks
 
 "Submitting".toastHandle(
@@ -418,7 +424,7 @@ See the [changelog (Chinese)](./CHANGELOG.md) for version changes, the [version 
 ## Compatibility Notes
 
 1. Platform: Android 5.0+. 
-2. Foreground prefers custom rendering, background falls back automatically. 
+2. The legacy global API prefers foreground custom rendering and attempts background system fallback; Activity scopes cancel when their host stops.
 3. Kotlin first, Java compatible. 
 4. This repo contains both the library module and the Demo app.
 5. Effect Demonstration <img src="GIF.gif" width="350" />

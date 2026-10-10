@@ -11,7 +11,7 @@
 | Kotlin 编译器与 metadata | 编译器 1.9.23，metadata 1.9 | 不通过依赖升级提高消费者编译器要求 |
 | Java/Kotlin 字节码 | 库 JVM 1.8；Demo/buildSrc JVM 17 | 构建 JDK 保持 17；字节码目标不代表 Android 标准库 API 可用性 |
 | 构建工具 | AGP 8.6.0、Gradle 8.14.3 | 调整先评估实际需求、官方支持范围和消费者影响 |
-| SDK | compileSdk/示例 targetSdk 36 | AGP 8.6 官方最高支持 API 35，支持范围尚待发布前评估 |
+| SDK | compileSdk/示例 targetSdk 36 | 本版保留已确认配置及支持范围风险；实测结果与官方支持范围见发布检查表 |
 | 公开 API | 1.0.5 类、构造、成员和枚举 | 不改旧 data class 主构造，不增加旧枚举值；对发布基线检查 JVM 签名 |
 
 库仓库的构建工具与消费者的接入要求分别评估。AAR 的 minCompileSdk、最低 AGP 元数据和 JVM 1.8 目标不能证明所有旧工具链兼容；Kotlin metadata、传递依赖、R8 和设备运行均需独立验证。公开 API 基线来源及原发布 AAR SHA-256 保存在 [api/ktoast-1.0.5.json](./api/ktoast-1.0.5.json)。

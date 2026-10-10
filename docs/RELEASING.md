@@ -2,7 +2,7 @@
 
 ## 当前状态与产物
 
-当前候选已通过 API 21、30、31、35、36 云端关键设备矩阵，尚未满足全部正式发布门槛。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留中间候选或沟通过程记录。
+Java 调试入口兼容修复后的候选已通过本地构建、API 与文档示例校验，API 21、30、31、35、36 云端关键设备矩阵待重跑，尚未满足全部正式发布门槛。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留中间候选或沟通过程记录。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -12,14 +12,14 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 构建使用 JDK 17、Gradle 8.14.3、AGP 8.6.0、Kotlin 1.9.23。库产物目标为 JVM 1.8，Demo/buildSrc 为 JVM 17；minSdk 21，生产依赖仍为 stdlib 1.9.23 与 Startup 1.1.1。
 
-- AGP 8.6 官方最高支持 API 35，当前 compileSdk 36 超出该范围。android.suppressUnsupportedCompileSdk 只压制提示；正式发布前须明确采用官方支持的构建组合或完成有证据的支持范围决策，不以压制提示作为认证。
+- AGP 8.6 官方最高支持 API 35，当前 compileSdk 36 超出该范围。android.suppressUnsupportedCompileSdk 只压制提示；维护者已选择本版保留当前配置并记录风险；已完成本地构建及消费者验证，但不以压制提示或设备运行作为官方支持认证。
 - AGP 7.2.2 消费者实测 Debug/R8 Release 构建通过，但内置 Lint 对 metadata 1.9 有解析诊断。JVM 1.8 消除了原高字节码警告，不代表修复该分析器限制，不承诺任意旧 AGP 或 Kotlin 编译器可用。
 - AAR minCompileSdk=1、minAndroidGradlePluginVersion=1.0.0、无需 core library desugaring 是元数据检查结果，不等于全部消费者组合得到认证。
 - 未裁剪 AAR 体积包含新增功能成本，不能直接等同于消费者最终 APK 增量；消费者体积评估应以相同构建条件下 R8 后结果为准。
 
 ## 验证矩阵
 
-以下设备与消费者运行证据来自 2026-10-10 的功能候选。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
+以下历史设备与消费者运行证据来自 2026-10-10 的功能候选；Java 调试入口修复后的设备证据待更新。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
 
 功能候选的设备证据与最新构建分开记录。发布配置收尾后，32 项 JVM 测试、库 Lint、AAR/sources/javadoc 与发布元数据生成、Demo/测试 APK 构建重新通过；文档生成、签名及 ZIP 工具另有下表所列验证。签名 Staging 的旧 AGP 消费者 Debug/R8 Release 构建通过，两种变体解析 SHA 与签名演练报告一致，R8 APK 在 API 24 新进程输出 PASS。演练后已恢复 SNAPSHOT Candidate，增强校验及默认消费者 Debug/R8 Release 构建通过，两个变体的解析 SHA 与当前候选报告一致。下表 API 37 的完整设备结果属于注释调整前的功能候选，未对发布配置收尾产物重复运行。
 
@@ -44,7 +44,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 API 33 的旧验证仅对应更早稳定性阶段，不用于认证当前完整 1.1 候选。设备测试的 SDK 过滤、fixture 跳过、失败和成功必须分别记录。无障碍、显示缺口、自由窗口的专用配置及恢复要求见 [TROUBLESHOOTING.md](../TROUBLESHOOTING.md)。
 
-当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。下述云端关键矩阵已运行通过，设备项按原始 Runner、R8 日志和产物报告核对；官方支持范围风险及专用场景覆盖限制继续保留。
+当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。下述历史云端关键矩阵已运行通过；本轮修改属性 setter 的 JVM synthetic 标记，产物发生变化，必须重新验证。设备项按原始 Runner、R8 日志和产物报告核对；官方支持范围风险及专用场景覆盖限制继续保留。
 
 ## 云端设备矩阵
 
@@ -64,7 +64,7 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。发布评估应保存工作流 URL、提交 SHA、各 result.json、instrumentation.txt、device-logcat.txt 与 R8 日志，核对 success=true、必需用例集合、实际 API、指纹、ABI、AAR/APK SHA 与新进程 PID。模拟器启动或下载失败只表示环境验证失败，不能改为通过；14 天后会过期，发版前应归档必要证据。远程运行通过后再更新上表，不能提前勾选发布门槛。AGP/compileSdk 支持范围仍需独立决策，设备矩阵不会改变其官方支持状态。
 
-### 已核验的云端结果
+### 历史云端结果（修复前候选）
 
 2026-10-10 的 [矩阵运行 #3](https://github.com/logan0817/KToast/actions/runs/38038268507) 整体成功，耗时 13 分 41 秒。运行源码提交为 67f63203b74900e8f5c4c329a9ab286b7fae1530，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、41 项 Python 工具回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建。
 
@@ -93,6 +93,14 @@ Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。�
 
 本次 Actions 提示部分固定版本使用已弃用的 Node 20，并由托管 Runner 强制使用 Node 24；setup-java v4 也提示弃用。构建和设备任务已实际成功，这些提示不改变 Android 消费者门槛；后续维护 CI 时须单独验证 Action 迁移，不能与库生产依赖升级混为一谈。
 
+## 文档与兼容修复终审
+
+README 中英文与页面说明的实际代码片段使用候选 AAR 编译：33 段 Kotlin、3 段 Java、5 段 XML 校验通过。补齐缺失 import、完整 Activity 示例及仅移除本库 Startup metadata 的配置，修正无效 Android drawable 和历史 Demo 链接；说明局部 DSL 的线程、页面取消与旧全局降级边界。八份权威 Markdown 的本地链接与敏感模式检查通过，没有新增沟通过程文档。
+
+真实 Java 示例编译发现 debugMode 属性 setter 与静态 setDebugMode(boolean) 歧义。本轮使用 @set:JvmSynthetic 对 Java 源码隐藏属性 setter，保留原 JVM 签名和 Kotlin 属性读写；独立消费者新增 Java 静态调用与 Kotlin 属性切换断言，Debug 与 R8 Release 构建均使用当前候选 AAR。旧公开类签名、major=52、metadata=1.9.0 和生产依赖校验通过，设备矩阵须针对修复后产物重新运行。
+
+正式签名所需 KTOAST_SIGNING_KEY、KTOAST_SIGNING_PASSWORD、KTOAST_PUBLIC_KEY_FILE、KTOAST_SIGNING_FINGERPRINT 尚未注入；本轮没有生成正式签名包。私钥与口令须在维护者受控环境注入，不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
+
 ## 本地检查顺序
 
 选择 Android Studio 项目相同的 JDK 17 和 SDK，在项目根目录执行：
@@ -109,10 +117,10 @@ PATH 中的 javap 须来自现有 JDK，也可给校验脚本传 --javap。Gradl
 
 ## 正式发布门槛
 
-- [x] API 21、API 30/31、API 35/36 代表版本的关键运行回归完成，记录真实设备、结果和未覆盖项。
-- [ ] AGP/compileSdk 官方支持范围完成评估并明确构建组合。
+- [ ] Java 调试入口修复后的 API 21、API 30/31、API 35/36 关键运行回归完成，记录真实设备、结果和未覆盖项。
+- [x] AGP/compileSdk 支持范围完成评估；维护者选择保留 AGP 8.6/compileSdk 36，明确记录超出官方支持范围的风险。
 - [ ] 最终候选的 API、metadata、依赖、源码包、R8 消费者及相关运行结果可追溯，验证报告与产物 SHA 一致。
-- [ ] README 中英文、页面说明、CHANGELOG、注释和实际行为一致；过程记录、敏感信息和临时文件不进入提交。
+- [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
 - [x] API 文档产物、环境变量签名、本地签名仓库及 Central 手工上传包生成流程完成，测试密钥演练通过。
 - [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。

@@ -59,8 +59,8 @@ import com.logan.ktoast.toast
 
 1. 初始化：默认自动初始化。只有你主动关闭 App Startup 时，才需要手动 `KToast.init(app)`。
 2. 显示策略：默认是 `REPLACE`，新 Toast 会替换旧 Toast。
-3. 前后台差异：前台优先走自定义气泡，后台或拿不到可用 `Activity` 时会自动降级为系统 Toast。
-4. 线程：普通 `toast()` 调用会自动切回主线程执行。
+3. 前后台差异：旧全局入口在前台优先走自定义气泡，后台或拿不到可用 `Activity` 时尝试降级为系统 Toast。1.1 页面作用域停止时取消，不转移到系统 Toast。
+4. 线程：窗口操作与回调在主线程执行；局部样式 DSL 在调用线程准备，避免直接操作 View。
 
 ## 快速开始
 
@@ -343,12 +343,14 @@ fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
 因为默认集成了 Jetpack App Startup。只有你主动关闭它，才需要自己调用：
 
 ```kotlin
+import com.logan.ktoast.KToast
+
 KToast.init(application)
 ```
 
 ### 2. 为什么前台是自定义样式，后台变成系统 Toast？
 
-这是 KToast 的保底策略。前台会优先走自定义渲染，后台或无可用 `Activity` 时自动降级为系统 Toast，避免直接失败。
+这是旧全局入口的降级策略：前台优先走自定义渲染，后台或无可用 `Activity` 时尝试系统 Toast。1.1 页面作用域绑定明确宿主，页面停止或渲染失败时取消，不转移页面或系统 Toast。
 
 ### 3. Android 11+ 为什么还需要这套实现？
 
@@ -367,13 +369,14 @@ KToast.init(application)
 1. 示例工程在 [`app`](./app) 模块。
 2. [MainActivity.kt](./app/src/main/java/com/logan/ktoastapp/MainActivity.kt) 展示了当前 Demo 页的完整能力入口。
 3. 业务封装示例在 [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt)。
-4. 你也可以直接下载 [Demo APK](https://raw.githubusercontent.com/logan0817/KToast/master/app/apk/app-debug.apk) 体验。
+4. 仓库保留了[历史 Demo APK](./app/apk/app-debug.apk)；体验当前 1.1 候选请从源码构建，历史 APK 不作为新功能验证依据。
 5. 效果展示 <img src="GIF.gif" width="350" />
 ## 进阶能力
 
 ### 1. 生命周期回调
 
 ```kotlin
+import com.logan.ktoast.toastHandle
 import com.logan.ktoast.runtime.KToastCallbacks
 
 "提交中".toastHandle(
@@ -420,7 +423,10 @@ import com.logan.ktoast.debugShow
 
 ## 版本兼容与实现说明
 
-1. 平台：Android 5.0+。2. 前台自定义渲染，后台自动降级。3. Kotlin 为主，也支持 Java 静态调用。4. 当前仓库同时包含库模块和 Demo 模块，适合直接本地验证。
+1. 平台：Android 5.0+。
+2. 旧全局入口前台优先自定义渲染，后台尝试系统降级；页面作用域随宿主停止取消。
+3. Kotlin 为主，也支持 Java 静态调用。
+4. 当前仓库同时包含库模块和 Demo 模块，适合直接本地验证。
 
 ## License
 

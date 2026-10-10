@@ -19,6 +19,7 @@
 - 宿主停止、销毁、窗口意外脱离及挂载后立即取消的清理问题；清理后自定义 View 可复用。
 - 组和消息组合去重键的分隔符碰撞，以及页面文字在非有限 maxWidthRatio 下宽度为零的问题。
 - Demo 的 edge-to-edge 页面补齐底部及侧边安全区域，避免滚动后按钮落入系统导航栏而无法点击。
+- debugMode 属性 setter 对 Java 源码隐藏，消除与静态 setDebugMode(boolean) 的调用歧义；保留 Kotlin 属性访问及旧 JVM 方法签名。
 
 ### 兼容与迁移
 

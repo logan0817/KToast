@@ -40,7 +40,7 @@ data class KToastConfig(
     /** 弹出/消失动画时长 (ms) */
     var animationDuration: Long = 250L,
 
-    /** 是否允许点击气泡立即消失 */
+    /** 是否允许点击气泡关闭；结束前执行配置的出场动画 */
     var cancelOnTouch: Boolean = false,
 
     /** 图标资源 ID (可选) */

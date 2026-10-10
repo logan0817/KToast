@@ -67,6 +67,8 @@ Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolba
 
 开启 `KToast.setDebugMode(true)` 查看窗口挂载、内容工厂、渲染和业务回调异常。调度层隔离业务回调异常并保证内部收尾，日志只用于诊断，不应包含敏感业务消息。
 
+1.0.5 的 debugMode 属性 setter 与静态 setDebugMode(boolean) 在 JVM 中同名，Java 源码直接调用可能出现歧义。1.1 候选将属性 setter 标记为 JVM synthetic，保留原签名和 Kotlin 属性访问，Java 使用静态入口即可；独立 Java/R8 消费者同时验证开关的实际启用和关闭。
+
 系统降级只能尝试显示：后台限流、通知状态和 ROM 策略可能导致系统 Toast 不可见。当前 onShow 表示渲染调用返回，系统 COMPLETED 表示本地预计时间到达，不代表真实送达。需要用户操作的前台消息应评估 Snackbar，后台重要消息应使用应用自己的通知方案。
 
 `ToastHandle.cancel()` 返回 true 表示接受首次取消请求；工作线程调用的实际清理与回调在主线程执行。终态后再取消返回 false。已显示的自定义提示随宿主停止、销毁或 View 脱离取消；全局未显示请求仍按原策略推进。页面独有消息可使用 [KToastScope](./docs/PAGE_SCOPE.md)，或由旧全局入口配合 groupKey/cancelGroup 清理。全局配置请在初始化或主线程统一设置，不支持一边跨线程修改可变配置、一边并发提交请求。

@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap
  * KToast 核心管理类 (Singleton)
  *
  * 负责全局配置管理、框架初始化以及 Toast 显示策略的调度。
- * 应通过 [init] 方法在 Application 中初始化，
- * 通过 [config] 方法进行全局样式的定制。
+ * 默认通过 AndroidX Startup 初始化；关闭自动初始化时须在 Application 中调用 [init]。
+ * 通过 [config] 定制全局样式；页面独有消息可使用 [KToastScope]。
  */
 object KToast {
 
@@ -85,6 +85,8 @@ object KToast {
      *
      * 建议在开发阶段开启，线上环境关闭。
      */
+    // 保留旧 setter 的 JVM 签名，但避免 Java 与静态 setDebugMode(boolean) 发生重载歧义。
+    @set:JvmSynthetic
     @Volatile var debugMode: Boolean = false
 
     /**

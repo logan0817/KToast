@@ -6,6 +6,8 @@ KToast 提供 Android 前台自定义提示、旧全局系统降级，以及可�
 
 默认通过 AndroidX Startup 初始化，关闭自动初始化时在 Application.onCreate 调用 KToast.init。全局配置在初始化或主线程统一设置，避免与其他线程的请求并发修改。
 
+Java 使用静态 KToast.setDebugMode(boolean) 设置调试开关；Kotlin 也可读写 debugMode 属性。属性 setter 保留旧 JVM 签名，但对 Java 源码隐藏，避免与静态方法产生歧义。
+
 KToastScope.create 必须在主线程调用。显示、句柄取消、作用域 cancel/close 可从工作线程调用；局部配置 DSL 在调用线程执行，内容工厂、窗口操作、业务回调和诊断在主线程执行。
 
 ## 页面消息

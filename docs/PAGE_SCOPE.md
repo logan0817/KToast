@@ -7,21 +7,49 @@
 `KToastScope.create(activity)` 必须在主线程创建，建议在 Activity 的 onCreate 中保存，在按钮事件等页面已启动的阶段显示。默认通过已有 Startup 初始化，关闭 Startup 时须先在 Application.onCreate 调用 KToast.init。
 
 ```kotlin
-private lateinit var toastScope: KToastScope
+import android.app.Activity
+import android.os.Bundle
+import com.logan.ktoast.KToastScope
+import com.logan.ktoast.runtime.ToastHandle
 
-override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    toastScope = KToastScope.create(this)
-}
+class EditorActivity : Activity() {
+    private lateinit var toastScope: KToastScope
 
-fun onSaved() {
-    toastScope.show("保存成功") {
-        animationDuration = 150L
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        toastScope = KToastScope.create(this)
     }
-}
 
-fun showLater(): ToastHandle =
-    toastScope.showDelayed("稍后提示", 2_000L)
+    fun onSaved() {
+        toastScope.show("保存成功") {
+            animationDuration = 150L
+        }
+    }
+
+    fun showLater(): ToastHandle =
+        toastScope.showDelayed("稍后提示", 2_000L)
+}
+```
+
+示例中的 onSaved/showLater 由页面已启动后的点击等事件调用。作用域自动观察 Activity 停止和销毁，无需为了自动清理再覆盖 onDestroy；业务需要提前结束时可显式 close。
+
+如果仅关闭本库的自动初始化，在应用 Manifest 合并规则中移除对应 metadata，并在 Application.onCreate 调用 KToast.init(this)，不要移除其他库需要的 Startup 初始化项：
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.logan.ktoast.initializer.KToastInitializer"
+                tools:node="remove" />
+        </provider>
+    </application>
+</manifest>
 ```
 
 页面作用域使用明确的 Activity，持有宿主弱引用，不通过全局栈顶选择其他页面。Activity 停止时，取消该作用域当前、排队、防抖、待主线程提交和延时请求；销毁时永久关闭并注销监听器。停止期间、关闭后、宿主结束后的新请求以 CANCELED 结束。停止后再回到前台可继续使用尚未关闭的作用域；Activity 重建后必须为新实例创建新作用域。
@@ -43,6 +71,9 @@ fun showLater(): ToastHandle =
 ## 现代窗口与无障碍适配
 
 ```kotlin
+import com.logan.ktoast.KToastScope
+import com.logan.ktoast.KToastScopeOptions
+
 val scope = KToastScope.create(
     this,
     KToastScopeOptions(
@@ -73,17 +104,39 @@ API 30+ 读取当前窗口指标和 Insets，旧版本使用宿主 DecorView 与
 ## Java 与诊断
 
 ```java
-KToastScope scope = KToastScope.create(this);
-KToastConfig style = new KToastConfig();
-style.setTextSize(16f);
-ToastHandle handle = scope.show("保存成功", style);
-ToastHandle delayed = scope.showDelayed("稍后提示", 2000L);
-delayed.cancel();
+import android.app.Activity;
+import android.os.Bundle;
+import com.logan.ktoast.KToastScope;
+import com.logan.ktoast.config.KToastConfig;
+import com.logan.ktoast.runtime.ToastHandle;
+
+public final class JavaEditorActivity extends Activity {
+    private KToastScope scope;
+
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        scope = KToastScope.create(this);
+    }
+
+    public ToastHandle onSaved() {
+        KToastConfig style = new KToastConfig();
+        style.setTextSize(16f);
+        return scope.show("保存成功", style);
+    }
+
+    public void cancelDelayedExample() {
+        ToastHandle delayed = scope.showDelayed("稍后提示", 2000L);
+        delayed.cancel();
+    }
+}
 ```
 
 传入的完整样式配置会被复制；该重载不应用主题默认色。公开配置类的原有构造、copy 和枚举没有改变。
 
 ```kotlin
+import com.logan.ktoast.KToastScopeOptions
+import com.logan.ktoast.runtime.KToastDiagnosticListener
+
 val options = KToastScopeOptions(
     diagnostics = KToastDiagnosticListener { handle, event, detail ->
         // 可按 handle.id 关联业务日志；避免记录敏感消息。
