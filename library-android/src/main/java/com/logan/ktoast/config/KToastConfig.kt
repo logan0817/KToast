@@ -58,7 +58,7 @@ data class KToastConfig(
     /** 文本最大行数 */
     var maxLines: Int = 4,
 
-    /** 最大宽度比例，相对屏幕宽度 */
+    /** 最大宽度比例：全局入口相对屏幕宽度，页面作用域相对宿主可用宽度 */
     var maxWidthRatio: Float = 0.8f,
 
     /** 最小宽度 (单位: dp) */

@@ -27,6 +27,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import com.logan.ktoast.KToast
+import com.logan.ktoast.KToastScope
 import com.logan.ktoast.debugShow
 import com.logan.ktoast.toast
 import com.logan.ktoast.toastHandle
@@ -49,9 +50,11 @@ class MainActivity : AppCompatActivity() {
 
     // 模拟延时任务的句柄，用于测试取消
     private var delayedTask: Runnable? = null
+    private lateinit var pageToastScope: KToastScope
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pageToastScope = KToastScope.create(this)
         _binding = ActivityMainBinding.inflate(layoutInflater)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(binding.root)
@@ -78,7 +81,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setListeners() {
         binding.btnBasic.setOnClickListener {
-            getString(R.string.demo_toast_basic).toast()
+            pageToastScope.show(getString(R.string.demo_toast_basic))
             recordAction(R.string.demo_basic_toast, R.string.demo_guide_try_style)
         }
 
@@ -248,7 +251,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnDelayed.setOnClickListener {
-            getString(R.string.demo_toast_delayed).toastDelayed(2000L)
+            pageToastScope.showDelayed(getString(R.string.demo_toast_delayed), 2000L)
             recordAction(R.string.demo_delayed_toast, R.string.demo_cancel_group)
         }
 
@@ -302,6 +305,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        pageToastScope.close()
         demoHandler.removeCallbacksAndMessages(null)
         KToast.cancelDelayed(delayedTask)
         delayedTask = null

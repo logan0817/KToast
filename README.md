@@ -289,7 +289,7 @@ import com.logan.ktoast.toast
 fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#4CAF50")
-        icon = android.R.drawable.ic_dialog_success
+        icon = android.R.drawable.ic_dialog_info
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -298,7 +298,7 @@ fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_error
+        icon = android.R.drawable.ic_dialog_alert
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -307,7 +307,7 @@ fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_warning
+        icon = android.R.drawable.ic_dialog_alert
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -326,8 +326,8 @@ fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
 | `backgroundColor` | Int | `#E6323232` | 背景色     |
 | `backgroundRadius` | Float | `24f` | 圆角      |
 | `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | 显示位置    |
-| `xOffset` | Int | `64` | 横向偏移    |
-| `yOffset` | Int | `64` | 纵向偏移    |
+| `xOffset` | Int | `0` | 横向偏移（px） |
+| `yOffset` | Int | 初始化时读取系统值，失败时 64dp | 纵向偏移（px）；配置类初始值为 64px |
 | `animationDuration` | Long | `250` | 动画时长    |
 | `cancelOnTouch` | Boolean | `false` | 是否点击关闭  |
 | `icon` | Int? | `null` | 图标资源    |
@@ -397,6 +397,26 @@ import com.logan.ktoast.debugShow
 调用链如下：
 
 ![KToast 调用链](./docs/images/toast-call-flow-zh.svg)
+
+## 下一版本候选：1.1.0
+
+1.1.0 候选提供 Activity 页面作用域、延时句柄、窗口约束、可选输入法避让、无障碍时长、主题与诊断能力。使用规则、Java 示例及兼容边界见 [页面作用域](./docs/PAGE_SCOPE.md)；以下稳定性修复包含在该候选中。
+
+当前 Maven Central 发布版本仍为 1.0.5。仓库中的稳定性候选修复保留 Android 5.0+、Kotlin 1.9.23、Startup 1.1.1 和原公开接口，不要求使用方引入 Compose、Material 或协程。
+
+候选库产物使用 JVM 1.8 字节码，仓库仍用 JDK 17 构建，以降低旧 D8/R8 的接入限制。Kotlin metadata 与依赖要求保持不变，具体实测组合和限制见发布检查表。Demo 的基础提示与普通延时按钮使用页面作用域，可验证页面停止后的取消行为。
+
+- 替换和批量取消先完成内部状态转换，再发送业务回调；回调重入不会留下未结束的旧句柄。
+- `ToastHandle.cancel()` 可在工作线程调用，也可在请求等待主线程入队时调用。返回 `true` 表示首次接受取消请求，实际清理和回调在主线程执行；重复取消或终态取消返回 `false`。
+- `onCancel`、`onDismiss` 等回调异常会被隔离，不中断后续请求；开启 Debug 模式可查看具体异常。终态回调最多执行一次。
+- 旧全局入口在自定义内容创建或窗口挂载失败时尝试系统降级；页面作用域失败时取消，不转移页面或系统 Toast。最终渲染异常以已有 `CANCELED` 原因结束，保持枚举兼容。
+- 已挂载提示的宿主停止、销毁或内容意外脱离窗口时，取消该提示并释放任务和监听器。未显示的全局队列仍按既有策略继续处理；页面作用域会取消本页面全部待处理请求。
+- 显示后立即取消，即使内容尚未附着也会移除已注册窗口；清理完成后可复用同一个自定义 View。
+- 全局 `KToast.cancel()` 清理当前、排队、防抖、等待主线程的提交与延时任务；终态回调中新提交的请求保留。
+
+`onShow` 保留原有“渲染调用返回”的语义；系统 Toast 的完成时间仍由本地计时估计。系统可能排队、限流或拦截，降级与完成回调均不代表送达保证。
+
+版本变化见 [CHANGELOG.md](./CHANGELOG.md)，后续路线见 [版本路线](./docs/ROADMAP.md)，验证矩阵与发布步骤见 [发布检查表](./docs/RELEASING.md)，本地构建与排障见 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)。
 
 ## 版本兼容与实现说明
 

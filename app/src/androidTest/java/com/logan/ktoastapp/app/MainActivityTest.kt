@@ -32,8 +32,8 @@ class MainActivityTest {
 
     @Test
     fun launchMainActivity_showsScenarioCardsAndDashboard() {
-        onView(withId(R.id.tvStatusPermission)).check(matches(isDisplayed()))
-        onView(withText(R.string.demo_card_smoke_title)).check(matches(isDisplayed()))
+        onView(withId(R.id.tvStatusPermission)).perform(scrollTo()).check(matches(isDisplayed()))
+        onView(withText(R.string.demo_card_smoke_title)).perform(scrollTo()).check(matches(isDisplayed()))
         onView(withId(R.id.btnJava)).perform(scrollTo()).check(matches(isDisplayed()))
         onView(withId(R.id.btnCancelAll)).perform(scrollTo()).check(matches(isDisplayed()))
     }

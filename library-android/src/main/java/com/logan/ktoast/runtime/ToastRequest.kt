@@ -1,6 +1,7 @@
 package com.logan.ktoast.runtime
 
 import com.logan.ktoast.config.KToastConfig
+import com.logan.ktoast.KToastScope
 
 internal data class ToastRequest(
     val message: CharSequence,
@@ -8,8 +9,9 @@ internal data class ToastRequest(
     val config: KToastConfig? = null,
     val behavior: KToastBehavior = KToastBehavior(),
     val callbacks: KToastCallbacks = KToastCallbacks(),
-    val handle: ToastHandle = ToastHandle()
+    val handle: ToastHandle = ToastHandle(),
+    val scope: KToastScope? = null
 ) {
-    val dedupeKey: String
-        get() = "${behavior.groupKey.orEmpty()}::${message}"
+    val dedupeKey: Triple<Long?, String, String>
+        get() = Triple(scope?.id, behavior.groupKey.orEmpty(), message.toString())
 }

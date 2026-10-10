@@ -11,6 +11,10 @@ object KActivityStack {
 
     // 使用弱引用防止内存泄漏
     private var topActivityWeak: WeakReference<Activity>? = null
+    private val startedActivities = mutableListOf<WeakReference<Activity>>()
+
+    internal fun isStarted(activity: Activity): Boolean =
+        startedActivities.any { it.get() === activity }
 
     /**
      * 判断应用是否处于前台
@@ -36,10 +40,14 @@ object KActivityStack {
 
             override fun onActivityStarted(activity: Activity) {
                 foregroundActivityCount++
+                startedActivities.removeAll { it.get() == null || it.get() === activity }
+                startedActivities.add(WeakReference(activity))
             }
 
             override fun onActivityStopped(activity: Activity) {
                 foregroundActivityCount = (foregroundActivityCount - 1).coerceAtLeast(0)
+                startedActivities.removeAll { it.get() == null || it.get() === activity }
+                if (getTopActivity() === activity) topActivityWeak = null
             }
 
             // 必须实现的接口方法，根据需要选填

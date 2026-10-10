@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import android.widget.Toast
 import com.logan.ktoast.config.KToastConfig
 import com.logan.ktoast.config.KToastConfigFactory
@@ -18,6 +19,7 @@ import com.logan.ktoast.strategy.SystemToastStrategy
 import com.logan.ktoast.strategy.ToastPresentationListener
 import com.logan.ktoast.utils.KActivityStack
 import com.logan.ktoast.utils.KToastUtils
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * KToast 核心管理类 (Singleton)
@@ -30,6 +32,7 @@ object KToast {
 
     /** 全局 Application 上下文 */
     internal lateinit var context: Application
+    @Volatile private var initialized = false
 
     /** 主线程 Handler，用于调度 UI 操作和延时任务 */
     internal val mainHandler = Handler(Looper.getMainLooper())
@@ -41,7 +44,9 @@ object KToast {
             }
 
             override fun cancelActive(reason: ToastHandle.DismissReason) {
-                currentStrategy?.cancel(reason)
+                val strategy = currentStrategy
+                currentStrategy = null
+                strategy?.cancel(reason)
             }
         },
         scheduler = object : ToastDispatcher.Scheduler {
@@ -56,7 +61,10 @@ object KToast {
                 }
             }
         },
-        nowProvider = { SystemClock.uptimeMillis() }
+        nowProvider = { SystemClock.uptimeMillis() },
+        onError = { error ->
+            if (debugMode) Log.e("KToast", "Toast request or callback failed.", error)
+        }
     )
 
     /** 全局配置对象，存储默认样式 */
@@ -64,6 +72,10 @@ object KToast {
 
     /** 当前正在显示的策略实例，用于处理连续调用时的取消逻辑 */
     private var currentStrategy: IToastStrategy? = null
+    private val pendingSubmissions = ConcurrentHashMap<Long, ToastRequest>()
+    private val delayedTasks = mutableSetOf<Runnable>()
+    private val scheduledSubmissions = mutableMapOf<Long, Runnable>()
+    private val initLock = Any()
 
     /**
      * 调试模式开关
@@ -73,7 +85,7 @@ object KToast {
      *
      * 建议在开发阶段开启，线上环境关闭。
      */
-    var debugMode: Boolean = false
+    @Volatile var debugMode: Boolean = false
 
     /**
      * 检查 KToast 是否已完成初始化。
@@ -82,7 +94,7 @@ object KToast {
      */
     @JvmStatic
     fun isInitialized(): Boolean {
-        return this::context.isInitialized
+        return initialized
     }
 
     /**
@@ -95,13 +107,15 @@ object KToast {
      */
     @JvmStatic
     fun init(app: Application) {
-        // 初始化逻辑：仅在 context 未初始化时执行（通常是自动初始化那次）
-        if (!isInitialized()) {
-            this.context = app
-            // 注册生命周期监听
-            KActivityStack.register(app)
-            // 使用工厂创建系统适配的默认配置
-            globalConfig = KToastConfigFactory.createDefault(app)
+        synchronized(initLock) {
+            // 初始化逻辑：仅在 context 未初始化时执行（通常是自动初始化那次）
+            if (!isInitialized()) {
+                globalConfig = KToastConfigFactory.createDefault(app)
+                KActivityStack.register(app)
+                // 最后发布初始化标记，避免其他线程观察到尚未准备好的全局配置。
+                this.context = app
+                initialized = true
+            }
         }
     }
 
@@ -115,7 +129,7 @@ object KToast {
     }
 
     /**
-     * 全局样式配置 DSL
+     * 全局样式配置 DSL。建议在初始化或主线程统一设置，不与其他线程的请求并发修改。
      *
      * 示例：
      * ```kotlin
@@ -132,12 +146,10 @@ object KToast {
     }
 
     /**
-     * 核心显示方法 (Internal)
+     * 全局显示入口，保留按应用前后台状态选择渲染策略的行为。
      *
-     * 内部负责：
-     * 1. 切换至主线程。
-     * 2. 合并全局配置与局部配置。
-     * 3. 根据应用前后台状态，智能选择渲染策略。
+     * 配置副本与局部 DSL 在调用线程准备；DSL 应保持轻量，避免直接操作 View。
+     * 内容工厂、窗口操作和业务回调在主线程执行。页面独有消息应使用 [KToastScope]。
      */
     @JvmStatic
     @JvmOverloads
@@ -164,7 +176,12 @@ object KToast {
     @JvmStatic
     fun cancelGroup(groupKey: String) {
         KToastUtils.runOnMainThread {
-            dispatcher.cancelGroup(groupKey)
+            val pending = pendingSubmissions.values.filter { it.behavior.groupKey == groupKey }
+            pending.forEach {
+                pendingSubmissions.remove(it.handle.id)
+                removeScheduledSubmission(it.handle.id)
+            }
+            dispatcher.cancelGroup(groupKey, pending)
         }
     }
 
@@ -188,11 +205,86 @@ object KToast {
             handle = ToastHandle()
         )
 
-        // 确保在主线程执行显示逻辑
+        // 先准备取消能力，避免工作线程返回句柄后、主线程入队前无法撤回。
+        dispatcher.prepare(request, KToastUtils::runOnMainThread)
+        pendingSubmissions[request.handle.id] = request
         KToastUtils.runOnMainThread {
+            pendingSubmissions.remove(request.handle.id)
             dispatcher.submit(request)
         }
         return request.handle
+    }
+
+    internal fun submitScopedRequest(
+        scope: KToastScope,
+        message: CharSequence,
+        delayMillis: Long,
+        duration: Int,
+        behavior: KToastBehavior,
+        callbacks: KToastCallbacks,
+        localConfig: (KToastConfig.() -> Unit)?,
+        explicitConfig: KToastConfig? = null
+    ): ToastHandle {
+        KToastUtils.checkInit()
+        // 配置准备可发生在工作线程；取消或页面停止后恢复也不能复活旧请求。
+        val generation = scope.submissionGeneration()
+        val submittedAt = SystemClock.uptimeMillis()
+        val config = (explicitConfig ?: globalConfig).copy()
+        if (explicitConfig == null && scope.options.followHostTheme) {
+            scope.host()?.let { host ->
+                val colors = host.obtainStyledAttributes(R.styleable.KToastHostTheme)
+                try {
+                    config.backgroundColor = colors.getColor(R.styleable.KToastHostTheme_android_colorBackground, config.backgroundColor)
+                    config.textColor = colors.getColor(R.styleable.KToastHostTheme_android_textColorPrimary, config.textColor)
+                } finally {
+                    colors.recycle()
+                }
+            }
+        }
+        localConfig?.invoke(config)
+        val dueAt = submittedAt + delayMillis.coerceIn(0L, Long.MAX_VALUE - submittedAt)
+        val request = ToastRequest(message, duration, config, behavior.copy(), callbacks, ToastHandle(), scope)
+        dispatcher.prepare(request) { action ->
+            KToastUtils.runOnMainThread {
+                removeScheduledSubmission(request.handle.id)
+                pendingSubmissions.remove(request.handle.id)
+                action()
+            }
+        }
+        pendingSubmissions[request.handle.id] = request
+        KToastUtils.runOnMainThread {
+            if (generation == null || !scope.canShow(generation) || request.handle.isCancellationRequested || request.handle.isFinished) {
+                pendingSubmissions.remove(request.handle.id)
+                dispatcher.cancelPreparedRequest(request)
+            } else if (dueAt > SystemClock.uptimeMillis()) {
+                val task = Runnable {
+                    scheduledSubmissions.remove(request.handle.id)
+                    pendingSubmissions.remove(request.handle.id)
+                    dispatcher.submit(request)
+                }
+                scheduledSubmissions[request.handle.id] = task
+                mainHandler.postDelayed(task, (dueAt - SystemClock.uptimeMillis()).coerceAtLeast(0L))
+            } else {
+                pendingSubmissions.remove(request.handle.id)
+                dispatcher.submit(request)
+            }
+        }
+        return request.handle
+    }
+
+    internal fun cancelScope(scopeId: Long) {
+        KToastUtils.runOnMainThread {
+            val pending = pendingSubmissions.values.filter { it.scope?.id == scopeId }
+            pending.forEach {
+                pendingSubmissions.remove(it.handle.id)
+                removeScheduledSubmission(it.handle.id)
+            }
+            dispatcher.cancelScope(scopeId, pending)
+        }
+    }
+
+    private fun removeScheduledSubmission(handleId: Long) {
+        scheduledSubmissions.remove(handleId)?.let { mainHandler.removeCallbacks(it) }
     }
 
     /**
@@ -253,10 +345,19 @@ object KToast {
     ): Runnable {
         KToastUtils.checkInit()
 
-        val task = Runnable {
-            show(message, duration, localConfig)
+        val task = object : Runnable {
+            override fun run() {
+                val accepted = synchronized(delayedTasks) { delayedTasks.remove(this) }
+                if (accepted) {
+                    mainHandler.removeCallbacks(this)
+                    show(message, duration, localConfig)
+                }
+            }
         }
-        mainHandler.postDelayed(task, delayMillis)
+        synchronized(delayedTasks) {
+            delayedTasks.add(task)
+            mainHandler.postDelayed(task, delayMillis)
+        }
         return task
     }
 
@@ -265,24 +366,37 @@ object KToast {
      */
     @JvmStatic
     fun cancelDelayed(task: Runnable?) {
-        task?.let { mainHandler.removeCallbacks(it) }
+        if (task == null) return
+        synchronized(delayedTasks) {
+            delayedTasks.remove(task)
+            mainHandler.removeCallbacks(task)
+        }
     }
 
     /**
-     * 取消当前正在显示的 Toast，并且取消所有还在排队的延时任务。
-     * 通常用于页面销毁时清理，或者需要立即打断提示的场景。
+     * 取消全局及页面作用域的当前、排队、防抖、待提交和延时请求。
+     * 工作线程调用时在主线程清理；终态回调中新提交的请求保留。
+     * 仅清理一个页面的消息时使用 [KToastScope.cancel]。
      */
     @JvmStatic
     fun cancel() {
         KToastUtils.runOnMainThread {
-            dispatcher.cancelAll()
-            currentStrategy = null
-            mainHandler.removeCallbacksAndMessages(null)
+            synchronized(delayedTasks) {
+                delayedTasks.forEach { mainHandler.removeCallbacks(it) }
+                delayedTasks.clear()
+            }
+            val pending = pendingSubmissions.values.toList()
+            pending.forEach {
+                pendingSubmissions.remove(it.handle.id)
+                removeScheduledSubmission(it.handle.id)
+            }
+            // 保留已投递的提交/取消操作，让句柄能够收到终态；避免清空整个 Handler。
+            dispatcher.cancelAll(pending)
         }
     }
 
     private fun presentRequest(request: ToastRequest) {
-        var activeStrategy: IToastStrategy = if (KActivityStack.isAppForeground()) {
+        var activeStrategy: IToastStrategy = if (request.scope != null || KActivityStack.isAppForeground()) {
             ModernToastStrategy()
         } else {
             SystemToastStrategy()
@@ -298,7 +412,7 @@ object KToast {
             }
 
             override fun onDismiss(handle: ToastHandle, reason: ToastHandle.DismissReason) {
-                if (currentStrategy === activeStrategy || reason == ToastHandle.DismissReason.CANCELED) {
+                if (currentStrategy === activeStrategy) {
                     currentStrategy = null
                 }
                 dispatcher.onPresentationFinished(handle, reason)

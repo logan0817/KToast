@@ -5,7 +5,8 @@ import java.util.ArrayDeque
 internal class ToastDispatcher(
     private val runtime: Runtime,
     private val scheduler: Scheduler,
-    private val nowProvider: () -> Long
+    private val nowProvider: () -> Long,
+    private val onError: (Exception) -> Unit = {}
 ) {
 
     fun interface Cancellable {
@@ -22,213 +23,320 @@ internal class ToastDispatcher(
     }
 
     private val queue = ArrayDeque<ToastRequest>()
-    private val acceptedAt = mutableMapOf<String, Long>()
+    private val acceptedAt = mutableMapOf<Triple<Long?, String, String>, Long>()
+    private val operations = ArrayDeque<() -> Unit>()
+    private val callbacks = ArrayDeque<() -> Unit>()
+    private var draining = false
 
     private var activeRequest: ToastRequest? = null
-    private var debouncedRequest: ToastRequest? = null
-    private var debounceTask: Cancellable? = null
-    private var pausePromotion = false
+    private val debouncedRequests = mutableMapOf<Long?, ToastRequest>()
+    private val debounceTasks = mutableMapOf<Long?, Cancellable>()
+
+    // 仅安装句柄委托，可在提交到主线程前调用；所有调度状态仍由 execute 切回主线程修改。
+    fun prepare(request: ToastRequest, execute: (() -> Unit) -> Unit = { it() }) {
+        request.handle.attachCancelDelegate {
+            execute { cancelPreparedRequest(request) }
+            true
+        }
+    }
 
     fun submit(request: ToastRequest): ToastHandle {
-        request.handle.attachCancelDelegate {
-            cancelHandle(request.handle, ToastHandle.DismissReason.CANCELED, notifyRuntime = true)
-        }
-
-        return when (request.behavior.displayMode) {
-            KToastDisplayMode.REPLACE -> {
-                replaceWith(request)
-                request.handle
+        prepare(request)
+        dispatch {
+            if (request.handle.isFinished) return@dispatch
+            if (request.handle.isCancellationRequested || request.scope?.canShow() == false) {
+                finishRequest(request, ToastHandle.DismissReason.CANCELED)
+                return@dispatch
             }
-
-            KToastDisplayMode.QUEUE -> {
-                enqueueOrShow(request)
-                request.handle
-            }
-
-            KToastDisplayMode.IGNORE_IF_SAME -> {
-                if (shouldIgnore(request)) {
-                    finishRequest(request, ToastHandle.DismissReason.IGNORED)
-                } else {
-                    acceptedAt[request.dedupeKey] = nowProvider()
-                    enqueueOrShow(request)
+            when (request.behavior.displayMode) {
+                KToastDisplayMode.REPLACE -> replaceWith(request)
+                KToastDisplayMode.QUEUE -> enqueueOrShow(request)
+                KToastDisplayMode.IGNORE_IF_SAME -> {
+                    if (shouldIgnore(request)) {
+                        finishRequest(request, ToastHandle.DismissReason.IGNORED)
+                    } else {
+                        acceptedAt[request.dedupeKey] = nowProvider()
+                        enqueueOrShow(request)
+                    }
                 }
-                request.handle
-            }
-
-            KToastDisplayMode.DEBOUNCE -> {
-                scheduleDebounced(request)
-                request.handle
+                KToastDisplayMode.DEBOUNCE -> scheduleDebounced(request)
             }
         }
+        return request.handle
     }
 
     fun onFallbackToSystem(handle: ToastHandle) {
-        findRequest(handle)?.callbacks?.onFallbackToSystem?.invoke(handle)
+        val request = findRequest(handle) ?: return
+        request.callbacks.onFallbackToSystem?.let { callback ->
+            callbacks.addLast { callback(handle) }
+        }
+        dispatch {}
     }
 
-    fun onPresentationFinished(
-        handle: ToastHandle,
-        reason: ToastHandle.DismissReason
-    ) {
-        val request = activeRequest?.takeIf { it.handle.id == handle.id } ?: return
-        activeRequest = null
-        finishRequest(request, reason)
-        if (!pausePromotion) {
+    fun onPresentationFinished(handle: ToastHandle, reason: ToastHandle.DismissReason) {
+        dispatch {
+            val request = activeRequest?.takeIf { it.handle.id == handle.id } ?: return@dispatch
+            activeRequest = null
+            finishRequest(request, reason)
             promoteNext()
         }
     }
 
-    fun cancelAll() {
-        pausePromotion = true
-        try {
-            activeRequest?.handle?.let {
-                cancelHandle(it, ToastHandle.DismissReason.CANCELED, notifyRuntime = true)
+    fun onPresentationError(handle: ToastHandle, error: Exception) {
+        reportError(error)
+        val request = findRequest(handle) ?: return
+        diagnostic(request, KToastDiagnosticEvent.ERROR, error.javaClass.name)
+        dispatch {}
+    }
+
+    fun cancelAll(pendingSubmissions: List<ToastRequest> = emptyList()) {
+        dispatch {
+            val active = activeRequest
+            activeRequest = null
+            val pending = takeQueuedRequests() + pendingSubmissions
+            if (active != null) {
+                cancelRuntime(ToastHandle.DismissReason.CANCELED)
+                finishRequest(active, ToastHandle.DismissReason.CANCELED)
             }
-            clearQueuedRequests(ToastHandle.DismissReason.CANCELED)
-        } finally {
-            pausePromotion = false
+            pending.forEach { finishRequest(it, ToastHandle.DismissReason.CANCELED) }
         }
     }
 
-    fun cancelGroup(groupKey: String): Boolean {
+    fun cancelGroup(groupKey: String, pendingSubmissions: List<ToastRequest> = emptyList()): Boolean {
         var canceled = false
-        pausePromotion = true
-        try {
-            activeRequest?.takeIf { it.behavior.groupKey == groupKey }?.let {
-                canceled = cancelHandle(it.handle, ToastHandle.DismissReason.CANCELED, notifyRuntime = true) || canceled
-            }
-
-            val queuedMatches = queue.filter { it.behavior.groupKey == groupKey }
-            for (request in queuedMatches) {
-                queue.remove(request)
-                finishRequest(request, ToastHandle.DismissReason.CANCELED)
-                canceled = true
-            }
-
-            debouncedRequest?.takeIf { it.behavior.groupKey == groupKey }?.let {
-                debouncedRequest = null
-                debounceTask?.cancel()
-                debounceTask = null
+        dispatch {
+            val matches = queue.filter { it.behavior.groupKey == groupKey }
+            matches.forEach { queue.remove(it) }
+            matches.forEach { finishRequest(it, ToastHandle.DismissReason.CANCELED) }
+            pendingSubmissions.filter { it.behavior.groupKey == groupKey }.forEach {
                 finishRequest(it, ToastHandle.DismissReason.CANCELED)
                 canceled = true
             }
-        } finally {
-            pausePromotion = false
-        }
-        if (canceled) {
+            debouncedRequests.values.filter { it.behavior.groupKey == groupKey }.forEach {
+                clearDebounce(it.scope?.id)
+                finishRequest(it, ToastHandle.DismissReason.CANCELED)
+                canceled = true
+            }
+            activeRequest?.takeIf { it.behavior.groupKey == groupKey }?.let {
+                activeRequest = null
+                cancelRuntime(ToastHandle.DismissReason.CANCELED)
+                finishRequest(it, ToastHandle.DismissReason.CANCELED)
+                canceled = true
+            }
+            canceled = canceled || matches.isNotEmpty()
             promoteNext()
         }
         return canceled
     }
 
+    fun cancelScope(scopeId: Long, pendingSubmissions: List<ToastRequest> = emptyList()) {
+        dispatch {
+            val matches = queue.filter { it.scope?.id == scopeId }
+            matches.forEach { queue.remove(it) }
+            val debounced = debouncedRequests[scopeId]
+            clearDebounce(scopeId)
+            val active = activeRequest?.takeIf { it.scope?.id == scopeId }
+            if (active != null) {
+                activeRequest = null
+                cancelRuntime(ToastHandle.DismissReason.CANCELED)
+                finishRequest(active, ToastHandle.DismissReason.CANCELED)
+            }
+            (matches + listOfNotNull(debounced) + pendingSubmissions).forEach {
+                finishRequest(it, ToastHandle.DismissReason.CANCELED)
+            }
+            // 页面生命周期结束后释放该页面历史，避免 scope ID 的去重记录持续累积。
+            acceptedAt.keys.removeAll { it.first == scopeId }
+            promoteNext()
+        }
+    }
+
+    fun cancelPreparedRequest(request: ToastRequest) {
+        dispatch {
+            if (request.handle.isFinished) return@dispatch
+            when {
+                activeRequest?.handle?.id == request.handle.id -> {
+                    activeRequest = null
+                    cancelRuntime(ToastHandle.DismissReason.CANCELED)
+                }
+                debouncedRequests[request.scope?.id]?.handle?.id == request.handle.id ->
+                    clearDebounce(request.scope?.id)
+                else -> queue.remove(request)
+            }
+            finishRequest(request, ToastHandle.DismissReason.CANCELED)
+            promoteNext()
+        }
+    }
+
     private fun shouldIgnore(request: ToastRequest): Boolean {
         val lastAcceptedAt = acceptedAt[request.dedupeKey] ?: return false
         val withinWindow = nowProvider() - lastAcceptedAt < request.behavior.windowMillis
-        if (!withinWindow) {
-            acceptedAt.remove(request.dedupeKey)
-        }
+        if (!withinWindow) acceptedAt.remove(request.dedupeKey)
         return withinWindow
     }
 
     private fun replaceWith(request: ToastRequest) {
-        activeRequest?.let {
-            runtime.cancelActive(ToastHandle.DismissReason.REPLACED)
-            onPresentationFinished(it.handle, ToastHandle.DismissReason.REPLACED)
+        if (request.scope != null) {
+            val scopeId = request.scope.id
+            val matches = queue.filter { it.scope?.id == scopeId }
+            matches.forEach { queue.remove(it) }
+            val debounced = debouncedRequests[scopeId]
+            clearDebounce(scopeId)
+            val active = activeRequest?.takeIf { it.scope?.id == scopeId }
+            if (active != null) {
+                activeRequest = null
+                cancelRuntime(ToastHandle.DismissReason.REPLACED)
+                finishRequest(active, ToastHandle.DismissReason.REPLACED)
+            }
+            (matches + listOfNotNull(debounced)).forEach {
+                finishRequest(it, ToastHandle.DismissReason.REPLACED)
+            }
+            enqueueOrShow(request)
+            return
         }
-        clearQueuedRequests(ToastHandle.DismissReason.REPLACED)
+        val active = activeRequest
+        activeRequest = null
+        val pending = takeQueuedRequests()
+        if (active != null) {
+            cancelRuntime(ToastHandle.DismissReason.REPLACED)
+            finishRequest(active, ToastHandle.DismissReason.REPLACED)
+        }
+        pending.forEach { finishRequest(it, ToastHandle.DismissReason.REPLACED) }
         showNow(request)
     }
 
     private fun enqueueOrShow(request: ToastRequest) {
-        if (activeRequest == null) {
-            showNow(request)
-        } else {
-            queue.addLast(request)
-        }
+        if (activeRequest == null) showNow(request) else queue.addLast(request)
     }
 
     private fun showNow(request: ToastRequest) {
+        if (request.handle.isFinished || request.handle.isCancellationRequested || request.scope?.canShow() == false) {
+            finishRequest(request, ToastHandle.DismissReason.CANCELED)
+            dispatch { promoteNext() }
+            return
+        }
         activeRequest = request
         request.handle.markShowing()
-        runtime.show(request)
-        request.callbacks.onShow?.invoke(request.handle)
+        try {
+            runtime.show(request)
+            request.callbacks.onShow?.let { callback ->
+                callbacks.addLast { callback(request.handle) }
+            }
+            diagnostic(request, KToastDiagnosticEvent.SHOWN)
+        } catch (error: Exception) {
+            reportError(error)
+            diagnostic(request, KToastDiagnosticEvent.ERROR, error.javaClass.name)
+            activeRequest = null
+            cancelRuntime(ToastHandle.DismissReason.CANCELED)
+            // 保留既有枚举；渲染失败以 CANCELED 收尾，调试日志提供具体原因。
+            finishRequest(request, ToastHandle.DismissReason.CANCELED)
+            dispatch { promoteNext() }
+        }
     }
 
     private fun scheduleDebounced(request: ToastRequest) {
-        debouncedRequest?.let {
-            finishRequest(it, ToastHandle.DismissReason.DEBOUNCED)
-        }
-        debounceTask?.cancel()
-        debouncedRequest = request
-        debounceTask = scheduler.schedule(request.behavior.windowMillis) {
-            val latestRequest = debouncedRequest ?: return@schedule
-            debouncedRequest = null
-            debounceTask = null
-            enqueueOrShow(latestRequest)
+        val scopeId = request.scope?.id
+        val previous = debouncedRequests[scopeId]
+        clearDebounce(scopeId)
+        previous?.let { finishRequest(it, ToastHandle.DismissReason.DEBOUNCED) }
+        debouncedRequests[scopeId] = request
+        try {
+            debounceTasks[scopeId] = scheduler.schedule(request.behavior.windowMillis) {
+                dispatch {
+                    // 取消后的旧定时回调不能消费后续请求。
+                    if (debouncedRequests[scopeId] !== request) return@dispatch
+                    debouncedRequests.remove(scopeId)
+                    debounceTasks.remove(scopeId)
+                    enqueueOrShow(request)
+                }
+            }
+        } catch (error: Exception) {
+            reportError(error)
+            diagnostic(request, KToastDiagnosticEvent.ERROR, error.javaClass.name)
+            clearDebounce(scopeId)
+            finishRequest(request, ToastHandle.DismissReason.CANCELED)
         }
     }
 
     private fun promoteNext() {
-        if (activeRequest != null) return
-        if (queue.isEmpty()) return
-        val next = queue.removeFirst()
-        showNow(next)
+        if (activeRequest == null && queue.isNotEmpty()) showNow(queue.removeFirst())
     }
 
-    private fun clearQueuedRequests(reason: ToastHandle.DismissReason) {
-        while (queue.isNotEmpty()) {
-            finishRequest(queue.removeFirst(), reason)
-        }
-        debouncedRequest?.let {
-            debouncedRequest = null
-            debounceTask?.cancel()
-            debounceTask = null
-            finishRequest(it, reason)
+    private fun takeQueuedRequests(): List<ToastRequest> {
+        val pending = queue.toMutableList()
+        queue.clear()
+        pending.addAll(debouncedRequests.values)
+        debouncedRequests.keys.toList().forEach { clearDebounce(it) }
+        return pending
+    }
+
+    private fun clearDebounce(scopeId: Long?) {
+        debouncedRequests.remove(scopeId)
+        val task = debounceTasks.remove(scopeId)
+        try {
+            task?.cancel()
+        } catch (error: Exception) {
+            reportError(error)
         }
     }
 
-    private fun cancelHandle(
-        handle: ToastHandle,
-        reason: ToastHandle.DismissReason,
-        notifyRuntime: Boolean
-    ): Boolean {
-        activeRequest?.takeIf { it.handle.id == handle.id }?.let {
-            if (notifyRuntime) {
-                runtime.cancelActive(reason)
-            }
-            onPresentationFinished(handle, reason)
-            return true
+    private fun cancelRuntime(reason: ToastHandle.DismissReason) {
+        try {
+            runtime.cancelActive(reason)
+        } catch (error: Exception) {
+            reportError(error)
         }
-        val queued = queue.firstOrNull { it.handle.id == handle.id }
-        if (queued != null) {
-            queue.remove(queued)
-            finishRequest(queued, reason)
-            return true
-        }
-        debouncedRequest?.takeIf { it.handle.id == handle.id }?.let {
-            debouncedRequest = null
-            debounceTask?.cancel()
-            debounceTask = null
-            finishRequest(it, reason)
-            return true
-        }
-        return false
     }
 
-    private fun finishRequest(
-        request: ToastRequest,
-        reason: ToastHandle.DismissReason
-    ) {
-        request.handle.markDismissed(reason)
+    private fun finishRequest(request: ToastRequest, reason: ToastHandle.DismissReason) {
+        if (!request.handle.markDismissed(reason)) return
         if (reason == ToastHandle.DismissReason.CANCELED) {
-            request.callbacks.onCancel?.invoke(request.handle)
+            request.callbacks.onCancel?.let { callback ->
+                callbacks.addLast { callback(request.handle) }
+            }
         }
-        request.callbacks.onDismiss?.invoke(request.handle, reason)
+        request.callbacks.onDismiss?.let { callback ->
+            callbacks.addLast { callback(request.handle, reason) }
+        }
+        diagnostic(request, KToastDiagnosticEvent.DISMISSED, reason.name)
     }
 
-    private fun findRequest(handle: ToastHandle): ToastRequest? {
-        return activeRequest?.takeIf { it.handle.id == handle.id }
+    private fun diagnostic(request: ToastRequest, event: KToastDiagnosticEvent, detail: String? = null) {
+        request.scope?.options?.diagnostics?.let { listener ->
+            callbacks.addLast { listener.onEvent(request.handle, event, detail) }
+        }
+    }
+
+    private fun findRequest(handle: ToastHandle): ToastRequest? =
+        activeRequest?.takeIf { it.handle.id == handle.id }
             ?: queue.firstOrNull { it.handle.id == handle.id }
-            ?: debouncedRequest?.takeIf { it.handle.id == handle.id }
+            ?: debouncedRequests.values.firstOrNull { it.handle.id == handle.id }
+
+    // 先完成状态转换，再发送回调；回调重入与渲染器同步通知作为后续操作串行处理。
+    private fun dispatch(operation: () -> Unit) {
+        operations.addLast(operation)
+        if (draining) return
+        draining = true
+        try {
+            while (operations.isNotEmpty() || callbacks.isNotEmpty()) {
+                while (operations.isNotEmpty()) operations.removeFirst().invoke()
+                if (callbacks.isNotEmpty()) {
+                    try {
+                        callbacks.removeFirst().invoke()
+                    } catch (error: Exception) {
+                        reportError(error)
+                    }
+                }
+            }
+        } finally {
+            draining = false
+        }
+    }
+
+    private fun reportError(error: Exception) {
+        try {
+            onError(error)
+        } catch (_: Exception) {
+            // 诊断处理失败也不能阻断请求收尾和队列推进。
+        }
     }
 }

@@ -307,7 +307,7 @@ fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
 fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
         backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_warning
+        icon = android.R.drawable.ic_dialog_alert
         iconColor = Color.WHITE
         block?.invoke(this)
     }
@@ -326,8 +326,8 @@ These are the high-frequency options most users tweak first:
 | `backgroundColor` | Int | `#E6323232` | Background color       |
 | `backgroundRadius` | Float | `24f` | Corner radius          |
 | `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | Position               |
-| `xOffset` | Int | `64` | horizontal offset      |
-| `yOffset` | Int | `64` | Vertical offset        |
+| `xOffset` | Int | `0` | Horizontal offset in px |
+| `yOffset` | Int | System value at initialization; 64dp fallback | Offset in px; raw config starts at 64px |
 | `animationDuration` | Long | `250` | Animation duration     |
 | `cancelOnTouch` | Boolean | `false` | Dismiss on tap         |
 | `icon` | Int? | `null` | Icon resource          |
@@ -394,6 +394,26 @@ import com.logan.ktoast.debugShow
 Call-flow overview:
 
 ![KToast call flow](./docs/images/toast-call-flow-en.svg)
+
+## Next-version candidate: 1.1.0
+
+The 1.1.0 candidate provides Activity scope, delayed handles, window constraints, optional IME avoidance, accessibility timeout, theme options, and diagnostics. See [Activity scopes (Chinese)](./docs/PAGE_SCOPE.md) for lifecycle rules, Java examples, and limitations. The stability fixes below are included in this candidate.
+
+The Maven Central release remains 1.0.5. Candidate fixes retain Android 5.0+, Kotlin 1.9.23, Startup 1.1.1, and the existing public API. Compose, Material, and coroutines are not added to the core dependency graph.
+
+The candidate library emits JVM 1.8 bytecode while this repository still builds with JDK 17, reducing class-file restrictions in older D8/R8 versions. Kotlin metadata and dependency requirements remain unchanged; see the release checklist for tested combinations and limitations. The Demo's basic and regular delayed actions use Activity scopes to demonstrate cancellation when the page stops.
+
+- Replacement and cancellation complete internal transitions before delivering callbacks, so callback reentry does not orphan old handles.
+- `ToastHandle.cancel()` accepts cancellation from a worker thread and before main-thread submission. `true` means the first cancellation request was accepted; cleanup and callbacks run on the main thread. Repeated or terminal cancellation returns `false`.
+- Callback exceptions are isolated and reported in Debug mode. Terminal callbacks run at most once.
+- The global API attempts system fallback if content creation or window attachment fails. Activity scopes cancel on failure and never transfer to another page or system Toast. Final rendering failure terminates with the existing `CANCELED` reason to retain enum compatibility.
+- A displayed custom toast is canceled when its host stops, is destroyed, or its content detaches. Tasks and listeners are released. The existing global queue continues independently; Activity scopes cancel all pending requests for their page.
+- Immediate cancellation removes a registered window even before the content attaches; the same custom View can be reused after cleanup.
+- `KToast.cancel()` cancels active, queued, debounced, pending main-thread submissions, and delayed tasks. New requests submitted from terminal callbacks survive.
+
+`onShow` retains its existing meaning: the rendering call returned. System completion still uses a local estimated timer. System queueing, throttling, or suppression can prevent display; fallback and completion do not guarantee delivery.
+
+See the [changelog (Chinese)](./CHANGELOG.md) for version changes, the [version roadmap (Chinese)](./docs/ROADMAP.md) for planned extensions, the [release checklist (Chinese)](./docs/RELEASING.md) for validation and release gates, and [build troubleshooting (Chinese)](./TROUBLESHOOTING.md) for contributor setup.
 
 ## Compatibility Notes
 
