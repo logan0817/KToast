@@ -52,6 +52,8 @@ API 33 的旧验证仅对应更早稳定性阶段，不用于认证当前完整 
 
 构建任务沿用 JDK 17、两套现有 Gradle Wrapper 和现有依赖，先完成 JVM 测试、库 Lint、Demo/测试 APK、SNAPSHOT 发布校验及旧 AGP 消费者 Debug/R8 Release 构建。所有设备任务下载同一批 APK/AAR，校验 SHA-256 与构建提交后再安装，避免每个 API 重建或使用旧候选。Actions 使用固定提交，工作流仅有 contents: read 权限，不签名正式产物、不上传 Maven Central。
 
+SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tools，避免默认安装已下架的旧 tools 包；编译平台与 Build Tools 由工作流后续步骤明确指定。
+
 - API 21 必须通过 Demo、生命周期与作用域共 28 项核心回归，并在新进程运行 R8 Release 消费者。
 - API 30、31、35、36 另要求首次输入法避让、显示期间输入法移动及 RTL 动态定位，共 31 项必需回归，并运行同一 R8 APK。
 - 无障碍时长、显示缺口和自由窗口仍使用专用 fixture；普通矩阵未配置这些 fixture，不能替代已有专用场景或厂商真机验证。

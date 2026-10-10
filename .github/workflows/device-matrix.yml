@@ -35,6 +35,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # 旧 tools 包已下架；沿用 Action 的 cmdline-tools，只补齐 adb。
+          packages: platform-tools
       - name: Provision runner SDK only
         run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;34.0.0' 'build-tools;30.0.3'
       - name: Build and validate candidate
