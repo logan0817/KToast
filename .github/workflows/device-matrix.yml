@@ -4,10 +4,23 @@ on:
   workflow_dispatch:
   push:
     branches: ['feature/device-matrix']
+    paths:
+      - '.github/workflows/device-matrix.yml'
+      - '**/*.gradle*'
+      - 'gradlew*'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'buildSrc/**'
+      - 'library-android/**'
+      - 'app/**'
+      - 'tools/**'
+      - 'docs/API.md'
+      - 'docs/api/**'
   pull_request:
     paths:
       - '.github/workflows/device-matrix.yml'
       - '**/*.gradle*'
+      - 'gradlew*'
       - 'gradle/**'
       - 'gradle.properties'
       - 'buildSrc/**'

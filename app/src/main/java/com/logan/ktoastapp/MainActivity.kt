@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -70,11 +71,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = insets.top)
-            WindowInsetsCompat.CONSUMED
+        val initialPadding = Rect(binding.root.paddingLeft, binding.root.paddingTop,
+            binding.root.paddingRight, binding.root.paddingBottom)
+        val toolbarTop = binding.toolbar.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            // 滚动视口必须止于导航栏上方，不能仅给内容加 padding 后仍允许点击进入 SystemUI。
+            view.updatePadding(left = initialPadding.left + insets.left,
+                right = initialPadding.right + insets.right, bottom = initialPadding.bottom + insets.bottom)
+            binding.toolbar.updatePadding(top = toolbarTop + insets.top)
+            windowInsets
         }
+        ViewCompat.requestApplyInsets(binding.root)
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = getString(R.string.demo_toolbar_title)
     }

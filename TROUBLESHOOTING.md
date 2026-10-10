@@ -45,7 +45,9 @@ python3 tools/check_public_api.py --classes library-android/build/outputs/aar/kt
 
 测试会安装并启动 Demo，设备需解锁且允许前台 Activity 显示。构建成功不等于设备测试通过；各 API 的结果应单独记录。
 
-缺少本地镜像时可使用 [GitHub 云端矩阵](./docs/RELEASING.md#云端设备矩阵)，覆盖 API 21、30、31、35、36。工作流只在托管 Runner 准备镜像，保持项目版本与消费者门槛不变；当前配置尚未远程运行，仍保留未验证状态。普通矩阵不启用下述无障碍、缺口与自由窗口 fixture。
+Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolbar 保留顶部安全区域。滚动视口止于导航栏上方，重复分发 Insets 不累加 padding。出现 Espresso 的 INJECT_EVENTS 异常时先检查日志中的实际点击目标；若为 NavigationBar，应检查视口与点击坐标，不给应用增加系统注入权限。Demo 点击回归同时检查视口安全边界并执行真实点击。
+
+缺少本地镜像时可使用 [GitHub 云端矩阵](./docs/RELEASING.md#云端设备矩阵)，覆盖 API 21、30、31、35、36。工作流只在托管 Runner 准备镜像，保持项目版本与消费者门槛不变；实际通过状态以发布检查表和对应提交的运行报告为准。普通矩阵不启用下述无障碍、缺口与自由窗口 fixture。
 
 `tools/run_device_matrix.py --prepare` 在候选发布校验与 Demo/测试/消费者 APK 构建后记录输入校验和。设备模式必须显式传入 --api 与 --serial，只接受专用 emulator 设备；会安装 Demo、测试 APK 和独立消费者，执行 Runner 并检查新进程 R8 PASS，不清空 logcat、不修改日常真机。结果写入 build/reports/device-matrix/api-版本/result.json，原始 Runner 与 logcat 一并保留。必需用例跳过或缺失不会通过；未报告项和显式跳过分开记录。工具的解析回归随 tools/tests 一起执行，无需 Android 镜像。
 
@@ -53,7 +55,7 @@ python3 tools/check_public_api.py --classes library-android/build/outputs/aar/kt
 
 自定义交互控件的两项时长回归使用另一套独立配置：专用模拟器 accessibility_interactive_ui_timeout_ms=10000，accessibility_non_interactive_ui_timeout_ms 保持默认，Runner 参数为 `-e interactiveTimeoutFixture true`。分别运行 customButtonUsesInteractiveRecommendedTimeout_withoutBubbleCancel 与 customPlainTextDoesNotUseInteractiveTimeout，验证按钮采用交互时长、可执行无障碍点击，而普通自定义文字按普通时长结束。测试会先断言平台对文字推荐 2000ms、对控件至少推荐 5000ms，防止全局延长文字掩盖控件判断问题；不要与上一项的非交互 10000ms 配置混用。记录原设置后再配置，结束时恢复原值。
 
-`KToastWindowTest` 在 API 30+ 验证显示期间 START 随宿主 RTL/LTR 切换定位，以及底部提示在输入法出现后移动到键盘上方。输入法场景必须显式使用底部 Gravity，不能沿用 Demo 的全局居中样式后仅断言“未重叠”，否则可能没有真正验证避让逻辑。界面变化以实际窗口位置为准，不能把初次显示位置正确等同于动态适配正确。
+`KToastWindowTest` 在 API 30+ 验证显示期间 START 随宿主 RTL/LTR 切换定位，以及底部提示在输入法出现后移动到键盘上方。输入法场景必须显式使用底部 Gravity，不能沿用 Demo 的全局居中样式后仅断言“未重叠”，否则可能没有真正验证避让逻辑。宿主与提示子窗口分别观察绘制，避免只在宿主绘制前读取尚未更新的子窗口位置；失败信息包含可见键盘、实际屏幕位置与请求定位参数。界面变化以实际窗口位置为准，不能把初次显示位置正确等同于动态适配正确。
 
 显示缺口测试需给 Runner 传入 `-e displayCutoutFixture true`，并在专用模拟器上启用非零顶部缺口；测试会检查真实 DisplayCutout，再验证极大负偏移也不会让整个内容越过安全区域。没有该参数时明确跳过。可先用 `adb -s <专用设备> shell cmd overlay list` 确认系统已有的 display.cutout.emulation.tall，再用 cmd overlay enable/disable 配置和恢复；不要在日常设备上修改显示设置，也不要把未启用缺口的普通屏幕结果计为此项通过。
 

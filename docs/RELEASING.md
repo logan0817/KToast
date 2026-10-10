@@ -44,7 +44,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 API 33 的旧验证仅对应更早稳定性阶段，不用于认证当前完整 1.1 候选。设备测试的 SDK 过滤、fixture 跳过、失败和成功必须分别记录。无障碍、显示缺口、自由窗口的专用配置及恢复要求见 [TROUBLESHOOTING.md](../TROUBLESHOOTING.md)。
 
-当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。已配置下述云端运行矩阵，尚未实际触发；对应运行空白和官方支持范围风险继续保留，不能将这两项标为通过。
+当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。下述云端运行矩阵已启动，设备项按真实运行报告更新；未通过项和官方支持范围风险继续保留，不能仅凭工作流配置或推送成功标为通过。
 
 ## 云端设备矩阵
 
@@ -60,7 +60,7 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 工具将 passed、skipped、failed 和 notReported 分开记录。SDK 过滤可能不产生逐项状态，未报告项不计为成功，也不猜测为已跳过。任一必需用例未通过、Runner 中断、空运行、安装失败、API 不一致、产物变化或新进程未输出 PASS，任务均失败；失败报告仍上传。矩阵 fail-fast 关闭，一个 API 失败不会取消其他 API 的运行。
 
-工作流支持 Pull Request、手动触发，以及 feature/device-matrix 分支推送。新工作流尚未合入默认分支时，可通过该验证分支推送触发首轮运行；首次不依赖默认分支的手动入口。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
+工作流支持 Pull Request、手动触发，以及 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，单独维护发布结果或 README 不重复构建设备矩阵。新工作流尚未合入默认分支时，可通过该验证分支推送触发首轮运行；首次不依赖默认分支的手动入口。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
 
 Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。发布评估应保存工作流 URL、提交 SHA、各 result.json、instrumentation.txt、device-logcat.txt 与 R8 日志，核对 success=true、必需用例集合、实际 API、指纹、ABI、AAR/APK SHA 与新进程 PID。模拟器启动或下载失败只表示环境验证失败，不能改为通过；14 天后会过期，发版前应归档必要证据。远程运行通过后再更新上表，不能提前勾选发布门槛。AGP/compileSdk 支持范围仍需独立决策，设备矩阵不会改变其官方支持状态。
 

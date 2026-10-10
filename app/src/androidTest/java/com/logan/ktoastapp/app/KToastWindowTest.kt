@@ -4,6 +4,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.TextView
@@ -165,6 +166,9 @@ class KToastWindowTest {
                 true
             }
             decor.viewTreeObserver.addOnPreDrawListener(observer)
+            // 提示是独立子窗口，宿主的 pre-draw 可能早于其更新后的绘制。
+            // 两个窗口都观察，仍要求实际屏幕位置移动并完整避让键盘。
+            root.viewTreeObserver.addOnPreDrawListener(observer)
             editor.windowInsetsController?.show(WindowInsets.Type.ime())
         }
         val changed = moved.await(3L, TimeUnit.SECONDS)
@@ -172,8 +176,10 @@ class KToastWindowTest {
             val root = content.rootView
             val location = IntArray(2)
             root.getLocationOnScreen(location)
-            position.set("${position.get()}; finalIme=${it.window.decorView.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom} finalY=${location[1]} state=${handle.state}")
+            val params = root.layoutParams as WindowManager.LayoutParams
+            position.set("${position.get()}; finalIme=${it.window.decorView.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom} finalY=${location[1]} requestedY=${params.y} state=${handle.state}")
             it.window.decorView.viewTreeObserver.removeOnPreDrawListener(observer)
+            root.viewTreeObserver.removeOnPreDrawListener(observer)
         }
         assertTrue("Showing toast did not move above the IME: ${position.get()}", changed)
         assertEquals(ToastHandle.State.SHOWING, handle.state)

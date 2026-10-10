@@ -1,5 +1,8 @@
 package com.logan.ktoastapp.app
 
+import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.activityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -13,6 +16,7 @@ import androidx.test.espresso.matcher.ViewMatchers.withText
 import com.logan.ktoastapp.MainActivity
 import com.logan.ktoastapp.R
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,7 +46,18 @@ class MainActivityTest {
     fun clickBasic_updatesDashboardState() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
 
-        onView(withId(R.id.btnBasic)).perform(scrollTo(), click())
+        onView(withId(R.id.btnBasic)).perform(scrollTo()).check(matches(isDisplayed()))
+        rule.scenario.onActivity { activity ->
+            val decor = activity.window.decorView
+            val insets = requireNotNull(ViewCompat.getRootWindowInsets(decor))
+                .getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val viewport = activity.findViewById<View>(R.id.scrollContent)
+            val viewportLocation = IntArray(2).also(viewport::getLocationOnScreen)
+            val decorLocation = IntArray(2).also(decor::getLocationOnScreen)
+            assertTrue("Demo viewport overlaps navigation bar",
+                viewportLocation[1] + viewport.height <= decorLocation[1] + decor.height - insets.bottom)
+        }
+        onView(withId(R.id.btnBasic)).perform(click())
 
         onView(withId(R.id.tvLastAction)).check(
             matches(
