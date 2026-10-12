@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""离线检查本地签名发布仓库，生成 Central Portal 手工上传包；不执行网络上传。"""
+"""离线检查本地签名发布仓库，生成 Central Portal 验收包；不执行网络上传。"""
 
 import argparse
 import hashlib

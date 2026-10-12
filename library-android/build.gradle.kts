@@ -7,6 +7,7 @@ plugins {
     id("com.android.library")
     kotlin("android")
     `maven-publish`
+    id("com.vanniktech.maven.publish.base")
     signing
     alias(libs.plugins.dokka)
 }
@@ -82,3 +83,8 @@ val apiDocs = tasks.named<DokkaTask>("dokkaHtml") {
     }
 }
 apply(from = rootProject.file("gradle/release-publishing.gradle.kts"))
+
+// base 插件只提供 Central 上传，保留现有 Publication、Dokka 和双模式签名。
+mavenPublishing {
+    publishToMavenCentral(false)
+}

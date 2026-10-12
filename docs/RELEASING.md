@@ -2,7 +2,7 @@
 
 ## 当前状态与产物
 
-Java 调试入口兼容修复、发布配置拆分及标准 GPG 配置已纳入 main。2026-10-12 的第 10 轮 main CI 五个关键 API 首尝试均成功，原始报告与制品一致性验收完成；正式签名包已在干净源码下通过本地验收，复用 FlowBus 已有发布密钥。此前 API 35 首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。
+Java 调试入口兼容修复、发布配置拆分及标准 GPG 配置已纳入 main。2026-10-12 的第 10 轮 main CI 五个关键 API 首尝试均成功，原始报告与制品一致性验收完成；正式签名包已在干净源码下通过本地验收，使用维护者已核对的现有发布密钥。此前 API 35 首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。新的 Gradle 命令上传配置由 feature/release-pipeline 分支提供，本地验证通过，尚未纳入 main 或通过合并后 CI；此前 main CI 的结论不自动覆盖本轮配置。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -27,7 +27,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | --- | --- | --- |
 | JVM 测试、库 Lint | 32 项通过；No issues found | 不替代设备运行 |
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
-| 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项，共 57 项回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
+| 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项、上传暂存验收 22 项，共 79 项本地回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
 | 签名配置边界 | 当前本地及第 10 轮 main CI 的 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 配置回归不签名、不访问个人密钥环；历史 12 项仅对应旧配置 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
@@ -145,9 +145,9 @@ README 中英文与页面说明的实际代码片段使用候选 AAR 编译：33
 
 ## 本地检查顺序
 
-发布配置按职责拆分：library-android/build.gradle.kts 保留 Android 编译、依赖、发布变体与 Dokka 的类型配置，应用 gradle/release-publishing.gradle.kts 管理文档打包、双模式签名、Publication 与本地仓库；根 build.gradle.kts 应用 gradle/release-verification.gradle.kts 提供本地验证入口。两个脚本不配置远程上传任务。
+发布配置按职责拆分：library-android/build.gradle.kts 保留 Android 编译、依赖、发布变体与 Dokka 的类型配置，应用 gradle/release-publishing.gradle.kts 管理文档打包、双模式签名、Publication 与本地仓库；根 build.gradle.kts 应用 gradle/release-verification.gradle.kts 提供本地验证入口。根脚本另应用 gradle/central-publishing.gradle.kts，提供受保护的命令上传入口；本地候选聚合同时执行 Central 模型检查，不签名、不读取上传凭据、不联网。
 
-公开坐标与 POM 元数据集中在 gradle.properties：GROUP、VERSION、POM_ARTIFACT_ID、POM_NAME、POM_DESCRIPTION、POM_URL、许可证、开发者和 SCM 字段。VERSION 及现有 -PVERSION 覆盖方式保留；Demo 版本和版本目录中的已发布依赖版本按用途独立维护。依赖、插件和 SDK 版本继续由 libs.versions.toml 管理；已移除无调用方的 USE_SNAPSHOT 和未应用的 Vanniktech 插件声明。校验工具中的固定坐标、生产依赖与旧 API 是独立兼容基线，不随构建配置自动改变，防止配置与预期一起变化而掩盖回归。
+公开坐标与 POM 元数据集中在 gradle.properties：GROUP、VERSION、POM_ARTIFACT_ID、POM_NAME、POM_DESCRIPTION、POM_URL、许可证、开发者和 SCM 字段。VERSION 及现有 -PVERSION 覆盖方式保留；Demo 版本和版本目录中的已发布依赖版本按用途独立维护。依赖、插件和 SDK 版本继续由 libs.versions.toml 管理；已移除无调用方的 USE_SNAPSHOT；命令上传采用 Vanniktech Maven Publish 0.33.0，并只在库模块应用 base 插件，保留原有 Publication、Dokka 和双模式签名。该 Apache 2.0 构建插件不进入消费者 POM，不改变 minSdk、JVM 1.8 或生产依赖。校验工具中的固定坐标、生产依赖与旧 API 是独立兼容基线，不随构建配置自动改变，防止配置与预期一起变化而掩盖回归。
 
 发布脚本拆分后的本地聚合构建、双模式实际签名与 12 项签名配置回归通过；五类 Staging 未签名产物及完整 SNAPSHOT Candidate 与拆分前逐字节一致。签名配置回归已加入云端构建并归档，本轮构建配置变动后的第 6 轮云端矩阵已完成验收，见上方当前设备证据。
 
@@ -167,14 +167,15 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 - [x] AGP/compileSdk 支持范围完成评估；维护者选择保留 AGP 8.6/compileSdk 36，明确记录超出官方支持范围的风险。
 - [x] 最终候选的 API、metadata、依赖、源码包、R8 消费者及相关运行结果可追溯，验证报告与产物 SHA 一致。
 - [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
-- [x] API 文档产物、内存/GPG 双模式签名、本地签名仓库及 Central 手工上传包生成流程完成，两条路径的测试密钥演练通过。
+- [x] API 文档产物、内存/GPG 双模式签名、本地签名仓库及 Central ZIP 生成流程完成，两条路径的测试密钥演练通过。
 - [x] 已验收候选源码通过 PR #1 纳入默认分支，合并提交与 PR head 文件树一致。
 - [x] 最新签名配置的第 10 轮 main CI 首尝试成功，19 项配置回归及五版本原始报告已验收；此前 API 35 失败和单次重跑证据保留。
 - [x] 正式签名包与已验收候选一致，完成正式版本与签名制品校验；干净源码报告、五份签名和 30 文件 ZIP 已核对。
+- [ ] 新增命令发布流程纳入干净提交，通过合并后 main CI；重新准备可追溯报告并核对实际上传包与授权范围。
 - [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验及远端文件验收。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。
 
-仓库提供本地 SNAPSHOT Candidate 和本地非 SNAPSHOT Staging 仓库，包含 AAR、sources、真实 javadoc、POM 和 module metadata。Staging 必须显式开启签名。没有远程 Gradle 仓库地址或自动上传任务；本地签名包不等于正式发布完成。内存签名的私钥和口令仅通过受控环境注入，本机 GPG 的口令由 gpg-agent/pinentry 管理；均不保存到仓库，也不放进命令行参数或公开构建日志。
+仓库提供本地 SNAPSHOT Candidate 和本地非 SNAPSHOT Staging 仓库，包含 AAR、sources、真实 javadoc、POM 和 module metadata。Staging 必须显式开启签名。远程上传只能通过根 :publishToMavenCentral 入口执行，并固定采用 USER_MANAGED；本地签名包不等于正式发布完成。内存签名的私钥和口令仅通过受控环境注入，本机 GPG 的口令由 gpg-agent/pinentry 管理；均不保存到仓库，也不放进命令行参数或公开构建日志。
 
 ## 签名与本地正式产物
 
@@ -200,7 +201,7 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 
 在独立消费者中使用 -PktoastPublication=staging -PktoastVersion=1.1.0 执行 Debug/R8 Release 构建，并对 R8 APK 运行设备冒烟，具体命令见 [消费者说明](../TROUBLESHOOTING.md#本地候选发布与真实消费者)。SHA 校验覆盖两个变体，不能只检查文件存在。完成演练后重新生成 SNAPSHOT Candidate 和对应校验报告，再继续常规候选消费。
 
-用受控位置的导出公钥验证。工具通过 --public-key 和 --fingerprint 接收文件路径和预期完整指纹；下面两个环境变量只是示例中传递参数的便捷方式，并非必须新建的配置。公钥与 FlowBus 可来自同一把已有发布密钥，公钥导出不包含私钥或口令；预期指纹须与签名所选密钥一致，不能仅从待验签名推导预期值：
+用受控位置的导出公钥验证。工具通过 --public-key 和 --fingerprint 接收文件路径和预期完整指纹；下面两个环境变量只是示例中传递参数的便捷方式，并非必须新建的配置。公钥来自维护者明确选定的现有发布密钥，公钥导出不包含私钥或口令；预期指纹须与签名所选密钥一致，不能仅从待验签名推导预期值：
 
 ```bash
 python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PUBLIC_KEY_FILE" --fingerprint "$KTOAST_SIGNING_FINGERPRINT" --output build/central/ktoast-1.1.0.zip
@@ -218,7 +219,7 @@ python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PU
 
 ### 标准本机 GPG 配置复用
 
-本机入口与 FlowBus 一样读取标准 signing.gnupg.*，不强制新增 KToast 专用环境变量，不新建或复制私钥。受控用户级配置可使用：
+本机入口读取标准 signing.gnupg.*，不强制新增 KToast 专用环境变量，不新建或复制私钥。受控用户级配置可使用：
 
 ```properties
 signing.gnupg.keyName=<已核对的完整发布密钥指纹>
@@ -228,7 +229,7 @@ signing.gnupg.executable 和 signing.gnupg.homeDir 沿用已有设置，口令�
 
 ### 现有发布密钥的本地正式包预验
 
-2026-10-12 已对照 FlowBus 1.1.0 的十份公开签名，并从官方 Maven Central 重新获取 POM 和签名，确认与 FlowBus 已发布制品归档逐字节一致；使用公开密钥服务器获取的公钥，在隔离密钥环中验签通过。随后以标准 -Psigning.gnupg.keyName 显式选择同一已有签名子密钥，实际执行 KToast 的 signReleasePublication 与本地 Staging 发布，不新建密钥、不改写用户级配置。
+2026-10-12 已核对维护者现有发布密钥的完整签名指纹，使用公开密钥服务器获取的公钥，在隔离密钥环中完成验签。随后以标准 -Psigning.gnupg.keyName 显式选择已核对的签名子密钥，实际执行 KToast 的 signReleasePublication 与本地 Staging 发布，不新建密钥、不改写用户级配置。
 
 本次五份产物签名均有效，签名子密钥完整指纹为 2A426FA2812C7A8EF353F8E0DE5A09752A91006E，主密钥为 8BB25F160F45FD8919DC985A152B32281C3E9240。公钥可获取性已对该服务器实际核对；不代表 Central 账号权限或服务端发布校验已通过。公开公钥和签名可用于验收，私钥与口令不写入报告。
 
@@ -236,18 +237,50 @@ signing.gnupg.executable 和 signing.gnupg.homeDir 沿用已有设置，口令�
 
 build/central/ktoast-1.1.0.zip 已通过五份签名、四类校验和、30 个 ZIP 文件、旧 API、字节码、依赖、源码及真实 API 文档检查。签名配置提交 0b1a79c8a4edf2b90b1cc65b5133cb19ac7f5dde 后，在干净源码下重新生成包与报告，rehearsal=false、source.dirty=false；ZIP SHA-256 为 8aa71f9f4953aa39c07db7fd28b54717780ce0b90de75418abdcab67d726a762。本地 Staging 更新成功，签名任务复用此前实际生成且本次验签有效的五份签名。后续仅发布结果文档收尾时重新生成报告，最新 source.commit 以实际报告为准；文档收尾不改变库源码或制品输入。此前 source.dirty=true 的预验包保留于 build/reports/signing-modes/precommit-bundle，禁止上传。常规 SNAPSHOT Candidate 已恢复并与冻结候选完整一致；后续重新打包仍须核对实际摘要。
 
-公开签名身份核验记录位于 build/reports/signing-modes/flowbus-public-identity.json，当前配置回归为 configuration.json，包报告为 build/central/ktoast-1.1.0.report.json，均不提交。此次没有上传、创建标签或正式发布，仓库常规安装坐标继续为 1.0.5。
+签名配置回归报告位于 build/reports/signing-modes/configuration.json，包报告为 build/central/ktoast-1.1.0.report.json，均不提交。此次没有上传、创建标签或正式发布，仓库常规安装坐标继续为 1.0.5。
 
-## Maven Central 手工审核流程
+## Maven Central 命令上传与人工审核
 
-采用 [Central Portal 手工上传 ZIP](https://central.sonatype.org/publish/publish-portal-upload/) 方案；本地 ZIP 遵循 [官方产物、签名、校验和与 POM 要求](https://central.sonatype.org/publish/requirements/)。上传和发布属于外部操作，须分别获得授权。
+采用 Gradle 根 :publishToMavenCentral 命令上传 Central Portal，批次保持 USER_MANAGED，正式发布仍需单独操作和授权。本地 ZIP 遵循 [官方产物、签名、校验和与 POM 要求](https://central.sonatype.org/publish/requirements/)。上传和发布属于外部操作，须分别获得授权。
 
 1. 确认最终发布提交的 main CI 成功，核对签名制品与已验收候选的关系；确认 Central 账号对 io.github.logan0817 命名空间有发布权限，正式公钥可按 Central 要求获取且指纹正确。公开公钥到密钥服务器需单独授权。
 2. 使用正式密钥生成 Staging 与 ZIP，核对版本、完整签名指纹及 ZIP SHA-256；不要复用 TEST-KEY 演练包。
 3. 上传批次名称固定为 io.github.logan0817-KToast-1.1.0，实际 Maven 坐标仍为 io.github.logan0817:ktoast:1.1.0。名称用于人工识别；所有查询、release 或 drop 都依据本次上传返回的唯一 deployment ID，并核对内部坐标。
-4. 在 Portal 上传 ZIP，选择人工审核发布，不启用自动发布；界面若无法将上传验证与正式发布分开，应按实际按钮行为重新确认授权。保存官方响应的 deploymentId、deploymentName、deploymentState、purls、errors；VALIDATED 只表示服务端校验通过，不表示正式上线。
+4. 执行下述 Gradle 根上传命令，等待整个构建和 build service 结束；上传网络调用在任务完成后的 service close 阶段发生，叶任务成功不能代表上传成功。该插件版本不保证在日志中打印 deployment ID；应从官方 API/Portal 按批次名、上传时间及内部坐标取得唯一 ID，再查询该 ID，保存 deploymentId、deploymentName、deploymentState、purls、errors；VALIDATED 只表示服务端校验通过，不表示正式上线。
 5. 从该 ID 对应的 Portal 下载 AAR、sources、javadoc、POM、module 及五份 .asc 签名，保留 Maven 原文件名。使用下述离线工具核对下载字节、签名、批次状态与正式包报告；校验文件如已下载，也必须与 ZIP 一致。下载报告不包含 token、私钥或口令。
 6. 正式发布前重新查询该 ID 的实时状态，只有远端验收、发布门槛及发布授权齐备后才执行 release。离线报告不能认证快照来源、账号权限或实时状态。
+
+Central 登录网页的密码、GPG 私钥口令和 Central User Token 是三种不同的配置。上传复用受控用户级 Gradle 配置或受控环境中的标准 mavenCentralUsername、mavenCentralPassword，对应 Central User Token 的两部分；不把值写入项目、命令参数、报告或公开日志。现有 Chrome 登录仅用于查看账号和批次状态，不替代 Gradle token 配置。签名继续读取现有 signing.gnupg.* 或内存签名环境，不要求创建新密钥。
+
+本地准备命令将原本的签名 Staging 和 Python 验收串成一个入口，不上传，可在源码修改期间预验；报告中的 dirty 标记仍真实记录：
+
+```bash
+./gradlew prepareCentralBundle -PVERSION=1.1.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
+```
+
+在最终代码提交、main CI 验收和上传授权齐备后执行：
+
+```bash
+./gradlew :publishToMavenCentral -PVERSION=1.1.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
+```
+
+根入口依次核对批次模型、干净源码及受控配置，生成并验收本地签名 ZIP，再让插件写入 build/publish/staging 下的本地仓库。网络上传前，tools/verify_central_staging.py 必须逐项核对暂存的 30 个文件与已验收 ZIP、报告、当前干净 HEAD，并再次验签；缺项、额外文件、符号链接、测试包、版本/坐标变化或任一字节差异均使构建失败。只允许当前 artifact 目录中 Gradle 的精确 Maven 元数据文件名，这些文件不会上传。插件版本固定为 0.33.0；批次名从现有 POM_NAME 取 KToast，校验其 staging 标识，不改变工程名 ktoast 或 Maven 坐标。升级插件前必须重新验证内部模型字段与失败时不上传的行为。
+
+Gradle 发布签名文件时还会为五份 .asc 生成四类校验和，版本目录实际有 50 个文件。根入口显式传入 --normalize-signature-checksums：验收工具先完成全部 30 个冻结文件比对、真实验签及 20 个签名派生校验和验证，再仅从 build/publish/staging 的插件临时子目录移除这 20 个派生文件。实际上传仍精确包含冻结包的 30 个文件，报告中的 normalizedSignatureChecksums 留存被验证并移除的文件摘要。派生文件缺项、校验错误或验签失败时不移除；未知文件继续拒绝。直接调用验收工具默认只读，不接受这 20 个额外文件；显式规范化也禁止修改 Candidate/Staging 等其他仓库。此步骤不改变签名、制品或本地冻结 ZIP。
+
+门禁拒绝直接执行模块上传、createStagingRepository、通用 publish、publishAndReleaseToMavenCentral、releaseRepository 和 dropRepository；也拒绝上传时附带 clean、跳过任务、--continue 或 configuration cache。离线任务图请同时使用 --dry-run；单独 --offline 不保证第三方插件不联网，因此实际离线上传被门禁拒绝。本轮不提供正式 release/drop 自动入口，后续按具体 ID 与独立授权执行。
+
+常规候选校验含 verifyCentralDeploymentName。上传任务图回归由 tools/verify_central_publishing_configuration.py 使用空临时密钥环和虚构指纹执行，不签名、不上传；CI 归档 build/reports/central-publishing/configuration.json：
+
+```bash
+python3 -B tools/verify_central_publishing_configuration.py -- ./gradlew
+```
+
+tools/verify_central_service.py 在临时工程内将插件服务地址明确替换为 127.0.0.1 假 Portal，并使用虚构 token，验证验收失败时零请求、成功构建仅一次 USER_MANAGED 上传且无 release/drop。它不使用正式签名密钥，不联系 Central，也不证明真实账号权限或线上校验已通过；CI 同时执行并归档 service.json。
+
+网络异常或响应丢失后，先在官方 API/Portal 按名称、时间、内部坐标核对是否已创建批次，确认后记录唯一 ID；不得直接重跑上传。上传成功后仍须按 ID 下载并验收文件。若官方组件查询报 Deployment components info not found，应保留错误并用状态及实际文件核验，不能仅凭该提示断言产物坏损或重复上传；发布后以 Maven Central 正式解析和真实下载字节为准。
+
+插件自行生成 build/publish/staging/<UUID>.zip，其 ZIP 顺序、压缩和时间戳可能与本地验收 ZIP 不同；门禁要求 30 个内部文件逐字节一致。上传后需核对插件实际 ZIP、记录摘要及 deployment ID，不能把本地 ZIP 摘要当成实际网络 ZIP 摘要。若授权绑定了特定 ZIP 的 SHA，执行命令上传前应明确展示本次传输包的关系并确认授权覆盖范围。
 
 验收目录按本次 deployment ID 区分，官方状态响应保存为 status.json，十个制品/签名文件保存到 artifacts 子目录。给 KTOAST_DEPLOYMENT_ID 设置上传返回的 ID 后执行：
 
@@ -270,3 +303,25 @@ python3 -B tools/verify_central_deployment.py \
 正式版本需核对 gradle.properties 的 VERSION/APP_VERSION_NAME/APP_VERSION_CODE、gradle/libs.versions.toml 的 ktoast-version、README 中英文坐标及 CHANGELOG 状态。Candidate 任务只允许 SNAPSHOT，不能用于正式上传。版本未上线前，README 的常规安装入口继续指向已发布版本。
 
 发布后使用全新消费者解析正式坐标，确认实际下载产物的校验和、源码与 R8 运行结果，再更新发布状态。Maven Central 已发布版本不可按本地文件覆盖；发现问题时优先停止推广，使用者回退到 1.0.5，后续以修复版本重新发布。使用新页面 API 的消费者回退前需撤回相关调用。
+
+### 命令发布流程本地验证（待纳入 main）
+
+PR #2 的第 11 轮 CI（38240427479）首尝试构建、32 项 JVM 测试、Lint、19 项签名配置、21 项发布配置及 2 项假 Portal 回归通过，完整 Candidate 与冻结产物一致；API 21、30、31、35 设备回归及 R8 消费者通过。API 36 在 KToastPlatformTest 的输入法前置条件失败，30 项通过、5 项跳过、1 项失败，R8 未执行，整轮不得作为发布验收通过的证据。原始日志显示显示请求在 PHASE_WM_ABORT_SHOW_IME_POST_LAYOUT 被中止，失败发生于创建作用域之前，不能据此确认库避让行为有缺陷。
+
+第 12 轮 PR CI（38243306864）七份原始 ZIP 的官方摘要一致。API 21、30、31、36 的设备测试及 R8 消费者通过；API 35 为 30 项通过、5 项跳过、1 项失败，R8 未执行。失败仍发生于首次避让用例的真实键盘前置条件：编辑框已附着且窗口与编辑框均有焦点，但 IME Insets 为零。该用例日志记录了 Espresso 点击及输入服务绑定编辑框，未记录 IME 显示请求；不能把 API 36 本轮通过视为整个矩阵完成。
+
+两个输入法用例使用现有 Espresso 点击编辑框，等待可交互窗口后断言编辑框已附着且具有窗口和编辑焦点，再明确调用 InsetsController 发起一次 IME 显示请求。首次避让仍要求五秒内取得非零 IME Insets，保留内容完整位于键盘上方的断言，并增加几何检查时键盘仍可见的断言及窗口/编辑框焦点诊断。没有增加重试、跳过或固定休眠，也未改库源码、生产依赖和发布产物。该调整须重新构建测试 APK 并通过五版本矩阵，不能沿用此前各轮的部分成功作为完成证明。
+
+真实 Gradle 本地签名仓库复核确认版本目录为 50 文件，旧的 30 文件门禁会拒绝签名派生校验和。本轮加入临时目录规范化与 6 项边界回归，总计 79 项 Python 回归通过。实际 50 文件仓库的隔离副本也完成五份真实签名验证，20 个派生校验和全部核对后移除，剩余 30 个文件与冻结包一致；该格式预验显式替代源码门禁，不是上传验收。源码门禁、未知文件拒绝及校验/签名失败前不修改文件分别由回归覆盖，正式上传仍须在当前干净 HEAD 下完整执行根入口。
+
+feature/release-pipeline 新增根上传入口、任务图门禁、插件暂存逐文件验收以及 CI 配置回归。prepareCentralBundle 已使用现有正式签名完成本地预验，五份签名有效，30 个内部文件与此前冻结正式包逐字节一致；AAR SHA-256 仍为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1。最初的未提交源码预验归档于 build/reports/central-publishing/local-preview，禁止上传；旧冻结包保存在 build/reports/central-publishing/frozen-before-ime-fixture。提交 12e97dd 下的干净源码正式包 SHA-256 为 a60ec7129f7ef207f15bbc247b77d1e45296d8cf63e1be9bf0f84d6113b94618，内部 30 文件与旧包一致。后续源码或配置变更后必须重新准备报告，不得复用旧提交报告上传。
+
+本地 verifyReleaseCandidate 已通过，包含 32 项 JVM 测试、无问题 Lint、79 项 Python 回归及 Central 模型检查；完整 candidate.json 与第 10 轮 main CI 冻结报告一致。21 项真实 Gradle 发布配置/任务图回归、19 项签名配置回归及 2 项本机假 Portal 的 build service 回归通过；规范化配置修改后重新执行的 21 项发布配置与 2 项服务回归也通过。AGP 7.2.2 独立消费者 Debug/R8 Release 构建通过，两个变体解析到的 AAR SHA 均与冻结候选一致；旧 Lint 的 Kotlin metadata 1.9 分析诊断仍存在。离线任务图或假服务不代表真实 Central 上传结果。
+
+修正后的测试 APK 已在既有 Android Studio 构建环境成功编译；79 项 Python 回归再次通过。随后第 13 轮 PR CI（38245652907）首尝试整体成功，实际验收源码为 74fd48f71ae9d3238b96f15b22a4e03ceb540730，测试合并提交为 3453a003db435e62510acc937fba8a84157492ce，其文件树与 PR 源码一致。七份原始 ZIP 均与 GitHub 官方摘要一致，完整 Candidate 与本地及第 10 轮冻结候选一致，所有设备使用同批输入且原始 Runner 结果与 result.json 一致。
+
+API 21 为 28 项必需用例通过、8 项 SDK 过滤用例未报告；API 30、31、35、36 各 31 项通过、5 项专用 fixture 用例跳过。五版本均无失败或必需用例缺失，R8 消费者新进程 PID 依次为 2699、6241、5057、4451、4969，均输出 PASS。API 30/31/35/36 的两个 IME 用例均通过；不把专用 fixture 的跳过计为成功，也不据单轮通过断言此前所有时序异常根因已消除。原始构建报告确认 32 项 JVM 测试、无问题 Lint、19 项签名配置、21 项发布配置和 2 项隔离服务回归通过。
+
+在同一干净提交上重新生成的本地正式 ZIP SHA-256 为 bf02feeac641ddae93b486fad048cdf7bd1ca46f4bdf9a26e47ae27eaeab4b0a。真实 Gradle 50 文件仓库的隔离副本通过完整源码门禁、五份真实签名和 20 个派生校验和验证后规范化为 30 文件，与旧冻结包逐字节一致；本次未替代或跳过源码门禁。报告位于 build/reports/central-publishing/normalization-clean-head.json，仅证明本地上传前验收，尚未联系真实 Central 上传服务。
+
+本节记录命令发布流程的本地验证；PR、合并后 main CI 以及真实 Central 上传仍须单独验收，不沿用旧 main CI 认证新的发布配置。流程收尾后须在干净提交下重新准备发布报告，核对实际插件 ZIP 与授权范围，再进行真实上传及远端验收。未改变库源码和生产依赖；五版本运行证据仍对应同字节冻结 AAR，不把本地工具回归写成新设备运行。
