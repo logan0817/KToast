@@ -92,7 +92,19 @@ python3 tools/verify_candidate.py
 
 Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。正式 VERSION 和安装坐标仍为 1.0.5。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告写入 build/reports/compatibility/candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
 
+也可从项目根目录执行 ./gradlew verifyReleaseCandidate -PVERSION=1.1.0-SNAPSHOT --console=plain，集中运行 JVM 测试、库 Lint、工具回归与候选生成/校验；verifyCandidateArtifacts 自动选择实际版本的文档包及构建 JDK 的 javap。原库发布任务和 Python 命令保持可用。发布实现位于 gradle/release-publishing.gradle.kts，验证入口位于 gradle/release-verification.gradle.kts，公开 POM 字段位于 gradle.properties；消费者与设备运行仍需独立完成。
+
 单独生成文档可执行 :library-android:apiDocsJar，HTML 首页在 library-android/build/docs/api/index.html。Dokka 仅为构建插件，不增加库生产依赖。需要签名发布演练时使用独立本地 Staging 任务，签名方式、Central ZIP 生成和正式审核流程见 [发布检查表](./docs/RELEASING.md#签名与本地正式产物)。本地 Staging 构建会覆盖 build/publications/release 中的版本元数据；验证 SNAPSHOT 消费者前必须重新生成 Candidate，不能将两种版本报告混用。
+
+本机签名需同时传 -PsignPublication=true、-PsigningMode=gpg、--no-configuration-cache，并设置完整 KTOAST_SIGNING_FINGERPRINT。仅选择 gpg 模式不会开启签名。短指纹、与 signing.gnupg.keyName 冲突、配置 signing.gnupg.passphrase 或旧版 GPG 均被拒绝；不将口令写入 Gradle 配置。GPG 找不到私钥或 agent 无法解锁时检查维护者选择的 signing.gnupg.homeDir、signing.gnupg.executable 和本机 pinentry，不换默认密钥或退回内存签名。受控自动化的原内存签名命令及环境变量保持有效。
+
+签名配置回归使用真实 Gradle 配置和空临时密钥环，覆盖开关、模式、指纹、冲突配置与缓存拒绝；不执行签名，也不认证正式密钥可用。CI 自动执行，报告位于 build/reports/signing-modes/configuration.json。本地先选择 Android Studio 相同构建环境，再执行：
+
+```bash
+python3 -B tools/verify_signing_configuration.py -- ./gradlew
+```
+
+也可在 -- 后传入已有构建环境脚本及其固定参数；脚本按顺序执行验证，不创建独立 Gradle 缓存。配置回归成功仍须在隔离测试密钥环演练两种实际签名，正式发布时再核对维护者正式公钥与包签名。
 
 发布校验工具的回归测试使用临时目录中的正确及损坏样本，不改动实际候选。verify_central_deployment.py 使用指定的 Portal 状态快照和下载目录，核对批次 ID、项目名、坐标、正式 ZIP 字节及签名；错误状态、旧下载和缺项不能通过。它不读取上传凭据或查询网络，不能把样例测试写成真实上传验收。命令与报告格式见[发布检查表](./docs/RELEASING.md#maven-central-手工审核流程)。
 

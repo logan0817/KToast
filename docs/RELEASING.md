@@ -29,7 +29,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
 | 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项，共 57 项回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
-| 签名配置边界 | 缺密钥/口令、未签名 Staging、签名开启 configuration cache 均明确拒绝 | 正式签名仍需受控环境注入 |
+| 签名配置边界 | 新增 12 项真实 Gradle 配置回归通过；短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝，缺少指定私钥的真实 GPG 签名失败 | 空测试密钥环与临时测试密钥不认证正式密钥可用 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
 | 已编译 1.0.5 消费者 | Java/Kotlin 保持原字节码，替换本轮候选运行通过 | JVM 样例不执行窗口 |
 | Kotlin 源码消费 | 1.9.22、2.0.21 配置样例编译运行通过；页面源码编译通过 | 此前源码样例验证；本轮旧 AGP 消费者使用 1.9.22，完整仓库使用 1.9.23 |
@@ -99,19 +99,23 @@ README 中英文与页面说明的实际代码片段使用候选 AAR 编译：33
 
 真实 Java 示例编译发现 debugMode 属性 setter 与静态 setDebugMode(boolean) 歧义。本轮使用 @set:JvmSynthetic 对 Java 源码隐藏属性 setter，保留原 JVM 签名和 Kotlin 属性读写；独立消费者新增 Java 静态调用与 Kotlin 属性切换断言，Debug 与 R8 Release 构建均使用当前候选 AAR。旧公开类签名、major=52、metadata=1.9.0 和生产依赖校验通过，设备矩阵已针对修复后同批产物重新运行并核验通过。
 
-正式签名所需 KTOAST_SIGNING_KEY、KTOAST_SIGNING_PASSWORD、KTOAST_PUBLIC_KEY_FILE、KTOAST_SIGNING_FINGERPRINT 在当前构建进程中尚不可用；维护者已选择在本机受控环境配置。本轮没有生成正式签名包。私钥与口令须在维护者受控环境注入，不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
+维护者已选择本机 GPG/keyring 签名，并保留环境变量内存签名供受控自动化使用。正式签名包尚未生成；本机模式需要独立核对的 KTOAST_SIGNING_FINGERPRINT 和由 gpg-agent 解锁的对应私钥，包验收还需要 KTOAST_PUBLIC_KEY_FILE 指定的导出公钥。私钥与口令不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
 
 ## 本地检查顺序
+
+发布配置按职责拆分：library-android/build.gradle.kts 保留 Android 编译、依赖、发布变体与 Dokka 的类型配置，应用 gradle/release-publishing.gradle.kts 管理文档打包、双模式签名、Publication 与本地仓库；根 build.gradle.kts 应用 gradle/release-verification.gradle.kts 提供本地验证入口。两个脚本不配置远程上传任务。
+
+公开坐标与 POM 元数据集中在 gradle.properties：GROUP、VERSION、POM_ARTIFACT_ID、POM_NAME、POM_DESCRIPTION、POM_URL、许可证、开发者和 SCM 字段。VERSION 及现有 -PVERSION 覆盖方式保留；Demo 版本和版本目录中的已发布依赖版本按用途独立维护。依赖、插件和 SDK 版本继续由 libs.versions.toml 管理；已移除无调用方的 USE_SNAPSHOT 和未应用的 Vanniktech 插件声明。校验工具中的固定坐标、生产依赖与旧 API 是独立兼容基线，不随构建配置自动改变，防止配置与预期一起变化而掩盖回归。
+
+发布脚本拆分后的本地聚合构建、双模式实际签名与 12 项签名配置回归通过；五类 Staging 未签名产物及完整 SNAPSHOT Candidate 与拆分前逐字节一致。签名配置回归已加入云端构建并归档，本轮构建配置变动后的云端结果尚待验收；上方第 5 轮仍是当前已验收的设备证据。
 
 选择 Android Studio 项目相同的 JDK 17 和 SDK，在项目根目录执行：
 
 ```bash
-./gradlew :library-android:testDebugUnitTest :library-android:lintDebug :library-android:assembleRelease :app:assembleDebug :app:assembleDebugAndroidTest :library-android:publishReleasePublicationToCandidateRepository -PVERSION=1.1.0-SNAPSHOT --console=plain
-python3 -B -m unittest discover -s tools/tests -v
-python3 tools/verify_candidate.py
+./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.1.0-SNAPSHOT --console=plain
 ```
 
-PATH 中的 javap 须来自现有 JDK，也可给校验脚本传 --javap。Gradle 使用共享缓存及 daemon，不需要 clean。生成本地候选后，按 [独立消费者步骤](../TROUBLESHOOTING.md#本地候选发布与真实消费者) 验证 Debug/R8 Release，并确认日志 SHA 与 candidate.json 一致；安装 R8 APK 后检查新进程 KToastConsumer 的 PASS。
+verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和 verifyCandidateArtifacts；后者先生成本地 Candidate，再使用构建 JDK 的 javap 和实际版本对应的文档包校验。原库发布任务和 Python 命令继续可用，直接运行 Python 时 PATH 中的 javap 须来自现有 JDK，也可传 --javap。签名配置回归单独执行，避免在正在运行的 Gradle 任务中启动嵌套 Gradle。Gradle 使用共享缓存及 daemon，不需要 clean。生成本地候选后，按 [独立消费者步骤](../TROUBLESHOOTING.md#本地候选发布与真实消费者) 验证 Debug/R8 Release，并确认日志 SHA 与 candidate.json 一致；安装 R8 APK 后检查新进程 KToastConsumer 的 PASS。
 
 在专用且允许测试安装的设备执行核心回归，再按平台能力分别执行输入法、无障碍、缺口与窗口用例。安装遇到同名签名冲突时使用独立测试包，不卸载使用者已有应用；系统拒绝安装时记录为未验证，不绕过设备策略。
 
@@ -121,18 +125,28 @@ PATH 中的 javap 须来自现有 JDK，也可给校验脚本传 --javap。Gradl
 - [x] AGP/compileSdk 支持范围完成评估；维护者选择保留 AGP 8.6/compileSdk 36，明确记录超出官方支持范围的风险。
 - [x] 最终候选的 API、metadata、依赖、源码包、R8 消费者及相关运行结果可追溯，验证报告与产物 SHA 一致。
 - [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
-- [x] API 文档产物、环境变量签名、本地签名仓库及 Central 手工上传包生成流程完成，测试密钥演练通过。
+- [x] API 文档产物、内存/GPG 双模式签名、本地签名仓库及 Central 手工上传包生成流程完成，两条路径的测试密钥演练通过。
 - [ ] 最终发布源码纳入默认分支，合并后 main CI 成功，签名包与已验收候选一致。
 - [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验及远端文件验收。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。
 
-仓库提供本地 SNAPSHOT Candidate 和本地非 SNAPSHOT Staging 仓库，包含 AAR、sources、真实 javadoc、POM 和 module metadata。Staging 必须显式开启签名。没有远程 Gradle 仓库地址或自动上传任务；本地签名包不等于正式发布完成。私钥和口令仅通过受控环境注入，不保存到仓库，也不放进命令行参数或公开构建日志。
+仓库提供本地 SNAPSHOT Candidate 和本地非 SNAPSHOT Staging 仓库，包含 AAR、sources、真实 javadoc、POM 和 module metadata。Staging 必须显式开启签名。没有远程 Gradle 仓库地址或自动上传任务；本地签名包不等于正式发布完成。内存签名的私钥和口令仅通过受控环境注入，本机 GPG 的口令由 gpg-agent/pinentry 管理；均不保存到仓库，也不放进命令行参数或公开构建日志。
 
 ## 签名与本地正式产物
 
-签名默认关闭。环境须注入 KTOAST_SIGNING_KEY（ASCII-armored 私钥内容）和 KTOAST_SIGNING_PASSWORD（口令；无口令测试密钥也须显式提供空值）；给出 -PsignPublication=true 才会使用 Gradle 内存 PGP 签名。开启签名缺少环境变量时配置失败；不读取个人 GPG 密钥环。签名构建禁用 configuration cache，避免将签名配置写入磁盘缓存；签名环境不使用公开 build scan 或调试日志。
+签名默认关闭，只有 -PsignPublication=true 才开启。signingMode 只接受 memory 或 gpg，默认 memory，保留原有调用方式；选择模式本身不会开启签名。两种签名均须使用 --no-configuration-cache，避免将签名配置写入磁盘缓存；签名环境不使用公开 build scan 或调试日志。签名失败不会自动切换到另一种模式。
 
-获正式版本安排后，在保持已发布版本配置不变的情况下，用命令参数准备本地 1.1.0 产物：
+本机 GPG 模式使用已有 GnuPG 2 和维护者指定的密钥环，口令由 gpg-agent/pinentry 解锁，无需导出私钥或提供 KTOAST_SIGNING_KEY、KTOAST_SIGNING_PASSWORD。必须通过受控环境给出 KTOAST_SIGNING_FINGERPRINT，接受完整的 40 或 64 位十六进制主公钥或签名子密钥指纹，不接受短 ID。Gradle 使用该指纹选择签名密钥，不依赖 GPG 默认密钥；若已有 signing.gnupg.keyName，必须与该指纹相同（忽略大小写）。拒绝 signing.gnupg.passphrase 和旧版 GPG 设置，避免口令进入 Gradle 配置。
+
+维护者可按 Gradle GPG 约定在受控本地配置中指定 signing.gnupg.executable 和 signing.gnupg.homeDir；未指定时沿用 GPG 自身的执行路径和密钥环选择。该模式只在签名任务执行时调用本机 GPG；普通候选构建不调用 GPG。首次使用或 agent 缓存失效时，维护者须在本机处理 pinentry；无法解锁、缺少私钥或指纹选择失败均终止签名，不改用其他密钥。
+
+获正式版本安排并核对指纹后，在保持已发布版本配置不变的情况下，用命令参数准备本地 1.1.0 产物：
+
+```bash
+./gradlew :library-android:publishReleasePublicationToStagingRepository -PVERSION=1.1.0 -PsignPublication=true -PsigningMode=gpg --no-configuration-cache --console=plain
+```
+
+受控自动化继续使用内存 PGP 签名，环境注入 KTOAST_SIGNING_KEY（ASCII-armored 私钥内容）和 KTOAST_SIGNING_PASSWORD（口令；无口令测试密钥也须显式提供空值）。缺少任一项时配置失败，该模式不调用个人 GPG 密钥环。原命令仍有效，也可显式指定 -PsigningMode=memory：
 
 ```bash
 ./gradlew :library-android:publishReleasePublicationToStagingRepository -PVERSION=1.1.0 -PsignPublication=true --no-configuration-cache --console=plain
@@ -153,6 +167,10 @@ python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PU
 本地测试密钥演练的输出位于 build/reports/release-rehearsal/ktoast-1.1.0-TEST-KEY.zip，报告 rehearsal=true，临时私钥已删除。该包禁止上传。复现测试演练可在独立临时 GPG 目录生成短期测试签名密钥，将其私钥与口令仅注入本次 Gradle 进程，再给工具添加 --rehearsal，并使用以 -TEST-KEY.zip 结尾的文件名；结束时销毁测试私钥和密钥环，不修改个人密钥环。
 
 2026-10-12 复核时，上述短期测试密钥已过期，校验工具按预期拒绝 KEYEXPIRED、EXPKEYSIG 状态。当时的成功结果仅作为流程演练记录，不代表旧演练包现在仍可通过签名验收；不得修改系统时间、放宽过期检查或将旧测试包作为正式包使用。
+
+2026-10-12 新双模式演练使用 /tmp 下的隔离密钥环，先生成默认测试密钥，再明确选择另一把带口令测试密钥，验证 GPG/agent 没有使用默认密钥。原内存签名命令也实际执行签名；两条路径的 AAR、sources、javadoc、POM、module 未签名字节一致，分别通过五份签名、完整指纹、校验和、API/依赖检查并生成 30 文件 ZIP。缺少指定私钥时 GPG 正确失败。两份包均标记 rehearsal=true、文件名以 -TEST-KEY.zip 结尾，位于 build/reports/signing-modes/gpg 和 memory；禁止上传，测试私钥及临时 agent 已清理，保留的测试公钥仍受短期有效期限制。
+
+本地 12 项真实 Gradle 配置回归、57 项 Python 工具回归、32 项 JVM 测试与库 Lint 通过；本地 Staging 消费者 Debug/R8 Release 构建通过（仅构建，运行证据以云端矩阵为准）。结束后已恢复 SNAPSHOT Candidate，AAR 与上表已验收候选一致。配置回归可运行 python3 -B tools/verify_signing_configuration.py -- ./gradlew；它使用空临时密钥环、不执行签名，并由云端构建阶段自动执行和归档。完整本地结果位于 build/reports/signing-modes/verified-rehearsal.json，正式密钥解锁和正式包验收仍待执行。
 
 ## Maven Central 手工审核流程
 

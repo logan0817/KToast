@@ -55,9 +55,8 @@ jobs:
         run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;34.0.0' 'build-tools;30.0.3'
       - name: Build and validate candidate
         run: |
-          bash ./gradlew :library-android:testDebugUnitTest :library-android:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :library-android:publishReleasePublicationToCandidateRepository -PVERSION=1.1.0-SNAPSHOT --console=plain
-          python3 -B -m unittest discover -s tools/tests -v
-          python3 -B tools/verify_candidate.py
+          bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.1.0-SNAPSHOT --console=plain
+          python3 -B tools/verify_signing_configuration.py -- bash ./gradlew
           bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease --console=plain
           python3 -B tools/run_device_matrix.py --prepare
       - name: Share identical APKs across API levels
@@ -82,6 +81,7 @@ jobs:
             library-android/build/test-results/**
             library-android/build/reports/**
             build/reports/compatibility/**
+            build/reports/signing-modes/configuration.json
           if-no-files-found: warn
           retention-days: 14
 
