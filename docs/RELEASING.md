@@ -19,9 +19,9 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 ## 验证矩阵
 
-以下当前关键矩阵证据来自 2026-10-12 的发布流程对齐候选，包含 Java 调试入口兼容修复；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
+以下当前关键矩阵证据来自 2026-10-12 的发布配置拆分与双签名候选，包含 Java 调试入口兼容修复；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
 
-当前已验收的构建源码为 4f81814a8b39253f78e76e9ff32d7d818b63964b。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、57 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
+当前已验收的构建源码为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、57 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
 
 | 验证项 | 已有结果 | 限制 |
 | --- | --- | --- |
@@ -66,15 +66,15 @@ Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。�
 
 ### 已核验的云端结果（当前冻结候选）
 
-2026-10-12 的 [矩阵运行 #5](https://github.com/logan0817/KToast/actions/runs/38202836669) 整体成功，耗时 13 分 49 秒。运行源码提交为 4f81814a8b39253f78e76e9ff32d7d818b63964b，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、Python 工具回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建；同一源码的本地 Python 工具回归为 57 项通过。工作流已经加入 main 推送触发，但尚未合入 main，不将本轮候选分支结果作为合并后的 main CI 结果。
+2026-10-12 的 [矩阵运行 #6](https://github.com/logan0817/KToast/actions/runs/38208800274) 整体成功，耗时 14 分 17 秒。运行源码提交为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、57 项 Python 工具回归、12 项真实 Gradle 签名配置回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建；同一源码的本地 Python 工具回归为 57 项通过。工作流已经加入 main 推送触发，但尚未合入 main，不将本轮候选分支结果作为合并后的 main CI 结果。
 
 | 实际 API | 系统镜像构建标识 | ABI | 通过 | 显式跳过 | 未报告 | R8 新进程 PID |
 | --- | --- | --- | --- | --- | --- | --- |
-| 21 | Android 5.0.2 / LSY66K / 4174711 | x86 | 28 | 0 | 8 | 2703 |
-| 30 | Android 11 / RSR1.240422.006 / 12134477 | x86_64 | 31 | 5 | 0 | 6232 |
-| 31 | Android 12 / SE1A.220826.008 / 10564458 | x86_64 | 31 | 5 | 0 | 5508 |
-| 35 | Android 15 / AE3A.240806.043 / 12960925 | x86_64 | 31 | 5 | 0 | 4556 |
-| 36 | Android 16 / BE2A.250530.026.F3 / 13894323 | x86_64 | 31 | 5 | 0 | 4770 |
+| 21 | Android 5.0.2 / LSY66K / 4174711 | x86 | 28 | 0 | 8 | 2722 |
+| 30 | Android 11 / RSR1.240422.006 / 12134477 | x86_64 | 31 | 5 | 0 | 6270 |
+| 31 | Android 12 / SE1A.220826.008 / 10564458 | x86_64 | 31 | 5 | 0 | 5086 |
+| 35 | Android 15 / AE3A.240806.043 / 12960925 | x86_64 | 31 | 5 | 0 | 4660 |
+| 36 | Android 16 / BE2A.250530.026.F3 / 13894323 | x86_64 | 31 | 5 | 0 | 5158 |
 
 五个版本均无失败、无必需用例缺失，Runner 正常返回 -1，独立 R8 消费者新进程均输出 PASS，覆盖 Java 静态调试入口、Kotlin debugMode 属性读写、旧 Java、页面 Java/Kotlin、队列及延时取消。普通矩阵不启用无障碍时长、显示缺口、自由窗口 fixture；不能将这些跳过项写成已验证。API 35 的动态输入法用例同时观察宿主与独立提示子窗口，保持实际位置上移及完整避让断言，本轮未修改库定位实现。修复前的第 3 轮结果保留在本地历史归档，不作为当前 AAR 的运行证据。
 
@@ -83,13 +83,13 @@ Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。�
 | 产物 | SHA-256 |
 | --- | --- |
 | Release AAR（141900 字节） | e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1 |
-| Demo Debug APK | 7b0a0a906aa02d0321ea703abdbd3a762662ccff5dbd6e45ecf3ff08636b219c |
-| 设备测试 APK | abb8e9b1b4b8d527f28e8a74b0eaba314cfcb5faa86db6a7ae2eb51370f2affa |
-| 旧 AGP R8 Release 消费者 APK | 1fdb493094a5348c830f6fb85e6ee8fe01246c8ec103005298ed59fe8d7eda8a |
+| Demo Debug APK | 1bf064c31ed32d9d5d987e4ec8bf16076697fa0ec6d8db6b00542e9021932876 |
+| 设备测试 APK | e7c34b6a0c3ac26e78efca3f5343b2bb3b36b5db53a742e7626f9c91c911272c |
+| 旧 AGP R8 Release 消费者 APK | a33b947cdfb54bec1152a12e7f0d0055b6ea4ea41ee25fbdd9ab3d194c39af12 |
 | sources JAR | 571832f360e25cac0fda90300949185d1963cc509e23d83b57c91c2e1fc8a8df |
 | javadoc JAR | b0172b4335d454e929334ba87a46162845c48f4414dc7ab8d97e484f6db35680 |
 
-本次原始 ZIP（同批输入、构建诊断、五个设备报告）通过 nightly.link 的公开制品中转下载，七个 ZIP 均与 GitHub 官方运行页或 artifacts API 的 digest 一致，归档在维护者本地 build/reports/device-matrix-cloud/38202836669；verified-summary.json 汇总核验结果，download-provenance.json 记录下载方式与摘要来源，各 ZIP 保留完整设备指纹和原始日志。AAR、sources、javadoc 与第 4 轮一致，APK 为本轮重新构建，按上表实际 SHA 验收。该目录受忽略规则保护，不进入源码提交；本地归档仍需维护者保留，不能依赖 Actions 14 天保留期作为永久存档。
+本次原始 ZIP（同批输入、构建诊断、五个设备报告）通过 nightly.link 的公开制品中转下载，七个 ZIP 均与 GitHub 官方运行页的 digest 一致；官方页面确认整体 Success 和五个设备任务完成，逐版本结果另以原始报告核验，归档在维护者本地 build/reports/device-matrix-cloud/38208800274；verified-summary.json 汇总核验结果，download-provenance.json 记录下载方式与摘要来源，各 ZIP 保留完整设备指纹和原始日志。AAR、sources、javadoc 与第 5 轮及配置拆分前一致，APK 为本轮重新构建，按上表实际 SHA 验收。该目录受忽略规则保护，不进入源码提交；本地归档仍需维护者保留，不能依赖 Actions 14 天保留期作为永久存档。
 
 本次 Actions 提示部分固定版本使用已弃用的 Node 20，并由托管 Runner 强制使用 Node 24；setup-java v4 也提示弃用。构建和设备任务已实际成功，这些提示不改变 Android 消费者门槛；后续维护 CI 时须单独验证 Action 迁移，不能与库生产依赖升级混为一谈。
 
@@ -107,7 +107,7 @@ README 中英文与页面说明的实际代码片段使用候选 AAR 编译：33
 
 公开坐标与 POM 元数据集中在 gradle.properties：GROUP、VERSION、POM_ARTIFACT_ID、POM_NAME、POM_DESCRIPTION、POM_URL、许可证、开发者和 SCM 字段。VERSION 及现有 -PVERSION 覆盖方式保留；Demo 版本和版本目录中的已发布依赖版本按用途独立维护。依赖、插件和 SDK 版本继续由 libs.versions.toml 管理；已移除无调用方的 USE_SNAPSHOT 和未应用的 Vanniktech 插件声明。校验工具中的固定坐标、生产依赖与旧 API 是独立兼容基线，不随构建配置自动改变，防止配置与预期一起变化而掩盖回归。
 
-发布脚本拆分后的本地聚合构建、双模式实际签名与 12 项签名配置回归通过；五类 Staging 未签名产物及完整 SNAPSHOT Candidate 与拆分前逐字节一致。签名配置回归已加入云端构建并归档，本轮构建配置变动后的云端结果尚待验收；上方第 5 轮仍是当前已验收的设备证据。
+发布脚本拆分后的本地聚合构建、双模式实际签名与 12 项签名配置回归通过；五类 Staging 未签名产物及完整 SNAPSHOT Candidate 与拆分前逐字节一致。签名配置回归已加入云端构建并归档，本轮构建配置变动后的第 6 轮云端矩阵已完成验收，见上方当前设备证据。
 
 选择 Android Studio 项目相同的 JDK 17 和 SDK，在项目根目录执行：
 
