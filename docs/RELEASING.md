@@ -304,6 +304,10 @@ python3 -B tools/verify_central_deployment.py \
 
 ### 命令发布流程本地验证（待纳入 main）
 
+PR #2 的第 11 轮 CI（38240427479）首尝试构建、32 项 JVM 测试、Lint、19 项签名配置、21 项发布配置及 2 项假 Portal 回归通过，完整 Candidate 与冻结产物一致；API 21、30、31、35 设备回归及 R8 消费者通过。API 36 在 KToastPlatformTest 的输入法前置条件失败，30 项通过、5 项跳过、1 项失败，R8 未执行，整轮不得作为发布验收通过的证据。原始日志显示显示请求在 PHASE_WM_ABORT_SHOW_IME_POST_LAYOUT 被中止，失败发生于创建作用域之前，不能据此确认库避让行为有缺陷。
+
+两个输入法用例改为使用现有 Espresso 点击编辑框，等待可交互窗口后触发真实输入；首次避让仍要求五秒内取得非零 IME Insets，保留内容完整位于键盘上方的断言，并增加几何检查时键盘仍可见的断言及窗口/编辑框焦点诊断。没有增加重试、跳过或固定休眠，也未改库源码、生产依赖和发布产物。该调整须重新构建测试 APK 并通过五版本矩阵，不能沿用第 11 轮的部分成功作为完成证明。
+
 feature/release-pipeline 新增根上传入口、任务图门禁、插件暂存逐文件验收以及 CI 配置回归。新的 prepareCentralBundle 已使用现有正式签名完成本地预验，五份签名有效，30 个内部文件与此前冻结正式包逐字节一致；AAR SHA-256 仍为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1。预验报告 source.dirty=true，归档于 build/reports/central-publishing/local-preview，禁止上传。原已授权 ZIP 与报告已恢复保留在 build/central，SHA-256 仍为 5b199996fa0c9a2b18bc949384fc88e3aed88fa9bfc6682d5ffc52e318bc3bdc。
 
 本地 verifyReleaseCandidate 已通过，包含 32 项 JVM 测试、无问题 Lint、73 项 Python 回归及 Central 模型检查；完整 candidate.json 与第 10 轮 main CI 冻结报告一致。21 项真实 Gradle 发布配置/任务图回归、19 项签名配置回归及 2 项本机假 Portal 的 build service 回归通过。AGP 7.2.2 独立消费者 Debug/R8 Release 构建通过，两个变体解析到的 AAR SHA 均与冻结候选一致；旧 Lint 的 Kotlin metadata 1.9 分析诊断仍存在，本轮未运行消费者设备冒烟。离线任务图或假服务不代表真实 Central 上传结果。

@@ -11,6 +11,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.test.ext.junit.rules.activityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.logan.ktoast.KToastScope
@@ -23,6 +25,7 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.hamcrest.Matchers.sameInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -169,17 +172,21 @@ class KToastWindowTest {
             // 提示是独立子窗口，宿主的 pre-draw 可能早于其更新后的绘制。
             // 两个窗口都观察，仍要求实际屏幕位置移动并完整避让键盘。
             root.viewTreeObserver.addOnPreDrawListener(observer)
-            editor.windowInsetsController?.show(WindowInsets.Type.ime())
         }
-        val changed = moved.await(3L, TimeUnit.SECONDS)
-        rule.scenario.onActivity {
-            val root = content.rootView
-            val location = IntArray(2)
-            root.getLocationOnScreen(location)
-            val params = root.layoutParams as WindowManager.LayoutParams
-            position.set("${position.get()}; finalIme=${it.window.decorView.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom} finalY=${location[1]} requestedY=${params.y} state=${handle.state}")
-            it.window.decorView.viewTreeObserver.removeOnPreDrawListener(observer)
-            root.viewTreeObserver.removeOnPreDrawListener(observer)
+        val changed = try {
+            // 与首次避让用例使用同一真实输入操作，避免初始化与 IME 显示请求竞争。
+            onView(sameInstance(editor)).perform(click())
+            moved.await(3L, TimeUnit.SECONDS)
+        } finally {
+            rule.scenario.onActivity {
+                val root = content.rootView
+                val location = IntArray(2)
+                root.getLocationOnScreen(location)
+                val params = root.layoutParams as WindowManager.LayoutParams
+                position.set("${position.get()}; finalIme=${it.window.decorView.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom} finalY=${location[1]} requestedY=${params.y} state=${handle.state}")
+                it.window.decorView.viewTreeObserver.removeOnPreDrawListener(observer)
+                root.viewTreeObserver.removeOnPreDrawListener(observer)
+            }
         }
         assertTrue("Showing toast did not move above the IME: ${position.get()}", changed)
         assertEquals(ToastHandle.State.SHOWING, handle.state)

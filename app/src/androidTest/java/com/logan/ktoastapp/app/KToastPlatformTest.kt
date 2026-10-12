@@ -14,6 +14,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.test.ext.junit.rules.activityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.logan.ktoast.KToastScope
@@ -28,8 +30,10 @@ import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.hamcrest.Matchers.sameInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class KToastPlatformTest {
@@ -47,22 +51,35 @@ class KToastPlatformTest {
         lateinit var editor: EditText
         lateinit var content: View
         lateinit var observer: ViewTreeObserver.OnPreDrawListener
+        val imeState = AtomicReference("No editor frame")
         rule.scenario.onActivity { host ->
             editor = EditText(host)
             host.setContentView(FrameLayout(host).apply { addView(editor) })
             editor.requestFocus()
             observer = ViewTreeObserver.OnPreDrawListener {
-                if ((editor.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom ?: 0) > 0) {
+                val keyboard = editor.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom ?: 0
+                imeState.set("attached=${editor.isAttachedToWindow} windowFocus=${editor.hasWindowFocus()} editorFocus=${editor.hasFocus()} ime=$keyboard")
+                if (keyboard > 0) {
                     imeVisible.countDown()
                 }
                 true
             }
             editor.viewTreeObserver.addOnPreDrawListener(observer)
-            editor.post { editor.windowInsetsController?.show(WindowInsets.Type.ime()) }
         }
-        assertTrue("IME did not become visible", imeVisible.await(5L, TimeUnit.SECONDS))
+        val visible = try {
+            // ActivityScenario 的 RESUMED 不保证窗口已有焦点；过早 show 会被系统取消。
+            // Espresso 等待可交互窗口后点击编辑框，仍要求真实 IME Insets 和原避让断言通过。
+            onView(sameInstance(editor)).perform(click())
+            imeVisible.await(5L, TimeUnit.SECONDS)
+        } finally {
+            rule.scenario.onActivity {
+                val keyboard = editor.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom ?: 0
+                imeState.set("${imeState.get()}; finalAttached=${editor.isAttachedToWindow} finalWindowFocus=${editor.hasWindowFocus()} finalEditorFocus=${editor.hasFocus()} finalIme=$keyboard")
+                editor.viewTreeObserver.removeOnPreDrawListener(observer)
+            }
+        }
+        assertTrue("IME did not become visible: ${imeState.get()}", visible)
         rule.scenario.onActivity { host ->
-            editor.viewTreeObserver.removeOnPreDrawListener(observer)
             scope = KToastScope.create(host, KToastScopeOptions(avoidIme = true))
             scope!!.show("above IME", Toast.LENGTH_LONG) {
                 animationDuration = 0L
@@ -80,6 +97,7 @@ class KToastPlatformTest {
             val location = IntArray(2)
             root.getLocationOnScreen(location)
             val keyboard = host.window.decorView.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom
+            assertTrue("IME disappeared before content geometry was checked", keyboard > 0)
             val bottom = host.windowManager.currentWindowMetrics.bounds.bottom
             assertTrue("Content overlaps IME", location[1] + root.height <= bottom - keyboard)
         }
