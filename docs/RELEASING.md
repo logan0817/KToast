@@ -2,7 +2,7 @@
 
 ## 当前状态与产物
 
-Java 调试入口兼容修复后的候选已通过本地构建、API、文档示例及第 8 轮 PR 五版本关键设备矩阵。PR #1 已合入 main，合并提交为 8d415953a3d576ca85a9755c05c8ffd25cbc6a83；合并后的第 9 轮 CI 首尝试在 API 35 失败，其余四个版本通过；API 35 单次原样重跑后通过，main CI 已完成原始报告与制品一致性验收。首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。已使用 FlowBus 同一发布密钥生成并预验本地正式签名包；签名配置已纳入本次收尾，干净源码包及本次配置的云端验收、Central 发布门槛尚未完成。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。
+Java 调试入口兼容修复、发布配置拆分及标准 GPG 配置已纳入 main。2026-10-12 的第 10 轮 main CI 五个关键 API 首尝试均成功，原始报告与制品一致性验收完成；正式签名包已在干净源码下通过本地验收，复用 FlowBus 已有发布密钥。此前 API 35 首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -29,7 +29,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
 | 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项，共 57 项回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
-| 签名配置边界 | 当前本地 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 历史云端为 12 项，本次配置改动未做云端验证；配置回归不访问个人密钥环 |
+| 签名配置边界 | 当前本地及第 10 轮 main CI 的 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 配置回归不签名、不访问个人密钥环；历史 12 项仅对应旧配置 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
 | 已编译 1.0.5 消费者 | Java/Kotlin 保持原字节码，替换本轮候选运行通过 | JVM 样例不执行窗口 |
 | Kotlin 源码消费 | 1.9.22、2.0.21 配置样例编译运行通过；页面源码编译通过 | 此前源码样例验证；本轮旧 AGP 消费者使用 1.9.22，完整仓库使用 1.9.23 |
@@ -117,13 +117,31 @@ API 35 首尝试为 27 项通过、5 项显式跳过、4 项失败、0 项未报
 
 本轮 Demo APK SHA-256 为 ed429ea1fbf1c8438fb2c04bb37dca3b6c0117abc60df905365d2162cb1b20fa，设备测试 APK 为 4329be420b8bcf0e9d4cadddf0dfc074be1c0d4949d9ef357a265b4a81c90bb8，R8 消费者 APK 为 9e193c2652304ca1b809d640051432392d577882a6c5a9f9f4794bb72b7efb7b。AAR、sources、javadoc 摘要仍为第 6 轮表中对应值。证据归档为 build/reports/device-matrix-cloud/38221177164，首尝试额外保留于 attempt-1 子目录；verified-summary.json 汇总各 API 的实际验收尝试、官方状态、完整候选及原始摘要，同时保留 firstAttempt 失败记录。归档不进入源码提交。main CI 通过不等于正式签名与 Central 发布完成。
 
+### 最新签名配置的 main CI 验收
+
+2026-10-12 的 [第 10 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38229044372) 首尝试整体 Success，耗时 21 分 46 秒；实际构建与运行提交均为 0b1a79c8a4edf2b90b1cc65b5133cb19ac7f5dde，未重跑任务。构建完成候选聚合校验、57 项 Python 工具回归和旧 AGP 消费者 Debug/R8 Release 构建；原始报告确认 32 项 JVM 测试无失败、错误或跳过，库 Lint 为 No issues found，19 项签名配置用例及结果与本地完整一致。API 35 较长耗时期间日志停在云端系统镜像安装，最终设备运行成功，未修改本机 SDK。
+
+| API | 通过 | 显式跳过 | 失败 | 未报告 | R8 新进程 PID |
+| --- | --- | --- | --- | --- | --- |
+| 21 | 28 | 0 | 0 | 8 | 2702 |
+| 30 | 31 | 5 | 0 | 0 | 6073 |
+| 31 | 31 | 5 | 0 | 0 | 5394 |
+| 35 | 31 | 5 | 0 | 0 | 4465 |
+| 36 | 31 | 5 | 0 | 0 | 4805 |
+
+五个版本均无必需用例缺失，原始 instrumentation.txt 重解析成功、Runner 返回 -1，R8 新进程日志与对应 PID 的 PASS 一致。普通矩阵的 fixture 跳过和 API 21 的 SDK 过滤未报告项继续不计成功。本轮 API 35 设备日志未出现此前 RootViewWithoutFocusException、IME did not become visible、PHASE_CLIENT_REQUEST_IME_SHOW 拒绝或 SurfaceComposerClient 图层同步超时；单次成功不等于此前偶发问题的根因已消除。
+
+七份 ZIP 通过公开制品中转下载，SHA-256 均与 GitHub 官方运行页 digest 一致；同批输入的 APK/AAR 字节、构建及运行提交均与报告一致，完整 candidate.json 与本地冻结候选一致。逐版本指纹、ABI、原始日志、官方页面与下载来源归档于 build/reports/device-matrix-cloud/38229044372，汇总为 verified-summary.json 和 download-provenance.json；这些受忽略规则保护的本地证据需维护者保留，不依赖 Actions 14 天保留期。
+
+本轮 Demo APK SHA-256 为 1a06c1bb8a13af4e6bed816792af0b538b4f2ed4891d94d9cafad3c07e4bdb68，设备测试 APK 为 9c04f95991f3091aaeec79e788955da364a5518d0e48bf1211a274041a2c6472，R8 消费者 APK 为 31812c22e16db71e5a129f6f356838d8e442dd5a2b340642683f53432a088291。AAR、sources 与 SNAPSHOT javadoc 摘要仍与冻结候选一致。后续仅发布结果文档提交不触发路径过滤后的矩阵，也不改变库源码或制品输入；该文档提交的正式包报告仍须重新生成并核对干净状态。现有 Action 弃用提示、AGP/compileSdk 支持风险及厂商真机/专用场景限制继续保留。
+
 ## 文档与兼容修复终审
 
 README 中英文与页面说明的实际代码片段使用候选 AAR 编译：33 段 Kotlin、3 段 Java、5 段 XML 校验通过。补齐缺失 import、完整 Activity 示例及仅移除本库 Startup metadata 的配置，修正无效 Android drawable 和历史 Demo 链接；说明局部 DSL 的线程、页面取消与旧全局降级边界。八份权威 Markdown 的本地链接与敏感模式检查通过，没有新增沟通过程文档。
 
 真实 Java 示例编译发现 debugMode 属性 setter 与静态 setDebugMode(boolean) 歧义。本轮使用 @set:JvmSynthetic 对 Java 源码隐藏属性 setter，保留原 JVM 签名和 Kotlin 属性读写；独立消费者新增 Java 静态调用与 Kotlin 属性切换断言，Debug 与 R8 Release 构建均使用当前候选 AAR。旧公开类签名、major=52、metadata=1.9.0 和生产依赖校验通过，设备矩阵已针对修复后同批产物重新运行并核验通过。
 
-维护者已选择本机 GPG/keyring 签名，并保留环境变量内存签名供受控自动化使用。本地正式签名包已生成并预验，尚未完成干净源码的最终包验收；本机模式复用标准 signing.gnupg.keyName 中独立核对过的完整指纹，由 gpg-agent 解锁对应私钥；KTOAST_SIGNING_FINGERPRINT 可选。包验收需显式提供对应的导出公钥文件，不要求新建项目专用密钥。私钥与口令不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
+维护者已选择本机 GPG/keyring 签名，并保留环境变量内存签名供受控自动化使用。本地正式签名包已在干净源码下完成验收，具体提交与摘要见下方正式包记录；本机模式复用标准 signing.gnupg.keyName 中独立核对过的完整指纹，由 gpg-agent 解锁对应私钥；KTOAST_SIGNING_FINGERPRINT 可选。包验收需显式提供对应的导出公钥文件，不要求新建项目专用密钥。私钥与口令不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
 
 ## 本地检查顺序
 
@@ -151,8 +169,8 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 - [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
 - [x] API 文档产物、内存/GPG 双模式签名、本地签名仓库及 Central 手工上传包生成流程完成，两条路径的测试密钥演练通过。
 - [x] 已验收候选源码通过 PR #1 纳入默认分支，合并提交与 PR head 文件树一致。
-- [ ] 最新签名配置的 main CI 验收成功；此前第 9 轮已通过，API 35 首尝试失败和单次重跑证据保留。
-- [ ] 正式签名包与已验收候选一致，完成正式版本与签名制品校验。
+- [x] 最新签名配置的第 10 轮 main CI 首尝试成功，19 项配置回归及五版本原始报告已验收；此前 API 35 失败和单次重跑证据保留。
+- [x] 正式签名包与已验收候选一致，完成正式版本与签名制品校验；干净源码报告、五份签名和 30 文件 ZIP 已核对。
 - [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验及远端文件验收。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。
 
@@ -206,7 +224,7 @@ python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PU
 signing.gnupg.keyName=<已核对的完整发布密钥指纹>
 ```
 
-signing.gnupg.executable 和 signing.gnupg.homeDir 沿用已有设置，口令继续交给 gpg-agent。KToast 额外要求明确的完整指纹，避免默认选钥；不会读取 signing.keyId 作为替代，不自动改写用户级配置。内存签名入口保持不变。新增标准属性、64 位指纹、大小写一致、无效属性和空环境变量边界的配置回归；这些配置检查不签名、不访问个人密钥环。历史云端 12 项结果只对应当时版本；当前本地 19 项配置回归与 verifyReleaseCandidate 已通过，57 项工具回归实际运行，JVM/Lint 沿用有效增量结果，完整 candidate.json 与 main CI 冻结候选一致。本次配置改动尚未做云端验证，不能直接沿用历史配置验收。
+signing.gnupg.executable 和 signing.gnupg.homeDir 沿用已有设置，口令继续交给 gpg-agent。KToast 额外要求明确的完整指纹，避免默认选钥；不会读取 signing.keyId 作为替代，不自动改写用户级配置。内存签名入口保持不变。新增标准属性、64 位指纹、大小写一致、无效属性和空环境变量边界的配置回归；这些配置检查不签名、不访问个人密钥环。历史云端 12 项结果只对应当时版本；当前本地 19 项配置回归与 verifyReleaseCandidate 已通过，57 项工具回归实际运行，JVM/Lint 沿用有效增量结果，完整 candidate.json 与 main CI 冻结候选一致。本次配置改动已通过第 10 轮 main CI，云端 19 项原始配置结果与本地完整一致，未沿用历史 12 项结果。
 
 ### 现有发布密钥的本地正式包预验
 
@@ -216,7 +234,7 @@ signing.gnupg.executable 和 signing.gnupg.homeDir 沿用已有设置，口令�
 
 本地正式 Staging 的 AAR 与 sources 和 main CI 冻结候选逐字节一致。javadoc 包的 137 个差异文件均仅由版本标签 1.1.0-SNAPSHOT 改为 1.1.0，文件集合与其他内容一致。独立 AGP 7.2.2 消费者使用 staging/1.1.0 的 Debug/R8 Release 构建通过，两变体实际 AAR SHA 均为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1；本轮未重新运行消费者设备冒烟，历史设备证据仅对应同字节 AAR 的已验收批次。
 
-build/central/ktoast-1.1.0.zip 已通过五份签名、四类校验和、30 个 ZIP 文件、旧 API、字节码、依赖、源码及真实 API 文档检查。收尾提交前的 ZIP SHA-256 为 4330a52270794209fb9efaca56233be729bc3e6e03cf1af9ed9513c7dc854e1a，当时报告 rehearsal=false、source.dirty=true；该正式密钥预验包归档于 build/reports/signing-modes/precommit-bundle，禁止直接用于正式上传，须提交收尾后重新生成干净源码的可追溯报告与包。已恢复 SNAPSHOT Candidate；后续重新打包以最新实际摘要为准，不假设签名或 ZIP 摘要不变。
+build/central/ktoast-1.1.0.zip 已通过五份签名、四类校验和、30 个 ZIP 文件、旧 API、字节码、依赖、源码及真实 API 文档检查。签名配置提交 0b1a79c8a4edf2b90b1cc65b5133cb19ac7f5dde 后，在干净源码下重新生成包与报告，rehearsal=false、source.dirty=false；ZIP SHA-256 为 8aa71f9f4953aa39c07db7fd28b54717780ce0b90de75418abdcab67d726a762。本地 Staging 更新成功，签名任务复用此前实际生成且本次验签有效的五份签名。后续仅发布结果文档收尾时重新生成报告，最新 source.commit 以实际报告为准；文档收尾不改变库源码或制品输入。此前 source.dirty=true 的预验包保留于 build/reports/signing-modes/precommit-bundle，禁止上传。常规 SNAPSHOT Candidate 已恢复并与冻结候选完整一致；后续重新打包仍须核对实际摘要。
 
 公开签名身份核验记录位于 build/reports/signing-modes/flowbus-public-identity.json，当前配置回归为 configuration.json，包报告为 build/central/ktoast-1.1.0.report.json，均不提交。此次没有上传、创建标签或正式发布，仓库常规安装坐标继续为 1.0.5。
 
