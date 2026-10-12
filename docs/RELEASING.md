@@ -19,15 +19,15 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 ## 验证矩阵
 
-以下当前关键矩阵证据来自 2026-10-10 的 Java 调试入口修复候选；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
+以下当前关键矩阵证据来自 2026-10-12 的发布流程对齐候选，包含 Java 调试入口兼容修复；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
 
-当前冻结源码为 9e57cf366c337287ed75f4b80073198b742ebe9d。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、41 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
+当前已验收的构建源码为 4f81814a8b39253f78e76e9ff32d7d818b63964b。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、57 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
 
 | 验证项 | 已有结果 | 限制 |
 | --- | --- | --- |
 | JVM 测试、库 Lint | 32 项通过；No issues found | 不替代设备运行 |
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
-| 发布与矩阵校验工具 | 文档及发布包工具 26 项、矩阵工具 15 项回归通过；输入 APK/AAR 校验信息生成通过 | 工具测试通过不等于远程设备运行通过 |
+| 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项，共 57 项回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
 | 签名配置边界 | 缺密钥/口令、未签名 Staging、签名开启 configuration cache 均明确拒绝 | 正式签名仍需受控环境注入 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
@@ -44,7 +44,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 API 33 的旧验证仅对应更早稳定性阶段，不用于认证当前完整 1.1 候选。设备测试的 SDK 过滤、fixture 跳过、失败和成功必须分别记录。无障碍、显示缺口、自由窗口的专用配置及恢复要求见 [TROUBLESHOOTING.md](../TROUBLESHOOTING.md)。
 
-当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。本轮修改属性 setter 的 JVM synthetic 标记后，已重新完成下述云端关键矩阵。设备项按原始 Runner、R8 日志和产物报告核对；官方支持范围风险及专用场景覆盖限制继续保留。
+当前本地不下载缺失测试镜像，不调整 AGP/compileSdk。属性 setter 的 JVM synthetic 兼容修复已包含于本轮产物；发布校验工具与工作流对齐后，重新完成下述云端关键矩阵。设备项按原始 Runner、R8 日志和产物报告核对；官方支持范围风险及专用场景覆盖限制继续保留。
 
 ## 云端设备矩阵
 
@@ -66,15 +66,15 @@ Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。�
 
 ### 已核验的云端结果（当前冻结候选）
 
-2026-10-10 的 [矩阵运行 #4](https://github.com/logan0817/KToast/actions/runs/38045749859) 整体成功，耗时 14 分 9 秒。运行源码提交为 9e57cf366c337287ed75f4b80073198b742ebe9d，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、41 项 Python 工具回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建。
+2026-10-12 的 [矩阵运行 #5](https://github.com/logan0817/KToast/actions/runs/38202836669) 整体成功，耗时 13 分 49 秒。运行源码提交为 4f81814a8b39253f78e76e9ff32d7d818b63964b，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、Python 工具回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建；同一源码的本地 Python 工具回归为 57 项通过。工作流已经加入 main 推送触发，但尚未合入 main，不将本轮候选分支结果作为合并后的 main CI 结果。
 
 | 实际 API | 系统镜像构建标识 | ABI | 通过 | 显式跳过 | 未报告 | R8 新进程 PID |
 | --- | --- | --- | --- | --- | --- | --- |
-| 21 | Android 5.0.2 / LSY66K / 4174711 | x86 | 28 | 0 | 8 | 2701 |
-| 30 | Android 11 / RSR1.240422.006 / 12134477 | x86_64 | 31 | 5 | 0 | 6246 |
-| 31 | Android 12 / SE1A.220826.008 / 10564458 | x86_64 | 31 | 5 | 0 | 5170 |
-| 35 | Android 15 / AE3A.240806.043 / 12960925 | x86_64 | 31 | 5 | 0 | 4367 |
-| 36 | Android 16 / BE2A.250530.026.F3 / 13894323 | x86_64 | 31 | 5 | 0 | 4791 |
+| 21 | Android 5.0.2 / LSY66K / 4174711 | x86 | 28 | 0 | 8 | 2703 |
+| 30 | Android 11 / RSR1.240422.006 / 12134477 | x86_64 | 31 | 5 | 0 | 6232 |
+| 31 | Android 12 / SE1A.220826.008 / 10564458 | x86_64 | 31 | 5 | 0 | 5508 |
+| 35 | Android 15 / AE3A.240806.043 / 12960925 | x86_64 | 31 | 5 | 0 | 4556 |
+| 36 | Android 16 / BE2A.250530.026.F3 / 13894323 | x86_64 | 31 | 5 | 0 | 4770 |
 
 五个版本均无失败、无必需用例缺失，Runner 正常返回 -1，独立 R8 消费者新进程均输出 PASS，覆盖 Java 静态调试入口、Kotlin debugMode 属性读写、旧 Java、页面 Java/Kotlin、队列及延时取消。普通矩阵不启用无障碍时长、显示缺口、自由窗口 fixture；不能将这些跳过项写成已验证。API 35 的动态输入法用例同时观察宿主与独立提示子窗口，保持实际位置上移及完整避让断言，本轮未修改库定位实现。修复前的第 3 轮结果保留在本地历史归档，不作为当前 AAR 的运行证据。
 
@@ -83,13 +83,13 @@ Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。�
 | 产物 | SHA-256 |
 | --- | --- |
 | Release AAR（141900 字节） | e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1 |
-| Demo Debug APK | 2c56f3ddbe1398d6ce6043c727fd717eaaaa71c910d4bdfd522c774d0be34685 |
-| 设备测试 APK | 034033ae756596c5c4dd207c508c7420a34494370b57e9808cd3cf7c6b9c2dd0 |
-| 旧 AGP R8 Release 消费者 APK | fd5d21cae390117ab8cb246d45637e23aa58ea4db1b06894cb1dae727b8edc8c |
+| Demo Debug APK | 7b0a0a906aa02d0321ea703abdbd3a762662ccff5dbd6e45ecf3ff08636b219c |
+| 设备测试 APK | abb8e9b1b4b8d527f28e8a74b0eaba314cfcb5faa86db6a7ae2eb51370f2affa |
+| 旧 AGP R8 Release 消费者 APK | 1fdb493094a5348c830f6fb85e6ee8fe01246c8ec103005298ed59fe8d7eda8a |
 | sources JAR | 571832f360e25cac0fda90300949185d1963cc509e23d83b57c91c2e1fc8a8df |
 | javadoc JAR | b0172b4335d454e929334ba87a46162845c48f4414dc7ab8d97e484f6db35680 |
 
-本次原始 ZIP（同批输入、构建诊断、五个设备报告）已按 Actions 展示的 digest 校验，归档在维护者本地 build/reports/device-matrix-cloud/38045749859；verified-summary.json 汇总核验结果，各 ZIP 保留完整设备指纹和原始日志。该目录受忽略规则保护，不进入源码提交；本地归档仍需维护者保留，不能依赖 Actions 14 天保留期作为永久存档。
+本次原始 ZIP（同批输入、构建诊断、五个设备报告）通过 nightly.link 的公开制品中转下载，七个 ZIP 均与 GitHub 官方运行页或 artifacts API 的 digest 一致，归档在维护者本地 build/reports/device-matrix-cloud/38202836669；verified-summary.json 汇总核验结果，download-provenance.json 记录下载方式与摘要来源，各 ZIP 保留完整设备指纹和原始日志。AAR、sources、javadoc 与第 4 轮一致，APK 为本轮重新构建，按上表实际 SHA 验收。该目录受忽略规则保护，不进入源码提交；本地归档仍需维护者保留，不能依赖 Actions 14 天保留期作为永久存档。
 
 本次 Actions 提示部分固定版本使用已弃用的 Node 20，并由托管 Runner 强制使用 Node 24；setup-java v4 也提示弃用。构建和设备任务已实际成功，这些提示不改变 Android 消费者门槛；后续维护 CI 时须单独验证 Action 迁移，不能与库生产依赖升级混为一谈。
 
@@ -151,6 +151,8 @@ python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PU
 该工具需要 Python 3.9+、现有 JDK 的 javap、GnuPG gpg。只在临时密钥环导入明确指定的公钥，不自动从网络取钥；核对五个签名、四类校验和、POM 必需信息、旧 API、字节码、依赖、当前源码包及真实 API 页面后才生成 ZIP 与相邻 .report.json。错误指纹、过期/撤销签名、产物篡改或缺项均拒绝；ZIP 不包含私钥、公钥、报告或 maven-metadata.xml。相邻报告额外记录批次名称、实际坐标、Git 提交、工作区是否有未提交文件，以及全部 30 个 ZIP 文件的大小和 SHA-256；源码未提交时可本地预验，但必须在源码收尾后重新生成可追溯的正式报告。
 
 本地测试密钥演练的输出位于 build/reports/release-rehearsal/ktoast-1.1.0-TEST-KEY.zip，报告 rehearsal=true，临时私钥已删除。该包禁止上传。复现测试演练可在独立临时 GPG 目录生成短期测试签名密钥，将其私钥与口令仅注入本次 Gradle 进程，再给工具添加 --rehearsal，并使用以 -TEST-KEY.zip 结尾的文件名；结束时销毁测试私钥和密钥环，不修改个人密钥环。
+
+2026-10-12 复核时，上述短期测试密钥已过期，校验工具按预期拒绝 KEYEXPIRED、EXPKEYSIG 状态。当时的成功结果仅作为流程演练记录，不代表旧演练包现在仍可通过签名验收；不得修改系统时间、放宽过期检查或将旧测试包作为正式包使用。
 
 ## Maven Central 手工审核流程
 
