@@ -4,7 +4,7 @@
 
 Java 调试入口兼容修复、发布配置拆分、标准 GPG 配置及 Gradle 命令上传流程已纳入 main。PR #2 合并提交为 5be2c22bf1110e2f551c67c7b36c270444cbb34d；2026-10-12 的第 15 轮合并后 main CI 首尝试失败，API 21、30、31、36 通过，API 35 有四项失败，当前发布门槛未通过，不能上传 Central。七份原始报告和制品已核对，细节见下方合并验收记录。此前第 10 轮 main 和第 13 轮 PR 的成功不能替代此次验收；持续失焦的根因仍未确定。
 
-正式签名包已在干净 main 源码下通过本地验收，使用维护者已核对的现有发布密钥，但本地验收不代表设备或服务端验证通过。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。本地测试诊断调整尚未通过新一轮云端运行。
+正式签名包已在干净 main 源码下通过本地验收，使用维护者已核对的现有发布密钥，但本地验收不代表设备或服务端验证通过。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。窗口测试清理及诊断调整已通过 PR #3 第 16 轮首尝试五版本回归，尚未合入 main；该轮无失败，新增设备失败采证分支未触发，限制见下方记录。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -65,7 +65,7 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 矩阵入口显式传入 windowFailureDiagnostics=true 和本次唯一的 windowFailureRunId。在三个窗口相关测试类内，诊断规则位于 ActivityScenario 规则内部；失败时于 @After 执行后、宿主销毁前保存 window、input、activity activities 和 display 的 dumpsys 输出。每条系统采证命令使用五秒上限；采证失败只记录错误，不替换测试失败、不重试和不放宽断言。文件保存在测试 APK 的专用外部文件目录，按运行 ID 与用例区分；只供临时模拟器诊断使用。
 
-运行入口失败时另保存 after-run-*.txt，并拉取本次用例的 window-failures 目录；result.json 的 failureDiagnostics 分别记录成功取得的文件与采证错误。收尾快照属于 Runner 结束后的状态；用例快照也已执行测试清理，两者都不能直接证明失焦首次发生的时刻或原因。Runner 崩溃、安装失败或诊断文件缺失仍保留原始失败，不将缺失诊断标记为取得成功，不读取其他运行的目录。成功运行不执行这些失败采证命令。新增采证在云端实际执行和文件拉取仍待验证。
+运行入口失败时另保存 after-run-*.txt，并拉取本次用例的 window-failures 目录；result.json 的 failureDiagnostics 分别记录成功取得的文件与采证错误。收尾快照属于 Runner 结束后的状态；用例快照也已执行测试清理，两者都不能直接证明失焦首次发生的时刻或原因。Runner 崩溃、安装失败或诊断文件缺失仍保留原始失败，不将缺失诊断标记为取得成功，不读取其他运行的目录。成功运行不执行这些失败采证命令。第 16 轮 PR CI 五版本无失败，采证分支未触发；新增采证在云端失败场景的实际执行和文件拉取仍待验证。
 
 工作流支持 Pull Request、手动触发，以及 main 和 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，main 上仅推送发布结果或 README 文档不会重复构建设备矩阵；Pull Request 按整个 PR 相对目标分支的差异筛选路径，已有代码差异的 PR 即使仅追加发布结果文档，也可能重新运行。工作流已合入默认分支，手动入口现可使用。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
 
@@ -348,3 +348,19 @@ API 35 首次输入法前置用例及两个 Demo 交互用例报 RootViewWithout
 实际编译的 WindowFailureDiagnosticsRule 另通过五项 JVM 边界自检：真实 JUnit RuleChain 保持原异常对象且在宿主销毁前采证、未启用时不执行 shell、非法运行 ID 被拒绝、单个系统服务异常不打断其他采证、fixture 假设跳过不触发失败采证。Android 系统服务使用替身；此结果只验证控制流程，不证明设备权限、dumpsys 内容和 adb 文件拉取可用。自检入口与 class SHA 记录位于本地 build/reports/release-freeze/check_window_diagnostics_rule.py 及 window-rule-selfcheck/result.json，不进入发布产物。Android 采证规则及修正后的窗口收尾仍待云端实际运行，当前不宣称失焦已解决或设备验证通过。
 
 第 15 轮证据归档于 build/reports/device-matrix-cloud/38258471248，verification-summary.json 的 accepted=false；失败结果必须保留。干净 main 下的正式 ZIP SHA-256 为 3b23d39ecf27cefa6eb36f424681e82ce838873a1430149664dc2dcc580e0d12，30 个内部文件与先前冻结包一致；该包只有本地签名及文件验收，未上传。后续修复完成并通过新 PR 与最终 main CI 后，须在干净提交下重新准备发布报告，核对实际插件 ZIP 与授权范围，再执行真实上传及远端验收。
+
+### 窗口测试清理与诊断的 PR 验收
+
+[PR #3](https://github.com/logan0817/KToast/pull/3) 的 [第 16 轮 CI](https://github.com/logan0817/KToast/actions/runs/38267311302) 首尝试整体 Success，未重跑。实际源码为 fb157aa90c3ecb8d4008e1027b91a3dcec1c24c6，测试合并提交为 c47c3bec27ff6a018fb208881b23de2ebbe8ea7a，其父提交为 main 的 5be2c22 和该 PR head，文件树与 head 完全一致。七份原始 ZIP 均与 GitHub 官方摘要一致；同批输入 APK/AAR 的实际字节、构建和运行提交均匹配，完整 candidate.json 与本地及冻结候选一致。
+
+| API | 通过 | 显式跳过 | 未报告 | 失败 | R8 新进程 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 21 | 28 | 0 | 8 | 0 | PID 2720，PASS |
+| 30 | 31 | 5 | 0 | 0 | PID 6230，PASS |
+| 31 | 31 | 5 | 0 | 0 | PID 5432，PASS |
+| 35 | 31 | 5 | 0 | 0 | PID 4748，PASS |
+| 36 | 31 | 5 | 0 | 0 | PID 4977，PASS |
+
+原始 Runner 结果重解析与 result.json 一致，五版本均正常返回 -1、无必需用例缺失。R8 消费者的新进程 PID 与对应 PASS 日志一致；专用 fixture 跳过及 SDK 过滤未报告项不计成功。原始构建报告确认 32 项 JVM 测试通过、库 Lint 无问题、19 项签名配置、21 项发布配置及 2 项隔离服务回归通过；官方构建日志确认执行 83 项 Python 回归。未改变生产库、工具链或生产依赖。
+
+本轮窗口测试及普通 IME 场景实际通过，但所有版本都没有失败，新增诊断规则的设备采证及 adb 拉取分支未触发，不能将其写成设备失败路径已经验证。第 15 轮持续失焦根因仍未确定；本轮成功不证明该问题已消除，也不替代合并后的 main CI。证据归档于 build/reports/device-matrix-cloud/38267311302，verification-summary.json 的 accepted=true 只表示本次 PR 验收通过。后续仅记录结果的文档提交不改变已验收的测试或生产库源码；最终 PR 检查和合并后的 main CI 状态仍须分别核对。
