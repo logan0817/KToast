@@ -318,6 +318,10 @@ feature/release-pipeline 新增根上传入口、任务图门禁、插件暂存�
 
 本地 verifyReleaseCandidate 已通过，包含 32 项 JVM 测试、无问题 Lint、79 项 Python 回归及 Central 模型检查；完整 candidate.json 与第 10 轮 main CI 冻结报告一致。21 项真实 Gradle 发布配置/任务图回归、19 项签名配置回归及 2 项本机假 Portal 的 build service 回归通过；规范化配置修改后重新执行的 21 项发布配置与 2 项服务回归也通过。AGP 7.2.2 独立消费者 Debug/R8 Release 构建通过，两个变体解析到的 AAR SHA 均与冻结候选一致；旧 Lint 的 Kotlin metadata 1.9 分析诊断仍存在。离线任务图或假服务不代表真实 Central 上传结果。
 
-修正后的测试 APK 已在既有 Android Studio 构建环境成功编译；79 项 Python 回归再次通过。五版本运行仍待新提交的 CI 验收，编译通过不能替代设备通过。
+修正后的测试 APK 已在既有 Android Studio 构建环境成功编译；79 项 Python 回归再次通过。随后第 13 轮 PR CI（38245652907）首尝试整体成功，实际验收源码为 74fd48f71ae9d3238b96f15b22a4e03ceb540730，测试合并提交为 3453a003db435e62510acc937fba8a84157492ce，其文件树与 PR 源码一致。七份原始 ZIP 均与 GitHub 官方摘要一致，完整 Candidate 与本地及第 10 轮冻结候选一致，所有设备使用同批输入且原始 Runner 结果与 result.json 一致。
+
+API 21 为 28 项必需用例通过、8 项 SDK 过滤用例未报告；API 30、31、35、36 各 31 项通过、5 项专用 fixture 用例跳过。五版本均无失败或必需用例缺失，R8 消费者新进程 PID 依次为 2699、6241、5057、4451、4969，均输出 PASS。API 30/31/35/36 的两个 IME 用例均通过；不把专用 fixture 的跳过计为成功，也不据单轮通过断言此前所有时序异常根因已消除。原始构建报告确认 32 项 JVM 测试、无问题 Lint、19 项签名配置、21 项发布配置和 2 项隔离服务回归通过。
+
+在同一干净提交上重新生成的本地正式 ZIP SHA-256 为 bf02feeac641ddae93b486fad048cdf7bd1ca46f4bdf9a26e47ae27eaeab4b0a。真实 Gradle 50 文件仓库的隔离副本通过完整源码门禁、五份真实签名和 20 个派生校验和验证后规范化为 30 文件，与旧冻结包逐字节一致；本次未替代或跳过源码门禁。报告位于 build/reports/central-publishing/normalization-clean-head.json，仅证明本地上传前验收，尚未联系真实 Central 上传服务。
 
 本节记录命令发布流程的本地验证；PR、合并后 main CI 以及真实 Central 上传仍须单独验收，不沿用旧 main CI 认证新的发布配置。流程收尾后须在干净提交下重新准备发布报告，核对实际插件 ZIP 与授权范围，再进行真实上传及远端验收。未改变库源码和生产依赖；五版本运行证据仍对应同字节冻结 AAR，不把本地工具回归写成新设备运行。
