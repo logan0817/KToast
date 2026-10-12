@@ -19,13 +19,16 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
 
-    @get:Rule
     val rule = activityScenarioRule<MainActivity>()
+
+    @get:Rule
+    val rules = RuleChain.outerRule(rule).around(WindowFailureDiagnosticsRule())
 
     @Test
     fun launchMainActivity_keepsScenarioStable() {
