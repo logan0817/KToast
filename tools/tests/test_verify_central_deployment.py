@@ -72,7 +72,7 @@ class DeploymentVerificationTest(unittest.TestCase):
             self.run_check()
 
     def test_wrong_project_name_rejected(self):
-        self.status["deploymentName"] = "io.github.logan0817-FlowBus-1.1.0"
+        self.status["deploymentName"] = "io.github.logan0817-OtherLibrary-1.1.0"
         with self.assertRaisesRegex(ValueError, "名称"):
             self.run_check()
 
@@ -92,7 +92,7 @@ class DeploymentVerificationTest(unittest.TestCase):
             self.run_check()
 
     def test_other_project_or_empty_coordinates_rejected(self):
-        for purls in ([], ["pkg:maven/io.github.logan0817/flowbus@1.1.0"],
+        for purls in ([], ["pkg:maven/io.github.logan0817/other-library@1.1.0"],
                       ["pkg:maven/io.github.logan0817/ktoast@1.0.5"]):
             with self.subTest(purls=purls):
                 self.status["purls"] = purls

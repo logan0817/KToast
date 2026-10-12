@@ -4,7 +4,7 @@ import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.plugins.signing.SigningExtension
 
-// 由 library-android 在插件与发布变体配置完成后应用；不配置远程仓库或上传凭据。
+// 由 library-android 应用，维护既有 Publication 与本地候选；Central 入口由根脚本保护。
 val apiDocsJar = tasks.register<Jar>("apiDocsJar") {
     dependsOn("dokkaHtml")
     archiveClassifier.set("javadoc")
@@ -125,7 +125,10 @@ tasks.withType<PublishToMavenRepository>().configureEach {
             "Staging" -> check(signPublication && !project.version.toString().endsWith("-SNAPSHOT")) {
                 "Local staging requires a non-SNAPSHOT version and -PsignPublication=true."
             }
-            else -> error("Only local Candidate and Staging repositories are allowed.")
+            "mavenCentral" -> check(signPublication && !project.version.toString().endsWith("-SNAPSHOT")) {
+                "Central upload requires a signed non-SNAPSHOT version."
+            }
+            else -> error("Only Candidate, Staging and the guarded Central repository are allowed.")
         }
     }
 }
