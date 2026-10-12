@@ -2,7 +2,7 @@
 
 ## 当前状态与产物
 
-Java 调试入口兼容修复后的候选已通过本地构建、API、文档示例及第 6 轮 API 21、30、31、35、36 云端关键设备矩阵；PR #1 的第 7 轮首尝试在 API 35 生命周期夹具切换超时，失败任务原样重跑一次后通过，原始报告与制品摘要已验收，尚未合并。正式签名及 Central 发布门槛尚未完成。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留中间候选或沟通过程记录。
+Java 调试入口兼容修复后的候选已通过本地构建、API、文档示例及第 8 轮 PR 五版本关键设备矩阵。PR #1 已合入 main，合并提交为 8d415953a3d576ca85a9755c05c8ffd25cbc6a83；合并后的第 9 轮 CI 首尝试在 API 35 失败，其余四个版本通过；API 35 单次原样重跑后通过，main CI 已完成原始报告与制品一致性验收。首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。正式签名及 Central 发布门槛尚未完成。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -21,7 +21,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 以下当前关键矩阵证据来自 2026-10-12 的发布配置拆分与双签名候选，包含 Java 调试入口兼容修复；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
 
-当前已验收的构建源码为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、57 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
+当前冻结候选的基线构建源码为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a；最新 PR 与 main 的实际源码、运行尝试及验收状态见下方合并检查。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、57 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
 
 | 验证项 | 已有结果 | 限制 |
 | --- | --- | --- |
@@ -60,13 +60,13 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 工具将 passed、skipped、failed 和 notReported 分开记录。SDK 过滤可能不产生逐项状态，未报告项不计为成功，也不猜测为已跳过。任一必需用例未通过、Runner 中断、空运行、安装失败、API 不一致、产物变化或新进程未输出 PASS，任务均失败；失败报告仍上传。矩阵 fail-fast 关闭，一个 API 失败不会取消其他 API 的运行。
 
-工作流支持 Pull Request、手动触发，以及 main 和 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，单独维护发布结果或 README 不重复构建设备矩阵。新工作流尚未合入默认分支时，可通过该验证分支推送触发首轮运行；首次不依赖默认分支的手动入口。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
+工作流支持 Pull Request、手动触发，以及 main 和 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，main 上仅推送发布结果或 README 文档不会重复构建设备矩阵；Pull Request 按整个 PR 相对目标分支的差异筛选路径，已有代码差异的 PR 即使仅追加发布结果文档，也可能重新运行。工作流已合入默认分支，手动入口现可使用。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
 
 Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。发布评估应保存工作流 URL、提交 SHA、各 result.json、instrumentation.txt、device-logcat.txt 与 R8 日志，核对 success=true、必需用例集合、实际 API、指纹、ABI、AAR/APK SHA 与新进程 PID。模拟器启动或下载失败只表示环境验证失败，不能改为通过；14 天后会过期，发版前应归档必要证据。远程运行通过后再更新上表，不能提前勾选发布门槛。发布前须核对最终合并提交的 main CI；候选分支的通过结果不能直接写成合并后 CI 已通过。若合并改变制品输入，应重新验证；仅文档结果记录变化仍须核对源码与产物关系。本版保留当前 AGP/compileSdk 的决策已记录，设备矩阵不会改变其官方支持状态。
 
 ### 已核验的云端结果（当前冻结候选）
 
-2026-10-12 的 [矩阵运行 #6](https://github.com/logan0817/KToast/actions/runs/38208800274) 整体成功，耗时 14 分 17 秒。运行源码提交为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、57 项 Python 工具回归、12 项真实 Gradle 签名配置回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建；同一源码的本地 Python 工具回归为 57 项通过。工作流已经加入 main 推送触发，但尚未合入 main，不将本轮候选分支结果作为合并后的 main CI 结果。
+2026-10-12 的 [矩阵运行 #6](https://github.com/logan0817/KToast/actions/runs/38208800274) 整体成功，耗时 14 分 17 秒。运行源码提交为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a，验证分支为 feature/device-matrix。后续仅更新发布结果文档的提交不改变该运行对应的代码与产物。构建任务完成 32 项 JVM 测试、库 Lint（No issues found）、57 项 Python 工具回归、12 项真实 Gradle 签名配置回归、候选发布校验及旧 AGP 消费者 Debug/R8 Release 构建；同一源码的本地 Python 工具回归为 57 项通过。该轮运行时工作流尚未合入 main，不能将候选分支结果作为合并后的 main CI 结果。
 
 | 实际 API | 系统镜像构建标识 | ABI | 通过 | 显式跳过 | 未报告 | R8 新进程 PID |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -93,25 +93,29 @@ Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。�
 
 本次 Actions 提示部分固定版本使用已弃用的 Node 20，并由托管 Runner 强制使用 Node 24；setup-java v4 也提示弃用。构建和设备任务已实际成功，这些提示不改变 Android 消费者门槛；后续维护 CI 时须单独验证 Action 迁移，不能与库生产依赖升级混为一谈。
 
-### PR 合并检查
+### PR 与 main 合并检查
 
-[PR #1](https://github.com/logan0817/KToast/pull/1) 从 feature/device-matrix 合入 main，当前尚未合并。2026-10-12 的 [第 7 轮 PR 矩阵](https://github.com/logan0817/KToast/actions/runs/38214815247) 首尝试失败：构建通过，API 21、30、31、36 的必需回归及 R8 新进程运行通过；API 35 为 30 项通过、5 项显式跳过、1 项失败，未进入 R8 消费者运行，不计整轮成功。
+[PR #1](https://github.com/logan0817/KToast/pull/1) 已于 2026-10-12 以 merge commit 从 feature/device-matrix 合入 main，保留验证分支。合并提交为 8d415953a3d576ca85a9755c05c8ffd25cbc6a83，PR head 为 2063c7ca0ba10544e4b84e48ebf8b38133dfb4e0；合并提交与 PR head 文件树一致。
 
-失败用例为 KToastScopeTest#workerPreparationCannotCrossStopOrReviveStoppedSubmission，在 ActivityScenario.moveToState(CREATED) 等待停止状态时超时，尚未执行到 KToast 取消结果断言。设备日志记录遮挡用的框架 EmptyActivity 被复用后关闭，并出现重复 finish 请求，宿主随后从 STOPPED 恢复到 RESUMED；无法由现有日志确定关闭请求的广播来源。已对失败的 API 35 任务原样重跑一次，不改库实现或断言；第二次尝试于同日成功，耗时 5 分 16 秒，仅 API 35 重新执行，其余成功任务和构建沿用首尝试；官方 Jobs API 的起止时间也确认这一点。此结果支持首轮为测试夹具偶发异常，但没有消除夹具的潜在竞态，也没有确定关闭广播来源。后续若同类问题复现，须修复夹具，不能持续靠重跑通过。
+合并前最新的 [第 8 轮 PR 矩阵](https://github.com/logan0817/KToast/actions/runs/38218947884) 首尝试整体成功，耗时 13 分 11 秒。实际 checkout 为测试合并提交 565a3929cc8fd8db55a64a4fb3e6bd7f7960920f，文件树与 PR head 一致。API 21 为 28 项通过、0 项显式跳过、8 项未报告；API 30、31、35、36 各 31 项通过、5 项显式跳过、0 项未报告，均无失败。五个 R8 新进程 PID 分别为 2688、5836、5278、4426、4879，均输出 PASS；原始 ZIP 摘要与官方 digest 一致，完整 candidate.json 与本地冻结候选一致。归档为 build/reports/device-matrix-cloud/38218947884/verified-summary.json。
 
-本轮实际 checkout 为 GitHub 测试合并提交 29ae7bd99c7cc2b532f23fc074fb4a7f71680c02，PR head 为 b10f932ef3e6d73e930a260b7c578b6faebee899，二者文件树一致。AAR、sources、javadoc 及完整 candidate.json 与第 6 轮和本地冻结候选一致；APK 按本轮 input.json 校验。首轮七份原始 ZIP 及第二次 API 35 ZIP 的 SHA-256 均与 GitHub 官方运行页一致。原始日志、首轮失败和综合验收报告归档于 build/reports/device-matrix-cloud/38214815247；verified-summary.json 记录每个 API 的实际尝试与制品摘要，不能以第 6 轮成功代替本轮 PR 检查。
+此前 [第 7 轮 PR 矩阵](https://github.com/logan0817/KToast/actions/runs/38214815247) 首尝试的 API 35 在 ActivityScenario.moveToState(CREATED) 等待停止状态时超时，未到库取消断言；日志中框架 EmptyActivity 被复用后关闭、重复 finish，宿主从 STOPPED 恢复到 RESUMED。一次原样重跑后成功，但广播来源和夹具潜在竞态未确定。首轮失败、重跑结果及各版本制品证据仍保留在对应归档，不能把第 8 轮成功视为消除了该竞态。
 
-本轮最终设备结果如下；五个版本使用同一批输入，Runner 均正常结束，必需用例无缺失。第二次尝试只补齐 API 35，不能描述为五版本全部重新运行。
+合并后的 [第 9 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38221177164) 实际构建与运行提交均为 8d415953a3d576ca85a9755c05c8ffd25cbc6a83。首尝试整体 Failure，耗时 13 分 59 秒；构建成功，32 项 JVM 测试、库 Lint 无问题、12 项签名配置回归的原始报告已核对。工作流中的 57 项 Python 工具回归与旧 AGP 消费者构建也完成。AAR、sources、javadoc 和完整 candidate.json 与冻结候选一致，同批输入 ZIP 中 AAR/APK 实际字节均与 input.json SHA-256 一致。
 
-| API | 验收尝试 | 通过 | 显式跳过 | 未报告 | R8 新进程 PID |
+API 35 首尝试为 27 项通过、5 项显式跳过、4 项失败、0 项未报告，未进入 R8 消费者运行。首次输入法用例在创建库页面作用域前报 IME did not become visible；显示期间输入法用例记录 finalIme=0；两个 Demo 用例出现 RootViewWithoutFocusException，宿主窗口持续无焦点。设备日志中两次 IME 请求在 PHASE_CLIENT_REQUEST_IME_SHOW 拒绝，并有 13 次 SurfaceComposerClient 图层事务提交回调超时；第 8 轮 API 35 无这类超时。库子窗口设置 FLAG_NOT_FOCUSABLE。现有证据支持进一步检查模拟器窗口同步异常，但未确定具体失焦原因，不能宣称已修复或确认产品无问题。
+
+已保留首尝试七份原始 ZIP、官方 digest、逐版本日志及 failed-attempt-1-summary.json，仅对 API 35 原样重跑一次作诊断比较；其余成功任务及构建沿用首尝试。不改变代码、超时、断言或必需用例。第二次尝试于同日成功，耗时 4 分 40 秒；API 35 为 31 项通过、5 项显式跳过、0 项失败、0 项未报告，Runner 正常返回 -1，R8 新进程 PID 4675 输出 PASS。新设备日志没有首尝试的图层事务提交回调超时或客户端 IME 请求失败。官方运行状态为 Success，重跑 ZIP SHA-256 为 2cdd487677bb74dc84caaaa852ad083b4507ea3644365566d08c4546fbdf8e0a，与官方 digest 一致。两次使用相同构建提交和同批 APK/AAR；支持首尝试存在窗口同步偶发异常，但没有确定根因或消除潜在夹具问题。后续同类失败须补齐焦点归属和窗口状态证据并修复根因，不能持续靠重跑验收。
+
+| API | 首尝试通过 | 显式跳过 | 失败 | 未报告 | R8 新进程 PID |
 | --- | --- | --- | --- | --- | --- |
-| 21 | 首次 | 28 | 0 | 8 | 2702 |
-| 30 | 首次 | 31 | 5 | 0 | 6358 |
-| 31 | 首次 | 31 | 5 | 0 | 5220 |
-| 35 | 单次重跑 | 31 | 5 | 0 | 4520 |
-| 36 | 首次 | 31 | 5 | 0 | 4896 |
+| 21 | 28 | 0 | 0 | 8 | 2701 |
+| 30 | 31 | 5 | 0 | 0 | 6230 |
+| 31 | 31 | 5 | 0 | 0 | 5332 |
+| 35 | 27 | 5 | 4 | 0 | 未执行 |
+| 36 | 31 | 5 | 0 | 0 | 4804 |
 
-本轮 Demo APK SHA-256 为 a566256c1e6f3b546c672f0a7a1f1fd59bf27765d50b34ca52babdcb01371319，设备测试 APK 为 4932864f56dc7c27513a3ef0a591d2ca9c297c3df0e2651fe01d96333b5d8b50，R8 消费者 APK 为 c77afb5b32fb6e30b16fdc87d408276a6b6463f82e0ec0d4a7f21125eb0277a0。AAR、sources、javadoc 摘要仍为第 6 轮表中对应值。构建原始报告另核对 32 项 JVM 测试、库 Lint 无问题和 12 项签名配置回归。PR 检查成功不等于实际合并后的 main CI 成功；合并及正式签名、上传、发布仍须分别完成门槛和授权。
+本轮 Demo APK SHA-256 为 ed429ea1fbf1c8438fb2c04bb37dca3b6c0117abc60df905365d2162cb1b20fa，设备测试 APK 为 4329be420b8bcf0e9d4cadddf0dfc074be1c0d4949d9ef357a265b4a81c90bb8，R8 消费者 APK 为 9e193c2652304ca1b809d640051432392d577882a6c5a9f9f4794bb72b7efb7b。AAR、sources、javadoc 摘要仍为第 6 轮表中对应值。证据归档为 build/reports/device-matrix-cloud/38221177164，首尝试额外保留于 attempt-1 子目录；verified-summary.json 汇总各 API 的实际验收尝试、官方状态、完整候选及原始摘要，同时保留 firstAttempt 失败记录。归档不进入源码提交。main CI 通过不等于正式签名与 Central 发布完成。
 
 ## 文档与兼容修复终审
 
@@ -146,7 +150,9 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 - [x] 最终候选的 API、metadata、依赖、源码包、R8 消费者及相关运行结果可追溯，验证报告与产物 SHA 一致。
 - [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
 - [x] API 文档产物、内存/GPG 双模式签名、本地签名仓库及 Central 手工上传包生成流程完成，两条路径的测试密钥演练通过。
-- [ ] 最终发布源码纳入默认分支，合并后 main CI 成功，签名包与已验收候选一致。
+- [x] 已验收候选源码通过 PR #1 纳入默认分支，合并提交与 PR head 文件树一致。
+- [x] 合并后 main CI 验收成功；API 35 单次原样重跑通过，首尝试失败和未覆盖项均保留。
+- [ ] 正式签名包与已验收候选一致，完成正式版本与签名制品校验。
 - [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验及远端文件验收。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。
 
