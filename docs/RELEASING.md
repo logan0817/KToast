@@ -2,7 +2,7 @@
 
 ## 当前状态与产物
 
-Java 调试入口兼容修复后的候选已通过本地构建、API、文档示例及第 8 轮 PR 五版本关键设备矩阵。PR #1 已合入 main，合并提交为 8d415953a3d576ca85a9755c05c8ffd25cbc6a83；合并后的第 9 轮 CI 首尝试在 API 35 失败，其余四个版本通过；API 35 单次原样重跑后通过，main CI 已完成原始报告与制品一致性验收。首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。正式签名及 Central 发布门槛尚未完成。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。
+Java 调试入口兼容修复后的候选已通过本地构建、API、文档示例及第 8 轮 PR 五版本关键设备矩阵。PR #1 已合入 main，合并提交为 8d415953a3d576ca85a9755c05c8ffd25cbc6a83；合并后的第 9 轮 CI 首尝试在 API 35 失败，其余四个版本通过；API 35 单次原样重跑后通过，main CI 已完成原始报告与制品一致性验收。首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。已使用 FlowBus 同一发布密钥生成并预验本地正式签名包；签名配置已纳入本次收尾，干净源码包及本次配置的云端验收、Central 发布门槛尚未完成。Maven Central 正式版本与 README 安装坐标仍为 1.0.5；候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -29,7 +29,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
 | 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项，共 57 项回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
-| 签名配置边界 | 新增 12 项真实 Gradle 配置回归通过；短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝，缺少指定私钥的真实 GPG 签名失败 | 空测试密钥环与临时测试密钥不认证正式密钥可用 |
+| 签名配置边界 | 当前本地 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 历史云端为 12 项，本次配置改动未做云端验证；配置回归不访问个人密钥环 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
 | 已编译 1.0.5 消费者 | Java/Kotlin 保持原字节码，替换本轮候选运行通过 | JVM 样例不执行窗口 |
 | Kotlin 源码消费 | 1.9.22、2.0.21 配置样例编译运行通过；页面源码编译通过 | 此前源码样例验证；本轮旧 AGP 消费者使用 1.9.22，完整仓库使用 1.9.23 |
@@ -123,7 +123,7 @@ README 中英文与页面说明的实际代码片段使用候选 AAR 编译：33
 
 真实 Java 示例编译发现 debugMode 属性 setter 与静态 setDebugMode(boolean) 歧义。本轮使用 @set:JvmSynthetic 对 Java 源码隐藏属性 setter，保留原 JVM 签名和 Kotlin 属性读写；独立消费者新增 Java 静态调用与 Kotlin 属性切换断言，Debug 与 R8 Release 构建均使用当前候选 AAR。旧公开类签名、major=52、metadata=1.9.0 和生产依赖校验通过，设备矩阵已针对修复后同批产物重新运行并核验通过。
 
-维护者已选择本机 GPG/keyring 签名，并保留环境变量内存签名供受控自动化使用。正式签名包尚未生成；本机模式需要独立核对的 KTOAST_SIGNING_FINGERPRINT 和由 gpg-agent 解锁的对应私钥，包验收还需要 KTOAST_PUBLIC_KEY_FILE 指定的导出公钥。私钥与口令不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
+维护者已选择本机 GPG/keyring 签名，并保留环境变量内存签名供受控自动化使用。本地正式签名包已生成并预验，尚未完成干净源码的最终包验收；本机模式复用标准 signing.gnupg.keyName 中独立核对过的完整指纹，由 gpg-agent 解锁对应私钥；KTOAST_SIGNING_FINGERPRINT 可选。包验收需显式提供对应的导出公钥文件，不要求新建项目专用密钥。私钥与口令不发送到聊天或保存到仓库；公钥可获取性、命名空间权限和 Portal 服务端校验仍须在正式发布阶段确认。
 
 ## 本地检查顺序
 
@@ -151,7 +151,7 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 - [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
 - [x] API 文档产物、内存/GPG 双模式签名、本地签名仓库及 Central 手工上传包生成流程完成，两条路径的测试密钥演练通过。
 - [x] 已验收候选源码通过 PR #1 纳入默认分支，合并提交与 PR head 文件树一致。
-- [x] 合并后 main CI 验收成功；API 35 单次原样重跑通过，首尝试失败和未覆盖项均保留。
+- [ ] 最新签名配置的 main CI 验收成功；此前第 9 轮已通过，API 35 首尝试失败和单次重跑证据保留。
 - [ ] 正式签名包与已验收候选一致，完成正式版本与签名制品校验。
 - [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验及远端文件验收。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。
@@ -162,7 +162,7 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 
 签名默认关闭，只有 -PsignPublication=true 才开启。signingMode 只接受 memory 或 gpg，默认 memory，保留原有调用方式；选择模式本身不会开启签名。两种签名均须使用 --no-configuration-cache，避免将签名配置写入磁盘缓存；签名环境不使用公开 build scan 或调试日志。签名失败不会自动切换到另一种模式。
 
-本机 GPG 模式使用已有 GnuPG 2 和维护者指定的密钥环，口令由 gpg-agent/pinentry 解锁，无需导出私钥或提供 KTOAST_SIGNING_KEY、KTOAST_SIGNING_PASSWORD。必须通过受控环境给出 KTOAST_SIGNING_FINGERPRINT，接受完整的 40 或 64 位十六进制主公钥或签名子密钥指纹，不接受短 ID。Gradle 使用该指纹选择签名密钥，不依赖 GPG 默认密钥；若已有 signing.gnupg.keyName，必须与该指纹相同（忽略大小写）。拒绝 signing.gnupg.passphrase 和旧版 GPG 设置，避免口令进入 Gradle 配置。
+本机 GPG 模式使用已有 GnuPG 2 和维护者指定的密钥环，口令由 gpg-agent/pinentry 解锁，无需导出私钥或提供 KTOAST_SIGNING_KEY、KTOAST_SIGNING_PASSWORD。优先复用用户级 ~/.gradle/gradle.properties 中的 signing.gnupg.keyName，接受完整的 40 或 64 位十六进制主公钥或签名子密钥指纹，不接受短 ID。KTOAST_SIGNING_FINGERPRINT 是可选环境覆盖入口，不必为 KToast 重复配置；同时提供两项时必须相同（忽略大小写），任一已提供值不是完整指纹均拒绝。空白 keyName 视为未配置，显式空环境变量则拒绝；两项均未提供时停止，不自动使用 GPG 默认密钥。拒绝 signing.gnupg.passphrase 和旧版 GPG 设置，避免口令进入 Gradle 配置。
 
 维护者可按 Gradle GPG 约定在受控本地配置中指定 signing.gnupg.executable 和 signing.gnupg.homeDir；未指定时沿用 GPG 自身的执行路径和密钥环选择。该模式只在签名任务执行时调用本机 GPG；普通候选构建不调用 GPG。首次使用或 agent 缓存失效时，维护者须在本机处理 pinentry；无法解锁、缺少私钥或指纹选择失败均终止签名，不改用其他密钥。
 
@@ -182,7 +182,7 @@ verifyReleaseCandidate 聚合 JVM 测试、库 Lint、verifyPublicationTools 和
 
 在独立消费者中使用 -PktoastPublication=staging -PktoastVersion=1.1.0 执行 Debug/R8 Release 构建，并对 R8 APK 运行设备冒烟，具体命令见 [消费者说明](../TROUBLESHOOTING.md#本地候选发布与真实消费者)。SHA 校验覆盖两个变体，不能只检查文件存在。完成演练后重新生成 SNAPSHOT Candidate 和对应校验报告，再继续常规候选消费。
 
-用受控位置的导出公钥验证；KTOAST_PUBLIC_KEY_FILE 是公钥文件路径，KTOAST_SIGNING_FINGERPRINT 是独立核对过的完整主公钥或签名子密钥指纹：
+用受控位置的导出公钥验证。工具通过 --public-key 和 --fingerprint 接收文件路径和预期完整指纹；下面两个环境变量只是示例中传递参数的便捷方式，并非必须新建的配置。公钥与 FlowBus 可来自同一把已有发布密钥，公钥导出不包含私钥或口令；预期指纹须与签名所选密钥一致，不能仅从待验签名推导预期值：
 
 ```bash
 python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PUBLIC_KEY_FILE" --fingerprint "$KTOAST_SIGNING_FINGERPRINT" --output build/central/ktoast-1.1.0.zip
@@ -196,7 +196,29 @@ python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PU
 
 2026-10-12 新双模式演练使用 /tmp 下的隔离密钥环，先生成默认测试密钥，再明确选择另一把带口令测试密钥，验证 GPG/agent 没有使用默认密钥。原内存签名命令也实际执行签名；两条路径的 AAR、sources、javadoc、POM、module 未签名字节一致，分别通过五份签名、完整指纹、校验和、API/依赖检查并生成 30 文件 ZIP。缺少指定私钥时 GPG 正确失败。两份包均标记 rehearsal=true、文件名以 -TEST-KEY.zip 结尾，位于 build/reports/signing-modes/gpg 和 memory；禁止上传，测试私钥及临时 agent 已清理，保留的测试公钥仍受短期有效期限制。
 
-本地 12 项真实 Gradle 配置回归、57 项 Python 工具回归、32 项 JVM 测试与库 Lint 通过；本地 Staging 消费者 Debug/R8 Release 构建通过（仅构建，运行证据以云端矩阵为准）。结束后已恢复 SNAPSHOT Candidate，AAR 与上表已验收候选一致。配置回归可运行 python3 -B tools/verify_signing_configuration.py -- ./gradlew；它使用空临时密钥环、不执行签名，并由云端构建阶段自动执行和归档。完整本地结果位于 build/reports/signing-modes/verified-rehearsal.json，正式密钥解锁和正式包验收仍待执行。
+本地 12 项真实 Gradle 配置回归、57 项 Python 工具回归、32 项 JVM 测试与库 Lint 通过；本地 Staging 消费者 Debug/R8 Release 构建通过（仅构建，运行证据以云端矩阵为准）。结束后已恢复 SNAPSHOT Candidate，AAR 与上表已验收候选一致。配置回归可运行 python3 -B tools/verify_signing_configuration.py -- ./gradlew；它使用空临时密钥环、不执行签名，并由云端构建阶段自动执行和归档。完整本地演练结果位于 build/reports/signing-modes/verified-rehearsal.json；正式密钥的后续本地预验见下节，不以演练结果认证正式发布。
+
+### 标准本机 GPG 配置复用
+
+本机入口与 FlowBus 一样读取标准 signing.gnupg.*，不强制新增 KToast 专用环境变量，不新建或复制私钥。受控用户级配置可使用：
+
+```properties
+signing.gnupg.keyName=<已核对的完整发布密钥指纹>
+```
+
+signing.gnupg.executable 和 signing.gnupg.homeDir 沿用已有设置，口令继续交给 gpg-agent。KToast 额外要求明确的完整指纹，避免默认选钥；不会读取 signing.keyId 作为替代，不自动改写用户级配置。内存签名入口保持不变。新增标准属性、64 位指纹、大小写一致、无效属性和空环境变量边界的配置回归；这些配置检查不签名、不访问个人密钥环。历史云端 12 项结果只对应当时版本；当前本地 19 项配置回归与 verifyReleaseCandidate 已通过，57 项工具回归实际运行，JVM/Lint 沿用有效增量结果，完整 candidate.json 与 main CI 冻结候选一致。本次配置改动尚未做云端验证，不能直接沿用历史配置验收。
+
+### 现有发布密钥的本地正式包预验
+
+2026-10-12 已对照 FlowBus 1.1.0 的十份公开签名，并从官方 Maven Central 重新获取 POM 和签名，确认与 FlowBus 已发布制品归档逐字节一致；使用公开密钥服务器获取的公钥，在隔离密钥环中验签通过。随后以标准 -Psigning.gnupg.keyName 显式选择同一已有签名子密钥，实际执行 KToast 的 signReleasePublication 与本地 Staging 发布，不新建密钥、不改写用户级配置。
+
+本次五份产物签名均有效，签名子密钥完整指纹为 2A426FA2812C7A8EF353F8E0DE5A09752A91006E，主密钥为 8BB25F160F45FD8919DC985A152B32281C3E9240。公钥可获取性已对该服务器实际核对；不代表 Central 账号权限或服务端发布校验已通过。公开公钥和签名可用于验收，私钥与口令不写入报告。
+
+本地正式 Staging 的 AAR 与 sources 和 main CI 冻结候选逐字节一致。javadoc 包的 137 个差异文件均仅由版本标签 1.1.0-SNAPSHOT 改为 1.1.0，文件集合与其他内容一致。独立 AGP 7.2.2 消费者使用 staging/1.1.0 的 Debug/R8 Release 构建通过，两变体实际 AAR SHA 均为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1；本轮未重新运行消费者设备冒烟，历史设备证据仅对应同字节 AAR 的已验收批次。
+
+build/central/ktoast-1.1.0.zip 已通过五份签名、四类校验和、30 个 ZIP 文件、旧 API、字节码、依赖、源码及真实 API 文档检查。收尾提交前的 ZIP SHA-256 为 4330a52270794209fb9efaca56233be729bc3e6e03cf1af9ed9513c7dc854e1a，当时报告 rehearsal=false、source.dirty=true；该正式密钥预验包归档于 build/reports/signing-modes/precommit-bundle，禁止直接用于正式上传，须提交收尾后重新生成干净源码的可追溯报告与包。已恢复 SNAPSHOT Candidate；后续重新打包以最新实际摘要为准，不假设签名或 ZIP 摘要不变。
+
+公开签名身份核验记录位于 build/reports/signing-modes/flowbus-public-identity.json，当前配置回归为 configuration.json，包报告为 build/central/ktoast-1.1.0.report.json，均不提交。此次没有上传、创建标签或正式发布，仓库常规安装坐标继续为 1.0.5。
 
 ## Maven Central 手工审核流程
 

@@ -37,19 +37,27 @@ if (signPublication) {
             }
         }
         "gpg" -> {
-            val fingerprint = providers.environmentVariable("KTOAST_SIGNING_FINGERPRINT").orNull
-            check(fingerprint != null && Regex("(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})").matches(fingerprint)) {
-                "GPG signing requires a full KTOAST_SIGNING_FINGERPRINT."
-            }
             val configuredKey = providers.gradleProperty("signing.gnupg.keyName").orNull
-            check(configuredKey == null || configuredKey.equals(fingerprint, ignoreCase = true)) {
+                ?.takeIf { it.isNotBlank() }
+            val environmentKey = providers.environmentVariable("KTOAST_SIGNING_FINGERPRINT").orNull
+            val fullFingerprint = Regex("(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})")
+            check((environmentKey == null || fullFingerprint.matches(environmentKey)) &&
+                (configuredKey == null || fullFingerprint.matches(configuredKey))) {
+                "GPG signing requires a full fingerprint in signing.gnupg.keyName or KTOAST_SIGNING_FINGERPRINT."
+            }
+            check(environmentKey == null || configuredKey == null ||
+                configuredKey.equals(environmentKey, ignoreCase = true)) {
                 "signing.gnupg.keyName conflicts with KTOAST_SIGNING_FINGERPRINT."
+            }
+            val fingerprint = environmentKey ?: configuredKey
+            check(fingerprint != null) {
+                "GPG signing requires a full fingerprint in signing.gnupg.keyName or KTOAST_SIGNING_FINGERPRINT."
             }
             check(!providers.gradleProperty("signing.gnupg.passphrase").isPresent &&
                 providers.gradleProperty("signing.gnupg.useLegacyGpg").orNull.let { it == null || it == "false" }) {
                 "GPG signing requires GnuPG 2 and gpg-agent; do not configure signing.gnupg.passphrase or legacy GPG."
             }
-            // 显式选择已核对的完整指纹，避免共享配置或 GPG 默认密钥误签；口令只交给 agent。
+            // 复用标准 Gradle 本机配置，环境变量可选；仍明确选钥，避免 GPG 默认密钥误签。
             extensions.extraProperties["signing.gnupg.keyName"] = fingerprint.uppercase()
             configure<SigningExtension> {
                 useGpgCmd()
