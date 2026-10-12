@@ -19,9 +19,15 @@ from verify_candidate import ROOT, inspect, require
 GROUP_PATH = Path("io/github/logan0817/ktoast")
 
 
-def collect(repository, version):
+def deployment_identity(version):
     require(bool(re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9][A-Za-z0-9.-]*)?", version))
             and not version.endswith("-SNAPSHOT"), "Central 发布包要求明确的非 SNAPSHOT 版本")
+    return {"name": "io.github.logan0817-KToast-" + version,
+            "coordinate": "io.github.logan0817:ktoast:" + version}
+
+
+def collect(repository, version):
+    deployment_identity(version)
     directory = repository / GROUP_PATH / version
     prefix = "ktoast-" + version
     names = [prefix + suffix for suffix in (".aar", "-sources.jar", "-javadoc.jar", ".pom", ".module")]
@@ -110,6 +116,15 @@ def prepare(repository, version, public_key, fingerprint, output, javap, gpg):
         archive_path.unlink(missing_ok=True)
     report["bundle"] = {"file": output.name, "files": len(payload),
                         "sha256": hashlib.sha256(output.read_bytes()).hexdigest()}
+    report["deployment"] = deployment_identity(version)
+    report["files"] = {name: {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                       for name, content in sorted(payload.items())}
+    report["source"] = {
+        "commit": subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+                                 capture_output=True, text=True).stdout.strip(),
+        "dirty": bool(subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, check=True,
+                                     capture_output=True, text=True).stdout.strip()),
+    }
     report["remoteValidation"] = "未执行 Central Portal 上传或服务端校验"
     return report
 

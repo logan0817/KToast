@@ -92,9 +92,11 @@ python3 tools/verify_candidate.py
 
 Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。正式 VERSION 和安装坐标仍为 1.0.5。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告写入 build/reports/compatibility/candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
 
-单独生成文档可执行 :library-android:apiDocsJar，HTML 首页在 library-android/build/docs/api/index.html。Dokka 仅为构建插件，不增加库生产依赖。需要签名发布演练时使用独立本地 Staging 任务，环境变量、Central ZIP 生成和正式审核流程见 [发布检查表](./docs/RELEASING.md#签名与本地正式产物)。本地 Staging 构建会覆盖 build/publications/release 中的版本元数据；验证 SNAPSHOT 消费者前必须重新生成 Candidate，不能将两种版本报告混用。
+单独生成文档可执行 :library-android:apiDocsJar，HTML 首页在 library-android/build/docs/api/index.html。Dokka 仅为构建插件，不增加库生产依赖。需要签名发布演练时使用独立本地 Staging 任务，签名方式、Central ZIP 生成和正式审核流程见 [发布检查表](./docs/RELEASING.md#签名与本地正式产物)。本地 Staging 构建会覆盖 build/publications/release 中的版本元数据；验证 SNAPSHOT 消费者前必须重新生成 Candidate，不能将两种版本报告混用。
 
-发布校验工具的回归测试使用临时目录中的正确及损坏样本，不改动实际候选：
+发布校验工具的回归测试使用临时目录中的正确及损坏样本，不改动实际候选。verify_central_deployment.py 使用指定的 Portal 状态快照和下载目录，核对批次 ID、项目名、坐标、正式 ZIP 字节及签名；错误状态、旧下载和缺项不能通过。它不读取上传凭据或查询网络，不能把样例测试写成真实上传验收。命令与报告格式见[发布检查表](./docs/RELEASING.md#maven-central-手工审核流程)。
+
+运行工具回归：
 
 ```bash
 python3 -B -m unittest discover -s tools/tests -v

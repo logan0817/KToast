@@ -3,7 +3,7 @@ name: Candidate device matrix
 on:
   workflow_dispatch:
   push:
-    branches: ['feature/device-matrix']
+    branches: ['main', 'feature/device-matrix']
     paths:
       - '.github/workflows/device-matrix.yml'
       - '**/*.gradle*'

@@ -5,11 +5,12 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from prepare_central_bundle import GROUP_PATH, check_pom, collect
+from prepare_central_bundle import GROUP_PATH, check_pom, collect, deployment_identity, prepare
 
 
 class BundleValidationTest(unittest.TestCase):
@@ -32,6 +33,23 @@ class BundleValidationTest(unittest.TestCase):
         self.assertEqual(self.names, names)
         self.assertEqual(30, len(payload))
         self.assertNotIn("maven-metadata.xml", payload)
+
+    def test_deployment_name_distinguishes_project_without_changing_coordinate(self):
+        self.assertEqual({"name": "io.github.logan0817-KToast-1.1.0",
+                          "coordinate": "io.github.logan0817:ktoast:1.1.0"}, deployment_identity("1.1.0"))
+
+    def test_bundle_report_covers_actual_zip_and_source_identity(self):
+        output = self.root / "bundle.zip"
+        # 本例只验证生成器的报告/打包路径；真实签名和 AAR 检查有独立验证。
+        with patch("prepare_central_bundle.verify_signatures", return_value={}), \
+                patch("prepare_central_bundle.check_pom"), \
+                patch("prepare_central_bundle.inspect", return_value={}):
+            report = prepare(self.root, "1.1.0", self.root / "public.asc", "A" * 40, output, "javap", "gpg")
+        self.assertEqual(30, len(report["files"]))
+        self.assertEqual(hashlib.sha256(output.read_bytes()).hexdigest(), report["bundle"]["sha256"])
+        self.assertEqual("io.github.logan0817-KToast-1.1.0", report["deployment"]["name"])
+        self.assertRegex(report["source"]["commit"], r"^[0-9a-f]{40}$")
+        self.assertIsInstance(report["source"]["dirty"], bool)
 
     def test_snapshot_rejected(self):
         with self.assertRaisesRegex(ValueError, "非 SNAPSHOT"):

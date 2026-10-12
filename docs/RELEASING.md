@@ -60,9 +60,9 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 工具将 passed、skipped、failed 和 notReported 分开记录。SDK 过滤可能不产生逐项状态，未报告项不计为成功，也不猜测为已跳过。任一必需用例未通过、Runner 中断、空运行、安装失败、API 不一致、产物变化或新进程未输出 PASS，任务均失败；失败报告仍上传。矩阵 fail-fast 关闭，一个 API 失败不会取消其他 API 的运行。
 
-工作流支持 Pull Request、手动触发，以及 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，单独维护发布结果或 README 不重复构建设备矩阵。新工作流尚未合入默认分支时，可通过该验证分支推送触发首轮运行；首次不依赖默认分支的手动入口。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
+工作流支持 Pull Request、手动触发，以及 main 和 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，单独维护发布结果或 README 不重复构建设备矩阵。新工作流尚未合入默认分支时，可通过该验证分支推送触发首轮运行；首次不依赖默认分支的手动入口。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
 
-Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。发布评估应保存工作流 URL、提交 SHA、各 result.json、instrumentation.txt、device-logcat.txt 与 R8 日志，核对 success=true、必需用例集合、实际 API、指纹、ABI、AAR/APK SHA 与新进程 PID。模拟器启动或下载失败只表示环境验证失败，不能改为通过；14 天后会过期，发版前应归档必要证据。远程运行通过后再更新上表，不能提前勾选发布门槛。本版保留当前 AGP/compileSdk 的决策已记录，设备矩阵不会改变其官方支持状态。
+Actions 保留 14 天的 device-matrix-input、构建诊断及逐 API 报告。发布评估应保存工作流 URL、提交 SHA、各 result.json、instrumentation.txt、device-logcat.txt 与 R8 日志，核对 success=true、必需用例集合、实际 API、指纹、ABI、AAR/APK SHA 与新进程 PID。模拟器启动或下载失败只表示环境验证失败，不能改为通过；14 天后会过期，发版前应归档必要证据。远程运行通过后再更新上表，不能提前勾选发布门槛。发布前须核对最终合并提交的 main CI；候选分支的通过结果不能直接写成合并后 CI 已通过。若合并改变制品输入，应重新验证；仅文档结果记录变化仍须核对源码与产物关系。本版保留当前 AGP/compileSdk 的决策已记录，设备矩阵不会改变其官方支持状态。
 
 ### 已核验的云端结果（当前冻结候选）
 
@@ -122,7 +122,8 @@ PATH 中的 javap 须来自现有 JDK，也可给校验脚本传 --javap。Gradl
 - [x] 最终候选的 API、metadata、依赖、源码包、R8 消费者及相关运行结果可追溯，验证报告与产物 SHA 一致。
 - [x] README 中英文、页面说明、CHANGELOG、注释完成终审；过程记录、敏感信息和临时文件不进入提交。
 - [x] API 文档产物、环境变量签名、本地签名仓库及 Central 手工上传包生成流程完成，测试密钥演练通过。
-- [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验。
+- [ ] 最终发布源码纳入默认分支，合并后 main CI 成功，签名包与已验收候选一致。
+- [ ] 正式发布密钥、公钥可获取性和 Central 命名空间权限确认；获上传授权后执行 Portal 服务端校验及远端文件验收。
 - [ ] 发布审批后统一更新正式版本号、Demo 版本及安装说明，记录最终发布坐标和校验和。
 
 仓库提供本地 SNAPSHOT Candidate 和本地非 SNAPSHOT Staging 仓库，包含 AAR、sources、真实 javadoc、POM 和 module metadata。Staging 必须显式开启签名。没有远程 Gradle 仓库地址或自动上传任务；本地签名包不等于正式发布完成。私钥和口令仅通过受控环境注入，不保存到仓库，也不放进命令行参数或公开构建日志。
@@ -147,7 +148,7 @@ PATH 中的 javap 须来自现有 JDK，也可给校验脚本传 --javap。Gradl
 python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PUBLIC_KEY_FILE" --fingerprint "$KTOAST_SIGNING_FINGERPRINT" --output build/central/ktoast-1.1.0.zip
 ```
 
-该工具需要 Python 3.9+、现有 JDK 的 javap、GnuPG gpg。只在临时密钥环导入明确指定的公钥，不自动从网络取钥；核对五个签名、四类校验和、POM 必需信息、旧 API、字节码、依赖、当前源码包及真实 API 页面后才生成 ZIP 与相邻 .report.json。错误指纹、过期/撤销签名、产物篡改或缺项均拒绝；ZIP 不包含私钥、公钥、报告或 maven-metadata.xml。
+该工具需要 Python 3.9+、现有 JDK 的 javap、GnuPG gpg。只在临时密钥环导入明确指定的公钥，不自动从网络取钥；核对五个签名、四类校验和、POM 必需信息、旧 API、字节码、依赖、当前源码包及真实 API 页面后才生成 ZIP 与相邻 .report.json。错误指纹、过期/撤销签名、产物篡改或缺项均拒绝；ZIP 不包含私钥、公钥、报告或 maven-metadata.xml。相邻报告额外记录批次名称、实际坐标、Git 提交、工作区是否有未提交文件，以及全部 30 个 ZIP 文件的大小和 SHA-256；源码未提交时可本地预验，但必须在源码收尾后重新生成可追溯的正式报告。
 
 本地测试密钥演练的输出位于 build/reports/release-rehearsal/ktoast-1.1.0-TEST-KEY.zip，报告 rehearsal=true，临时私钥已删除。该包禁止上传。复现测试演练可在独立临时 GPG 目录生成短期测试签名密钥，将其私钥与口令仅注入本次 Gradle 进程，再给工具添加 --rehearsal，并使用以 -TEST-KEY.zip 结尾的文件名；结束时销毁测试私钥和密钥环，不修改个人密钥环。
 
@@ -155,10 +156,30 @@ python3 tools/prepare_central_bundle.py --version 1.1.0 --public-key "$KTOAST_PU
 
 采用 [Central Portal 手工上传 ZIP](https://central.sonatype.org/publish/publish-portal-upload/) 方案；本地 ZIP 遵循 [官方产物、签名、校验和与 POM 要求](https://central.sonatype.org/publish/requirements/)。上传和发布属于外部操作，须分别获得授权。
 
-1. 确认 Central 账号对 io.github.logan0817 命名空间有发布权限，正式公钥可按 Central 要求获取且指纹正确；公开公钥到密钥服务器也需单独授权。
-2. 使用正式密钥重新生成 Staging 与 ZIP，核对报告、版本、签名指纹和待上传 ZIP 的 SHA-256；不要复用 TEST-KEY 演练包。
-3. 在 Central Portal 的发布界面创建部署，上传该 ZIP，检查服务端逐项校验结果。选择人工审核发布，不启用自动发布；界面若无法将上传验证与正式发布分开，停止并按实际按钮行为重新确认授权。
-4. 只有服务端校验通过、发布门槛及发布授权齐备后，才执行正式发布。仅本地校验不能认证账号权限、公钥服务端可获取性或远程验证结果。
+1. 确认最终发布提交的 main CI 成功，核对签名制品与已验收候选的关系；确认 Central 账号对 io.github.logan0817 命名空间有发布权限，正式公钥可按 Central 要求获取且指纹正确。公开公钥到密钥服务器需单独授权。
+2. 使用正式密钥生成 Staging 与 ZIP，核对版本、完整签名指纹及 ZIP SHA-256；不要复用 TEST-KEY 演练包。
+3. 上传批次名称固定为 io.github.logan0817-KToast-1.1.0，实际 Maven 坐标仍为 io.github.logan0817:ktoast:1.1.0。名称用于人工识别；所有查询、release 或 drop 都依据本次上传返回的唯一 deployment ID，并核对内部坐标。
+4. 在 Portal 上传 ZIP，选择人工审核发布，不启用自动发布；界面若无法将上传验证与正式发布分开，应按实际按钮行为重新确认授权。保存官方响应的 deploymentId、deploymentName、deploymentState、purls、errors；VALIDATED 只表示服务端校验通过，不表示正式上线。
+5. 从该 ID 对应的 Portal 下载 AAR、sources、javadoc、POM、module 及五份 .asc 签名，保留 Maven 原文件名。使用下述离线工具核对下载字节、签名、批次状态与正式包报告；校验文件如已下载，也必须与 ZIP 一致。下载报告不包含 token、私钥或口令。
+6. 正式发布前重新查询该 ID 的实时状态，只有远端验收、发布门槛及发布授权齐备后才执行 release。离线报告不能认证快照来源、账号权限或实时状态。
+
+验收目录按本次 deployment ID 区分，官方状态响应保存为 status.json，十个制品/签名文件保存到 artifacts 子目录。给 KTOAST_DEPLOYMENT_ID 设置上传返回的 ID 后执行：
+
+```bash
+python3 -B tools/verify_central_deployment.py \
+  --bundle build/central/ktoast-1.1.0.zip \
+  --bundle-report build/central/ktoast-1.1.0.report.json \
+  --deployment-id "$KTOAST_DEPLOYMENT_ID" \
+  --status "build/central/$KTOAST_DEPLOYMENT_ID/status.json" \
+  --downloads "build/central/$KTOAST_DEPLOYMENT_ID/artifacts" \
+  --public-key "$KTOAST_PUBLIC_KEY_FILE" \
+  --fingerprint "$KTOAST_SIGNING_FINGERPRINT" \
+  --output "build/central/$KTOAST_DEPLOYMENT_ID/verification.json"
+```
+
+该工具不读取 Central token、不联网、不上传、不 release/drop。只接受正式包、干净源码报告、匹配的 ID/名称/坐标、VALIDATED 且 errors 为空的快照；拒绝缺文件、符号链接、字节不一致、错误签名及测试演练包。报告记录核验时间、源码提交、状态快照与 ZIP SHA、逐文件结果和完整签名指纹，不把样例测试或本地快照核对写成实际远端运行。
+
+如需替换未发布批次，先获得单独授权，按原 ID 核对状态及坐标后 drop，再上传和验收替换批次。替换后必须使用新返回的 ID；改名或修正文档不自动要求重新上传。已正式发布的坐标不能覆盖。
 
 正式版本需核对 gradle.properties 的 VERSION/APP_VERSION_NAME/APP_VERSION_CODE、gradle/libs.versions.toml 的 ktoast-version、README 中英文坐标及 CHANGELOG 状态。Candidate 任务只允许 SNAPSHOT，不能用于正式上传。版本未上线前，README 的常规安装入口继续指向已发布版本。
 
