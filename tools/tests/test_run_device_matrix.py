@@ -91,7 +91,8 @@ class DeviceMatrixTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '缺失或空产物'):
                 artifacts(Path(folder))
 
-    def exercise_device(self, *, actual_api='21', instrumentation=PASS, install='Success'):
+    def exercise_device(self, *, actual_api='21', instrumentation=PASS, install='Success',
+                        diagnostic_failure=None, pull_files=True, instrumentation_timeout=False):
         """模拟 adb 协议完成整条入口，验证结果写入和失败收尾；不伪造真实设备证据。"""
         commands = []
         log_reads = 0
@@ -107,7 +108,20 @@ class DeviceMatrixTest(unittest.TestCase):
             elif args[0] == 'install':
                 text = install
             elif args[:3] == ['shell', 'am', 'instrument']:
+                if instrumentation_timeout:
+                    raise subprocess.TimeoutExpired(command, 900, output='Runner partial output')
                 text = instrumentation
+            elif args[:2] == ['shell', 'dumpsys']:
+                if args[4] == diagnostic_failure:
+                    raise subprocess.TimeoutExpired(command, 15)
+                text = 'system state: ' + args[4]
+            elif args[0] == 'pull':
+                if diagnostic_failure == 'pull':
+                    return subprocess.CompletedProcess(command, 1, 'remote object does not exist')
+                if pull_files:
+                    destination = Path(args[2]) / 'sample.Test#required'
+                    destination.mkdir(parents=True)
+                    (destination / 'window.txt').write_text('failure window state', encoding='utf-8')
             elif args[:2] == ['shell', 'ps']:
                 text = 'u0_a1 10633 1 0 0 com.logan.ktoast.compatibility'
             elif args[0] == 'logcat':
@@ -123,10 +137,16 @@ class DeviceMatrixTest(unittest.TestCase):
                     patch.object(matrix, 'required_tests', return_value={'sample.Test#required'}), \
                     patch.object(matrix, 'all_tests', return_value={'sample.Test#required', 'sample.Test#filtered'}), \
                     patch.dict(matrix.os.environ, {'GITHUB_SHA': ''}), patch.object(matrix.subprocess, 'run', side_effect=fake_adb):
-                try:
-                    matrix.run_device(21, 'emulator-5554')
-                except ValueError:
-                    pass
+                if instrumentation_timeout:
+                    with self.assertRaises(subprocess.TimeoutExpired):
+                        matrix.run_device(21, 'emulator-5554')
+                    self.assertEqual('Runner partial output',
+                                     (output / 'api-21/timeout-output.txt').read_text(encoding='utf-8'))
+                else:
+                    try:
+                        matrix.run_device(21, 'emulator-5554')
+                    except ValueError:
+                        pass
             return json.loads((output / 'api-21/result.json').read_text(encoding='utf-8')), commands
 
     def test_device_entry_writes_success_and_unreported_separately(self):
@@ -135,6 +155,9 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertEqual('10633', result['r8Consumer']['pid'])
         self.assertEqual(['sample.Test#filtered'], result['instrumentation']['notReported'])
         self.assertEqual(3, sum(command[0] == 'install' for command in commands))
+        self.assertNotIn('failureDiagnostics', result)
+        self.assertFalse(any(command[0] == 'pull' or command[:2] == ['shell', 'dumpsys']
+                             for command in commands))
 
     def test_wrong_api_fails_before_install_and_preserves_report(self):
         result, commands = self.exercise_device(actual_api='30')
@@ -147,6 +170,45 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertFalse(result['success'])
         self.assertEqual(['sample.Test#required'], result['instrumentation']['failed'])
         self.assertFalse(any(command[:3] == ['shell', 'am', 'start'] for command in commands))
+        self.assertEqual({'window', 'input', 'activity', 'display'},
+                         set(result['failureDiagnostics']['snapshots']))
+        self.assertTrue(result['failureDiagnostics']['testFailures']['files'])
+        command = next(command for command in commands if command[:3] == ['shell', 'am', 'instrument'])
+        run_id = command[command.index('windowFailureRunId') + 1]
+        self.assertTrue(run_id.isdigit())
+        self.assertIn(run_id, result['failureDiagnostics']['testFailures']['files'][0])
+        pull = next(command for command in commands if command[0] == 'pull')
+        self.assertTrue(pull[1].endswith('/' + run_id))
+
+    def test_diagnostic_timeout_preserves_original_failure_and_other_snapshots(self):
+        result, _ = self.exercise_device(
+            instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'), diagnostic_failure='window')
+        self.assertIn('设备回归未满足', result['error'])
+        self.assertIn('error', result['failureDiagnostics']['snapshots']['window'])
+        self.assertIn('file', result['failureDiagnostics']['snapshots']['input'])
+        self.assertTrue(result['failureDiagnostics']['testFailures']['files'])
+
+    def test_missing_test_diagnostics_cannot_be_reported_as_collected(self):
+        for options in ({'diagnostic_failure': 'pull'}, {'pull_files': False}):
+            with self.subTest(options=options):
+                result, _ = self.exercise_device(
+                    instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'), **options)
+                self.assertIn('设备回归未满足', result['error'])
+                self.assertIn('error', result['failureDiagnostics']['testFailures'])
+                self.assertNotIn('files', result['failureDiagnostics']['testFailures'])
+
+    def test_runner_timeout_keeps_partial_output_and_collects_failure_diagnostics(self):
+        result, _ = self.exercise_device(instrumentation_timeout=True)
+        self.assertFalse(result['success'])
+        self.assertIn('timed out', result['error'])
+        self.assertIn('file', result['failureDiagnostics']['snapshots']['window'])
+        self.assertTrue(result['failureDiagnostics']['testFailures']['files'])
+
+    def test_failure_before_instrumentation_does_not_pull_old_test_diagnostics(self):
+        result, commands = self.exercise_device(install='Failure [INSTALL_FAILED]')
+        self.assertIn('安装失败', result['error'])
+        self.assertNotIn('testFailures', result['failureDiagnostics'])
+        self.assertFalse(any(command[0] == 'pull' for command in commands))
 
 
 if __name__ == '__main__':

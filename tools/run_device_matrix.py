@@ -113,6 +113,8 @@ def run_device(api, serial):
     output.mkdir(parents=True, exist_ok=True)
     report = {'expectedApi': api, 'serial': serial, 'commit': os.environ.get('GITHUB_SHA'), 'success': False}
     dedicated_emulator = False
+    diagnostic_run = str(time.time_ns())
+    instrumentation_started = False
 
     def adb(*args, timeout=60):
         process = subprocess.run(['adb', '-s', serial, *args], text=True, stdout=subprocess.PIPE,
@@ -144,7 +146,9 @@ def run_device(api, serial):
             (output / (name + '-install.txt')).write_text(result, encoding='utf-8')
             if 'Success' not in result:
                 raise ValueError('安装失败：' + name)
+        instrumentation_started = True
         raw = adb('shell', 'am', 'instrument', '-w', '-r',
+                  '-e', 'windowFailureDiagnostics', 'true', '-e', 'windowFailureRunId', diagnostic_run,
                   'com.logan.ktoastapp.test/androidx.test.runner.AndroidJUnitRunner', timeout=900)
         (output / 'instrumentation.txt').write_text(raw, encoding='utf-8')
         report['instrumentation'] = instrumentation_result(raw, required_tests(api))
@@ -182,6 +186,35 @@ def run_device(api, serial):
         raise
     finally:
         if dedicated_emulator:
+            if not report['success']:
+                # 保存收尾时的系统状态，不能把它当作首个失败时刻的状态。
+                # 用例内采证在宿主销毁前执行；独立 runId 避免读到旧运行的诊断。
+                diagnostics = {'capturedAt': 'after-run', 'snapshots': {}}
+                report['failureDiagnostics'] = diagnostics
+                for name, service in (
+                    ('window', ('window',)), ('input', ('input',)),
+                    ('activity', ('activity', 'activities')), ('display', ('display',))
+                ):
+                    try:
+                        filename = 'after-run-' + name + '.txt'
+                        (output / filename).write_text(
+                            adb('shell', 'dumpsys', '-t', '5', *service, timeout=15), encoding='utf-8')
+                        diagnostics['snapshots'][name] = {'file': filename}
+                    except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+                        diagnostics['snapshots'][name] = {'error': str(error)}
+                if instrumentation_started:
+                    try:
+                        test_output = output / 'window-failures' / diagnostic_run
+                        test_output.parent.mkdir(parents=True, exist_ok=True)
+                        adb('pull', '/sdcard/Android/data/com.logan.ktoastapp.test/files/window-failures/' +
+                            diagnostic_run, str(test_output), timeout=60)
+                        files = sorted(str(path.relative_to(output)) for path in
+                                       test_output.rglob('*') if path.is_file())
+                        if not files:
+                            raise ValueError('没有取得本次用例的失败诊断文件')
+                        diagnostics['testFailures'] = {'runId': diagnostic_run, 'files': files}
+                    except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+                        diagnostics['testFailures'] = {'runId': diagnostic_run, 'error': str(error)}
             try:
                 (output / 'device-logcat.txt').write_text(adb('logcat', '-d', '-v', 'threadtime'), encoding='utf-8')
             except (ValueError, OSError, subprocess.TimeoutExpired) as error:

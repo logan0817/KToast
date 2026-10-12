@@ -2,7 +2,9 @@
 
 ## 当前状态与产物
 
-Java 调试入口兼容修复、发布配置拆分及标准 GPG 配置已纳入 main。2026-10-12 的第 10 轮 main CI 五个关键 API 首尝试均成功，原始报告与制品一致性验收完成；正式签名包已在干净源码下通过本地验收，使用维护者已核对的现有发布密钥。此前 API 35 首尝试失焦及图层同步异常的根因尚未确定，保留失败证据与稳定性限制。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。新的 Gradle 命令上传配置由 feature/release-pipeline 分支提供，本地验证通过，尚未纳入 main 或通过合并后 CI；此前 main CI 的结论不自动覆盖本轮配置。
+Java 调试入口兼容修复、发布配置拆分、标准 GPG 配置及 Gradle 命令上传流程已纳入 main。PR #2 合并提交为 5be2c22bf1110e2f551c67c7b36c270444cbb34d；2026-10-12 的第 15 轮合并后 main CI 首尝试失败，API 21、30、31、36 通过，API 35 有四项失败，当前发布门槛未通过，不能上传 Central。七份原始报告和制品已核对，细节见下方合并验收记录。此前第 10 轮 main 和第 13 轮 PR 的成功不能替代此次验收；持续失焦的根因仍未确定。
+
+正式签名包已在干净 main 源码下通过本地验收，使用维护者已核对的现有发布密钥，但本地验收不代表设备或服务端验证通过。当前尚未上传 Central、进行服务端校验、创建标签或正式发布；Maven Central 正式版本与 README 安装坐标仍为 1.0.5，候选为 io.github.logan0817:ktoast:1.1.0-SNAPSHOT。这里集中维护验证结果与发布待办，不保留沟通过程文档。窗口测试清理及诊断调整已通过 PR #3 第 16 轮首尝试五版本回归，尚未合入 main；该轮无失败，新增设备失败采证分支未触发，限制见下方记录。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -19,7 +21,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 
 ## 验证矩阵
 
-以下当前关键矩阵证据来自 2026-10-12 的发布配置拆分与双签名候选，包含 Java 调试入口兼容修复；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
+以下当前关键矩阵证据来自 2026-10-12 的第 15 轮 main CI，包含 Java 调试入口兼容修复和命令发布配置；API 24/37 及专用 fixture 结果单独保留为此前功能候选的覆盖记录。源码或构建设置影响行为、API、依赖或产物目标后，须重跑对应验证；仅文档和注释调整须更新 sources 并重新校验产物，不把历史运行结果写成新产物已运行。
 
 当前冻结候选的基线构建源码为 811c2535cf0a2d07dcb3229d72d7b3df8e755c6a；最新 PR 与 main 的实际源码、运行尝试及验收状态见下方合并检查。本地与云端生成的 AAR、sources、javadoc 及完整 candidate.json 一致，32 项 JVM 测试、库 Lint、57 项工具回归、旧公开 API 与消费者验证通过。五个关键版本均运行同一批 APK/AAR；API 24/37、16KB 页面大小及专用场景属于此前候选的历史证据，未对本轮产物重复运行，不用于认证本轮新 AAR。
 
@@ -27,7 +29,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | --- | --- | --- |
 | JVM 测试、库 Lint | 32 项通过；No issues found | 不替代设备运行 |
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
-| 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项、上传暂存验收 22 项，共 79 项本地回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
+| 发布与矩阵校验工具 | 当前本地候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 19 项、上传暂存验收 22 项，共 83 项回归通过；第 15 轮 CI 对应调整前的 79 项 | 新诊断仅完成本地回归；离线样例不等于真实 Portal 校验，工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
 | 签名配置边界 | 当前本地及第 10 轮 main CI 的 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 配置回归不签名、不访问个人密钥环；历史 12 项仅对应旧配置 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
@@ -39,7 +41,8 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | 超大内容复核 | 修正为显式 6000px 布局宽度的同一用例在 API 24/37 各通过 | 重复复核不计新增独立用例 |
 | API 21 | 云端专用模拟器 28 项必需回归通过；R8 Release 新进程 PASS | 8 项由 SDK 过滤、无逐项状态，不计成功 |
 | API 30/31 | 两个版本各 31 项必需回归通过；R8 Release 新进程均 PASS | 每个版本 5 项专用 fixture 明确跳过，不计成功 |
-| API 35/36 | 两个版本各 31 项必需回归通过；R8 Release 新进程均 PASS | 每个版本 5 项专用 fixture 明确跳过；不替代厂商真机 |
+| API 35 | 第 15 轮 main：27 项通过、5 项跳过、4 项失败；R8 未执行 | 持续失焦根因未确定，发布门槛未通过 |
+| API 36 | 第 15 轮 main：31 项必需回归通过；R8 Release 新进程 PASS | 5 项专用 fixture 明确跳过；不替代厂商真机 |
 | 更多厂商与分屏 | 未验证 | 不将自由窗口结果推广到全部厂商和窗口模式 |
 
 API 33 的旧验证仅对应更早稳定性阶段，不用于认证当前完整 1.1 候选。设备测试的 SDK 过滤、fixture 跳过、失败和成功必须分别记录。无障碍、显示缺口、自由窗口的专用配置及恢复要求见 [TROUBLESHOOTING.md](../TROUBLESHOOTING.md)。
@@ -59,6 +62,10 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 - 无障碍时长、显示缺口和自由窗口仍使用专用 fixture；普通矩阵未配置这些 fixture，不能替代已有专用场景或厂商真机验证。
 
 工具将 passed、skipped、failed 和 notReported 分开记录。SDK 过滤可能不产生逐项状态，未报告项不计为成功，也不猜测为已跳过。任一必需用例未通过、Runner 中断、空运行、安装失败、API 不一致、产物变化或新进程未输出 PASS，任务均失败；失败报告仍上传。矩阵 fail-fast 关闭，一个 API 失败不会取消其他 API 的运行。
+
+矩阵入口显式传入 windowFailureDiagnostics=true 和本次唯一的 windowFailureRunId。在三个窗口相关测试类内，诊断规则位于 ActivityScenario 规则内部；失败时于 @After 执行后、宿主销毁前保存 window、input、activity activities 和 display 的 dumpsys 输出。每条系统采证命令使用五秒上限；采证失败只记录错误，不替换测试失败、不重试和不放宽断言。文件保存在测试 APK 的专用外部文件目录，按运行 ID 与用例区分；只供临时模拟器诊断使用。
+
+运行入口失败时另保存 after-run-*.txt，并拉取本次用例的 window-failures 目录；result.json 的 failureDiagnostics 分别记录成功取得的文件与采证错误。收尾快照属于 Runner 结束后的状态；用例快照也已执行测试清理，两者都不能直接证明失焦首次发生的时刻或原因。Runner 崩溃、安装失败或诊断文件缺失仍保留原始失败，不将缺失诊断标记为取得成功，不读取其他运行的目录。成功运行不执行这些失败采证命令。第 16 轮 PR CI 五版本无失败，采证分支未触发；新增采证在云端失败场景的实际执行和文件拉取仍待验证。
 
 工作流支持 Pull Request、手动触发，以及 main 和 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，main 上仅推送发布结果或 README 文档不会重复构建设备矩阵；Pull Request 按整个 PR 相对目标分支的差异筛选路径，已有代码差异的 PR 即使仅追加发布结果文档，也可能重新运行。工作流已合入默认分支，手动入口现可使用。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
 
@@ -304,7 +311,7 @@ python3 -B tools/verify_central_deployment.py \
 
 发布后使用全新消费者解析正式坐标，确认实际下载产物的校验和、源码与 R8 运行结果，再更新发布状态。Maven Central 已发布版本不可按本地文件覆盖；发现问题时优先停止推广，使用者回退到 1.0.5，后续以修复版本重新发布。使用新页面 API 的消费者回退前需撤回相关调用。
 
-### 命令发布流程本地验证（待纳入 main）
+### 命令发布流程本地验证与合并验收
 
 PR #2 的第 11 轮 CI（38240427479）首尝试构建、32 项 JVM 测试、Lint、19 项签名配置、21 项发布配置及 2 项假 Portal 回归通过，完整 Candidate 与冻结产物一致；API 21、30、31、35 设备回归及 R8 消费者通过。API 36 在 KToastPlatformTest 的输入法前置条件失败，30 项通过、5 项跳过、1 项失败，R8 未执行，整轮不得作为发布验收通过的证据。原始日志显示显示请求在 PHASE_WM_ABORT_SHOW_IME_POST_LAYOUT 被中止，失败发生于创建作用域之前，不能据此确认库避让行为有缺陷。
 
@@ -324,4 +331,36 @@ API 21 为 28 项必需用例通过、8 项 SDK 过滤用例未报告；API 30�
 
 在同一干净提交上重新生成的本地正式 ZIP SHA-256 为 bf02feeac641ddae93b486fad048cdf7bd1ca46f4bdf9a26e47ae27eaeab4b0a。真实 Gradle 50 文件仓库的隔离副本通过完整源码门禁、五份真实签名和 20 个派生校验和验证后规范化为 30 文件，与旧冻结包逐字节一致；本次未替代或跳过源码门禁。报告位于 build/reports/central-publishing/normalization-clean-head.json，仅证明本地上传前验收，尚未联系真实 Central 上传服务。
 
-本节记录命令发布流程的本地验证；PR、合并后 main CI 以及真实 Central 上传仍须单独验收，不沿用旧 main CI 认证新的发布配置。流程收尾后须在干净提交下重新准备发布报告，核对实际插件 ZIP 与授权范围，再进行真实上传及远端验收。未改变库源码和生产依赖；五版本运行证据仍对应同字节冻结 AAR，不把本地工具回归写成新设备运行。
+PR #2 已合并到 main，合并提交为 5be2c22bf1110e2f551c67c7b36c270444cbb34d，文件树与已授权的 ed8eb26 完全一致。[第 15 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38258471248) 首尝试整体 Failure，未原样重跑；构建与运行提交均为该合并提交。七份原始 ZIP 均与 GitHub 官方摘要一致，同批输入的 APK/AAR 字节与报告一致，完整 candidate.json 与本地及冻结候选一致。原始构建报告确认 32 项 JVM 测试通过、库 Lint 无问题、19 项签名配置、21 项发布配置和 2 项隔离服务回归通过。
+
+| API | 通过 | 显式跳过 | 未报告 | 失败 | R8 新进程 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 21 | 28 | 0 | 8 | 0 | PID 2710，PASS |
+| 30 | 31 | 5 | 0 | 0 | PID 6164，PASS |
+| 31 | 31 | 5 | 0 | 0 | PID 5466，PASS |
+| 35 | 27 | 5 | 0 | 4 | 未执行 |
+| 36 | 31 | 5 | 0 | 0 | PID 5410，PASS |
+
+API 35 首次输入法前置用例及两个 Demo 交互用例报 RootViewWithoutFocusException，宿主持续无窗口焦点；首次输入法失败尚未创建库作用域。显示期间输入法用例的 finally 强制把重新取得的 content.rootView.layoutParams 转为 WindowManager.LayoutParams，实际为 FrameLayout.LayoutParams，导致 ClassCastException，覆盖了原始失败；不能据此推断被覆盖的原异常类型。持续失焦的根因尚未确定，不把其他版本通过解释成 API 35 问题已修复。
+
+本地在 fix/window-test-diagnostics 调整该收尾逻辑：保存注册时的提示根视图及两个 ViewTreeObserver，按原对象清理；读取窗口参数使用安全转换，保留附着状态；若清理也失败，将其作为原异常的 suppressed 信息，不替换首个异常。三个相关测试类补充上述失败采证规则，矩阵工具加入收尾快照与本次目录拉取。未改变生产库、依赖、工具链、用例集合、等待上限或通过断言。83 项 Python 回归通过，覆盖采证超时、缺失文件、Runner 超时及安装失败等路径；:app:assembleDebugAndroidTest 使用既有环境离线编译通过。
+
+实际编译的 WindowFailureDiagnosticsRule 另通过五项 JVM 边界自检：真实 JUnit RuleChain 保持原异常对象且在宿主销毁前采证、未启用时不执行 shell、非法运行 ID 被拒绝、单个系统服务异常不打断其他采证、fixture 假设跳过不触发失败采证。Android 系统服务使用替身；此结果只验证控制流程，不证明设备权限、dumpsys 内容和 adb 文件拉取可用。自检入口与 class SHA 记录位于本地 build/reports/release-freeze/check_window_diagnostics_rule.py 及 window-rule-selfcheck/result.json，不进入发布产物。Android 采证规则及修正后的窗口收尾仍待云端实际运行，当前不宣称失焦已解决或设备验证通过。
+
+第 15 轮证据归档于 build/reports/device-matrix-cloud/38258471248，verification-summary.json 的 accepted=false；失败结果必须保留。干净 main 下的正式 ZIP SHA-256 为 3b23d39ecf27cefa6eb36f424681e82ce838873a1430149664dc2dcc580e0d12，30 个内部文件与先前冻结包一致；该包只有本地签名及文件验收，未上传。后续修复完成并通过新 PR 与最终 main CI 后，须在干净提交下重新准备发布报告，核对实际插件 ZIP 与授权范围，再执行真实上传及远端验收。
+
+### 窗口测试清理与诊断的 PR 验收
+
+[PR #3](https://github.com/logan0817/KToast/pull/3) 的 [第 16 轮 CI](https://github.com/logan0817/KToast/actions/runs/38267311302) 首尝试整体 Success，未重跑。实际源码为 fb157aa90c3ecb8d4008e1027b91a3dcec1c24c6，测试合并提交为 c47c3bec27ff6a018fb208881b23de2ebbe8ea7a，其父提交为 main 的 5be2c22 和该 PR head，文件树与 head 完全一致。七份原始 ZIP 均与 GitHub 官方摘要一致；同批输入 APK/AAR 的实际字节、构建和运行提交均匹配，完整 candidate.json 与本地及冻结候选一致。
+
+| API | 通过 | 显式跳过 | 未报告 | 失败 | R8 新进程 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 21 | 28 | 0 | 8 | 0 | PID 2720，PASS |
+| 30 | 31 | 5 | 0 | 0 | PID 6230，PASS |
+| 31 | 31 | 5 | 0 | 0 | PID 5432，PASS |
+| 35 | 31 | 5 | 0 | 0 | PID 4748，PASS |
+| 36 | 31 | 5 | 0 | 0 | PID 4977，PASS |
+
+原始 Runner 结果重解析与 result.json 一致，五版本均正常返回 -1、无必需用例缺失。R8 消费者的新进程 PID 与对应 PASS 日志一致；专用 fixture 跳过及 SDK 过滤未报告项不计成功。原始构建报告确认 32 项 JVM 测试通过、库 Lint 无问题、19 项签名配置、21 项发布配置及 2 项隔离服务回归通过；官方构建日志确认执行 83 项 Python 回归。未改变生产库、工具链或生产依赖。
+
+本轮窗口测试及普通 IME 场景实际通过，但所有版本都没有失败，新增诊断规则的设备采证及 adb 拉取分支未触发，不能将其写成设备失败路径已经验证。第 15 轮持续失焦根因仍未确定；本轮成功不证明该问题已消除，也不替代合并后的 main CI。证据归档于 build/reports/device-matrix-cloud/38267311302，verification-summary.json 的 accepted=true 只表示本次 PR 验收通过。后续仅记录结果的文档提交不改变已验收的测试或生产库源码；最终 PR 检查和合并后的 main CI 状态仍须分别核对。

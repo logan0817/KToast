@@ -29,6 +29,7 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.hamcrest.Matchers.sameInstance
 import java.util.concurrent.CountDownLatch
@@ -37,7 +38,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class KToastPlatformTest {
-    @get:Rule val rule = activityScenarioRule<MainActivity>()
+    val rule = activityScenarioRule<MainActivity>()
+    @get:Rule val rules = RuleChain.outerRule(rule).around(WindowFailureDiagnosticsRule())
     private var scope: KToastScope? = null
 
     @After fun cleanup() {

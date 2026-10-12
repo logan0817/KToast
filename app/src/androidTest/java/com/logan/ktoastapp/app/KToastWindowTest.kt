@@ -24,6 +24,7 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.hamcrest.Matchers.sameInstance
 import java.util.concurrent.CountDownLatch
@@ -32,7 +33,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class KToastWindowTest {
-    @get:Rule val rule = activityScenarioRule<MainActivity>()
+    val rule = activityScenarioRule<MainActivity>()
+    @get:Rule val rules = RuleChain.outerRule(rule).around(WindowFailureDiagnosticsRule())
     private var scope: KToastScope? = null
 
     @After fun cleanup() {
@@ -135,6 +137,10 @@ class KToastWindowTest {
         val moved = CountDownLatch(1)
         val position = AtomicReference("No post-IME frame")
         lateinit var observer: ViewTreeObserver.OnPreDrawListener
+        lateinit var toastRoot: View
+        lateinit var decor: View
+        lateinit var toastObserver: ViewTreeObserver
+        lateinit var decorObserver: ViewTreeObserver
         rule.scenario.onActivity { host ->
             editor = EditText(host)
             host.setContentView(FrameLayout(host).apply { addView(editor) })
@@ -151,8 +157,9 @@ class KToastWindowTest {
         }
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         rule.scenario.onActivity { host ->
-            val decor = host.window.decorView
-            val root = content.rootView
+            decor = host.window.decorView
+            toastRoot = content.rootView
+            val root = toastRoot
             assertTrue(root.isAttachedToWindow)
             assertEquals(0, decor.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom)
             val before = IntArray(2)
@@ -168,11 +175,14 @@ class KToastWindowTest {
                 }
                 true
             }
-            decor.viewTreeObserver.addOnPreDrawListener(observer)
+            decorObserver = decor.viewTreeObserver
+            toastObserver = root.viewTreeObserver
+            decorObserver.addOnPreDrawListener(observer)
             // 提示是独立子窗口，宿主的 pre-draw 可能早于其更新后的绘制。
             // 两个窗口都观察，仍要求实际屏幕位置移动并完整避让键盘。
-            root.viewTreeObserver.addOnPreDrawListener(observer)
+            toastObserver.addOnPreDrawListener(observer)
         }
+        var originalFailure: Throwable? = null
         val changed = try {
             // 与首次避让用例使用同一真实输入操作，避免初始化与 IME 显示请求竞争。
             onView(sameInstance(editor)).perform(click())
@@ -182,15 +192,25 @@ class KToastWindowTest {
                 host.window.insetsController!!.show(WindowInsets.Type.ime())
             }
             moved.await(3L, TimeUnit.SECONDS)
+        } catch (error: Throwable) {
+            originalFailure = error
+            throw error
         } finally {
-            rule.scenario.onActivity {
-                val root = content.rootView
-                val location = IntArray(2)
-                root.getLocationOnScreen(location)
-                val params = root.layoutParams as WindowManager.LayoutParams
-                position.set("${position.get()}; finalIme=${it.window.decorView.rootWindowInsets.getInsets(WindowInsets.Type.ime()).bottom} finalY=${location[1]} requestedY=${params.y} state=${handle.state}")
-                it.window.decorView.viewTreeObserver.removeOnPreDrawListener(observer)
-                root.viewTreeObserver.removeOnPreDrawListener(observer)
+            try {
+                rule.scenario.onActivity {
+                    // 提示可能在 Espresso 焦点等待期间到期，content.rootView 已变成内容子树。
+                    // 清理注册时的窗口和观察器；诊断不能以类型转换异常覆盖原始失败。
+                    (decorObserver.takeIf { tree -> tree.isAlive } ?: decor.viewTreeObserver)
+                        .removeOnPreDrawListener(observer)
+                    (toastObserver.takeIf { tree -> tree.isAlive } ?: toastRoot.viewTreeObserver)
+                        .removeOnPreDrawListener(observer)
+                    val location = IntArray(2)
+                    toastRoot.getLocationOnScreen(location)
+                    val params = toastRoot.layoutParams as? WindowManager.LayoutParams
+                    position.set("${position.get()}; finalIme=${decor.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom} finalY=${location[1]} requestedY=${params?.y} attached=${toastRoot.isAttachedToWindow} state=${handle.state}")
+                }
+            } catch (cleanupError: Throwable) {
+                originalFailure?.addSuppressed(cleanupError) ?: throw cleanupError
             }
         }
         assertTrue("Showing toast did not move above the IME: ${position.get()}", changed)
