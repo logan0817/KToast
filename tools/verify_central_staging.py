@@ -24,7 +24,8 @@ def check_source(root=ROOT):
     return {"commit": commit, "dirty": False}
 
 
-def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg="gpg", root=ROOT):
+def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg="gpg", root=ROOT,
+           normalize_signature_checksums=False):
     source = check_source(root)
     identity = deployment_identity(version)
     report = json.loads(bundle_report.read_text(encoding="utf-8"))
@@ -43,6 +44,8 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
     allowed = set(names + [name + ".asc" for name in names]) | {
         name + "." + algorithm for name in names for algorithm in ("md5", "sha1", "sha256", "sha512")}
     expected = {(relative / name).as_posix() for name in allowed}
+    signature_checksums = {(relative / (name + ".asc." + algorithm)).as_posix()
+                           for name in names for algorithm in ("md5", "sha1", "sha256", "sha512")}
     # 插件只忽略 Maven 元数据；仅允许 Gradle 在当前 artifact 目录生成的精确文件名。
     metadata = {(GROUP_PATH / ("maven-metadata.xml" + suffix)).as_posix()
                 for suffix in ("", ".md5", ".sha1", ".sha256", ".sha512")}
@@ -53,8 +56,14 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
         require(path.is_dir() or path.is_file(), "插件暂存中不允许特殊文件")
         if path.is_file():
             actual.add(path.relative_to(staging).as_posix())
-    require(expected <= actual and actual <= expected | metadata,
+    derived = actual & signature_checksums
+    permitted_derived = signature_checksums if normalize_signature_checksums else set()
+    require(expected <= actual and actual <= expected | metadata | permitted_derived,
             "插件暂存包含缺失或非预期文件，禁止上传")
+    if derived:
+        require(derived == signature_checksums, "签名派生校验和不完整，禁止规范化或上传")
+        require(staging.resolve().parent == (root / "build/publish/staging").resolve(),
+                "仅允许规范化插件的临时暂存目录，不能修改本地发布仓库")
     require(set(report.get("files", {})) == allowed and report["bundle"].get("files") == len(allowed),
             "正式报告的逐文件集合不完整")
     checked = {}
@@ -74,8 +83,21 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
                 require(checksum == hashlib.new(algorithm, archive.read((relative / name).as_posix())).hexdigest(),
                         "正式 ZIP 校验和错误: " + name)
     signatures = verify_signatures(staging / relative, names, public_key, fingerprint, gpg)
+    normalized = {}
+    # Gradle 会给五份 .asc 另生成 20 份校验和。它们不属于冻结的 30 文件发布包，
+    # 必须全部验证后才从插件临时目录移除；禁止放宽文件集合或静默丢弃未知文件。
+    for path in sorted(derived):
+        algorithm = path.rsplit(".", 1)[1]
+        content = (staging / path).read_bytes()
+        signature = (staging / path.rsplit(".", 1)[0]).read_bytes()
+        require(content.decode("ascii").strip() == hashlib.new(algorithm, signature).hexdigest(),
+                "签名派生校验和错误: " + path)
+        normalized[path] = {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+    for path in normalized:
+        (staging / path).unlink()
     return {"verifiedAtUtc": datetime.now(timezone.utc).isoformat(), "source": source,
             "deployment": identity, "bundleSha256": bundle_sha, "files": checked, "signatures": signatures,
+            "normalizedSignatureChecksums": normalized,
             "stagingDirectory": str(staging.resolve()), "remoteUploaded": False,
             "scope": "仅本地上传前验收；实际网络上传在 Gradle build service 结束时发生，须另行验收 deployment ID"}
 
@@ -83,6 +105,8 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-source", action="store_true")
+    parser.add_argument("--normalize-signature-checksums", action="store_true",
+                        help="仅在插件临时目录验证并移除 .asc 的派生校验和，使上传仍精确包含 30 文件")
     parser.add_argument("--staging", type=Path)
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--bundle-report", type=Path)
@@ -101,7 +125,7 @@ def main():
             print("Central 干净源码门禁通过")
             return
         report = verify(args.staging, args.bundle, args.bundle_report, args.version, args.public_key,
-                        args.fingerprint, args.gpg)
+                        args.fingerprint, args.gpg, normalize_signature_checksums=args.normalize_signature_checksums)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + chr(10), encoding="utf-8")
     except (ValueError, OSError, KeyError, TypeError, BadZipFile, subprocess.CalledProcessError) as error:

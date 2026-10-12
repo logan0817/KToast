@@ -68,8 +68,13 @@ class KToastPlatformTest {
         }
         val visible = try {
             // ActivityScenario 的 RESUMED 不保证窗口已有焦点；过早 show 会被系统取消。
-            // Espresso 等待可交互窗口后点击编辑框，仍要求真实 IME Insets 和原避让断言通过。
+            // Espresso 等待可交互窗口后点击；点击本身不保证系统发起 IME 显示请求。
             onView(sameInstance(editor)).perform(click())
+            rule.scenario.onActivity { host ->
+                assertTrue("IME fixture requires an attached, focused editor",
+                    editor.isAttachedToWindow && editor.hasWindowFocus() && editor.hasFocus())
+                host.window.insetsController!!.show(WindowInsets.Type.ime())
+            }
             imeVisible.await(5L, TimeUnit.SECONDS)
         } finally {
             rule.scenario.onActivity {

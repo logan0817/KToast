@@ -21,7 +21,7 @@ class StagingValidationTest(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix="kt-stage-test-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.staging = self.root / "staging"
+        self.staging = self.root / "build/publish/staging/fixture-id"
         self.directory = self.staging / GROUP_PATH / "1.1.0"
         self.directory.mkdir(parents=True)
         self.bundle = self.root / "bundle.zip"
@@ -58,8 +58,64 @@ class StagingValidationTest(unittest.TestCase):
     def save_report(self):
         self.report_file.write_text(json.dumps(self.report), encoding="utf-8")
 
-    def verify(self):
-        return verify(self.staging, self.bundle, self.report_file, "1.1.0", self.root / "public.asc", "A" * 40)
+    def verify(self, normalize=False):
+        return verify(self.staging, self.bundle, self.report_file, "1.1.0", self.root / "public.asc", "A" * 40,
+                      root=self.root, normalize_signature_checksums=normalize)
+
+    def add_signature_checksums(self):
+        paths = []
+        for name, content in self.payload.items():
+            if name.endswith(".asc"):
+                for algorithm in ("md5", "sha1", "sha256", "sha512"):
+                    path = self.directory / (name + "." + algorithm)
+                    path.write_text(hashlib.new(algorithm, content).hexdigest())
+                    paths.append(path)
+        return paths
+
+    def test_signature_checksums_require_explicit_normalization(self):
+        paths = self.add_signature_checksums()
+        with self.assertRaisesRegex(ValueError, "非预期"):
+            self.verify()
+        self.assertTrue(all(path.is_file() for path in paths))
+
+    def test_verified_signature_checksums_removed_only_from_plugin_stage(self):
+        paths = self.add_signature_checksums()
+        original_bundle = self.bundle.read_bytes()
+        result = self.verify(normalize=True)
+        self.assertEqual(20, len(result["normalizedSignatureChecksums"]))
+        self.assertFalse(any(path.exists() for path in paths))
+        self.assertEqual(30, len(list(self.directory.iterdir())))
+        self.assertEqual(original_bundle, self.bundle.read_bytes())
+
+    def test_bad_derived_checksum_preserves_all_files(self):
+        paths = self.add_signature_checksums()
+        paths[-1].write_text("invalid checksum")
+        with self.assertRaisesRegex(ValueError, "签名派生校验和错误"):
+            self.verify(normalize=True)
+        self.assertTrue(all(path.is_file() for path in paths))
+
+    def test_partial_derived_checksums_rejected_without_mutation(self):
+        paths = self.add_signature_checksums()
+        paths[-1].unlink()
+        with self.assertRaisesRegex(ValueError, "校验和不完整"):
+            self.verify(normalize=True)
+        self.assertTrue(all(path.is_file() for path in paths[:-1]))
+
+    def test_signature_failure_preserves_derived_checksums(self):
+        paths = self.add_signature_checksums()
+        self.signatures.side_effect = ValueError("签名验证失败")
+        with self.assertRaisesRegex(ValueError, "签名验证失败"):
+            self.verify(normalize=True)
+        self.assertTrue(all(path.is_file() for path in paths))
+
+    def test_normalization_cannot_modify_other_repository(self):
+        paths = self.add_signature_checksums()
+        original = self.staging
+        self.staging = self.root / "other-repository"
+        original.rename(self.staging)
+        with self.assertRaisesRegex(ValueError, "临时暂存目录"):
+            self.verify(normalize=True)
+        self.assertEqual(50, len(list((self.staging / GROUP_PATH / "1.1.0").iterdir())))
 
     def test_complete_payload_reaches_signature_verifier(self):
         result = self.verify()

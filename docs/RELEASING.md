@@ -27,7 +27,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | --- | --- | --- |
 | JVM 测试、库 Lint | 32 项通过；No issues found | 不替代设备运行 |
 | Release AAR、候选发布、Demo 与测试 APK | 构建通过；候选额外包含真实 javadoc 包 | 本地 publish 不等于正式远程发布 |
-| 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项、上传暂存验收 16 项，共 73 项本地回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
+| 发布与矩阵校验工具 | 候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 15 项、上传暂存验收 22 项，共 79 项本地回归通过；输入 APK/AAR 校验信息生成通过 | 离线样例不等于真实 Portal 校验；工具测试通过不等于远程设备运行通过 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
 | 签名配置边界 | 当前本地及第 10 轮 main CI 的 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 配置回归不签名、不访问个人密钥环；历史 12 项仅对应旧配置 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
@@ -266,6 +266,8 @@ Central 登录网页的密码、GPG 私钥口令和 Central User Token 是三种
 
 根入口依次核对批次模型、干净源码及受控配置，生成并验收本地签名 ZIP，再让插件写入 build/publish/staging 下的本地仓库。网络上传前，tools/verify_central_staging.py 必须逐项核对暂存的 30 个文件与已验收 ZIP、报告、当前干净 HEAD，并再次验签；缺项、额外文件、符号链接、测试包、版本/坐标变化或任一字节差异均使构建失败。只允许当前 artifact 目录中 Gradle 的精确 Maven 元数据文件名，这些文件不会上传。插件版本固定为 0.33.0；批次名从现有 POM_NAME 取 KToast，校验其 staging 标识，不改变工程名 ktoast 或 Maven 坐标。升级插件前必须重新验证内部模型字段与失败时不上传的行为。
 
+Gradle 发布签名文件时还会为五份 .asc 生成四类校验和，版本目录实际有 50 个文件。根入口显式传入 --normalize-signature-checksums：验收工具先完成全部 30 个冻结文件比对、真实验签及 20 个签名派生校验和验证，再仅从 build/publish/staging 的插件临时子目录移除这 20 个派生文件。实际上传仍精确包含冻结包的 30 个文件，报告中的 normalizedSignatureChecksums 留存被验证并移除的文件摘要。派生文件缺项、校验错误或验签失败时不移除；未知文件继续拒绝。直接调用验收工具默认只读，不接受这 20 个额外文件；显式规范化也禁止修改 Candidate/Staging 等其他仓库。此步骤不改变签名、制品或本地冻结 ZIP。
+
 门禁拒绝直接执行模块上传、createStagingRepository、通用 publish、publishAndReleaseToMavenCentral、releaseRepository 和 dropRepository；也拒绝上传时附带 clean、跳过任务、--continue 或 configuration cache。离线任务图请同时使用 --dry-run；单独 --offline 不保证第三方插件不联网，因此实际离线上传被门禁拒绝。本轮不提供正式 release/drop 自动入口，后续按具体 ID 与独立授权执行。
 
 常规候选校验含 verifyCentralDeploymentName。上传任务图回归由 tools/verify_central_publishing_configuration.py 使用空临时密钥环和虚构指纹执行，不签名、不上传；CI 归档 build/reports/central-publishing/configuration.json：
@@ -306,10 +308,16 @@ python3 -B tools/verify_central_deployment.py \
 
 PR #2 的第 11 轮 CI（38240427479）首尝试构建、32 项 JVM 测试、Lint、19 项签名配置、21 项发布配置及 2 项假 Portal 回归通过，完整 Candidate 与冻结产物一致；API 21、30、31、35 设备回归及 R8 消费者通过。API 36 在 KToastPlatformTest 的输入法前置条件失败，30 项通过、5 项跳过、1 项失败，R8 未执行，整轮不得作为发布验收通过的证据。原始日志显示显示请求在 PHASE_WM_ABORT_SHOW_IME_POST_LAYOUT 被中止，失败发生于创建作用域之前，不能据此确认库避让行为有缺陷。
 
-两个输入法用例改为使用现有 Espresso 点击编辑框，等待可交互窗口后触发真实输入；首次避让仍要求五秒内取得非零 IME Insets，保留内容完整位于键盘上方的断言，并增加几何检查时键盘仍可见的断言及窗口/编辑框焦点诊断。没有增加重试、跳过或固定休眠，也未改库源码、生产依赖和发布产物。该调整须重新构建测试 APK 并通过五版本矩阵，不能沿用第 11 轮的部分成功作为完成证明。
+第 12 轮 PR CI（38243306864）七份原始 ZIP 的官方摘要一致。API 21、30、31、36 的设备测试及 R8 消费者通过；API 35 为 30 项通过、5 项跳过、1 项失败，R8 未执行。失败仍发生于首次避让用例的真实键盘前置条件：编辑框已附着且窗口与编辑框均有焦点，但 IME Insets 为零。该用例日志记录了 Espresso 点击及输入服务绑定编辑框，未记录 IME 显示请求；不能把 API 36 本轮通过视为整个矩阵完成。
 
-feature/release-pipeline 新增根上传入口、任务图门禁、插件暂存逐文件验收以及 CI 配置回归。新的 prepareCentralBundle 已使用现有正式签名完成本地预验，五份签名有效，30 个内部文件与此前冻结正式包逐字节一致；AAR SHA-256 仍为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1。预验报告 source.dirty=true，归档于 build/reports/central-publishing/local-preview，禁止上传。原已授权 ZIP 与报告已恢复保留在 build/central，SHA-256 仍为 5b199996fa0c9a2b18bc949384fc88e3aed88fa9bfc6682d5ffc52e318bc3bdc。
+两个输入法用例使用现有 Espresso 点击编辑框，等待可交互窗口后断言编辑框已附着且具有窗口和编辑焦点，再明确调用 InsetsController 发起一次 IME 显示请求。首次避让仍要求五秒内取得非零 IME Insets，保留内容完整位于键盘上方的断言，并增加几何检查时键盘仍可见的断言及窗口/编辑框焦点诊断。没有增加重试、跳过或固定休眠，也未改库源码、生产依赖和发布产物。该调整须重新构建测试 APK 并通过五版本矩阵，不能沿用此前各轮的部分成功作为完成证明。
 
-本地 verifyReleaseCandidate 已通过，包含 32 项 JVM 测试、无问题 Lint、73 项 Python 回归及 Central 模型检查；完整 candidate.json 与第 10 轮 main CI 冻结报告一致。21 项真实 Gradle 发布配置/任务图回归、19 项签名配置回归及 2 项本机假 Portal 的 build service 回归通过。AGP 7.2.2 独立消费者 Debug/R8 Release 构建通过，两个变体解析到的 AAR SHA 均与冻结候选一致；旧 Lint 的 Kotlin metadata 1.9 分析诊断仍存在，本轮未运行消费者设备冒烟。离线任务图或假服务不代表真实 Central 上传结果。
+真实 Gradle 本地签名仓库复核确认版本目录为 50 文件，旧的 30 文件门禁会拒绝签名派生校验和。本轮加入临时目录规范化与 6 项边界回归，总计 79 项 Python 回归通过。实际 50 文件仓库的隔离副本也完成五份真实签名验证，20 个派生校验和全部核对后移除，剩余 30 个文件与冻结包一致；该格式预验显式替代源码门禁，不是上传验收。源码门禁、未知文件拒绝及校验/签名失败前不修改文件分别由回归覆盖，正式上传仍须在当前干净 HEAD 下完整执行根入口。
+
+feature/release-pipeline 新增根上传入口、任务图门禁、插件暂存逐文件验收以及 CI 配置回归。prepareCentralBundle 已使用现有正式签名完成本地预验，五份签名有效，30 个内部文件与此前冻结正式包逐字节一致；AAR SHA-256 仍为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1。最初的未提交源码预验归档于 build/reports/central-publishing/local-preview，禁止上传；旧冻结包保存在 build/reports/central-publishing/frozen-before-ime-fixture。提交 12e97dd 下的干净源码正式包 SHA-256 为 a60ec7129f7ef207f15bbc247b77d1e45296d8cf63e1be9bf0f84d6113b94618，内部 30 文件与旧包一致。后续源码或配置变更后必须重新准备报告，不得复用旧提交报告上传。
+
+本地 verifyReleaseCandidate 已通过，包含 32 项 JVM 测试、无问题 Lint、79 项 Python 回归及 Central 模型检查；完整 candidate.json 与第 10 轮 main CI 冻结报告一致。21 项真实 Gradle 发布配置/任务图回归、19 项签名配置回归及 2 项本机假 Portal 的 build service 回归通过；规范化配置修改后重新执行的 21 项发布配置与 2 项服务回归也通过。AGP 7.2.2 独立消费者 Debug/R8 Release 构建通过，两个变体解析到的 AAR SHA 均与冻结候选一致；旧 Lint 的 Kotlin metadata 1.9 分析诊断仍存在。离线任务图或假服务不代表真实 Central 上传结果。
+
+修正后的测试 APK 已在既有 Android Studio 构建环境成功编译；79 项 Python 回归再次通过。五版本运行仍待新提交的 CI 验收，编译通过不能替代设备通过。
 
 本节记录命令发布流程的本地验证；PR、合并后 main CI 以及真实 Central 上传仍须单独验收，不沿用旧 main CI 认证新的发布配置。流程收尾后须在干净提交下重新准备发布报告，核对实际插件 ZIP 与授权范围，再进行真实上传及远端验收。未改变库源码和生产依赖；五版本运行证据仍对应同字节冻结 AAR，不把本地工具回归写成新设备运行。

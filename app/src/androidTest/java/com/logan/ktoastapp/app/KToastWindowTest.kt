@@ -176,6 +176,11 @@ class KToastWindowTest {
         val changed = try {
             // 与首次避让用例使用同一真实输入操作，避免初始化与 IME 显示请求竞争。
             onView(sameInstance(editor)).perform(click())
+            rule.scenario.onActivity { host ->
+                assertTrue("IME fixture requires an attached, focused editor",
+                    editor.isAttachedToWindow && editor.hasWindowFocus() && editor.hasFocus())
+                host.window.insetsController!!.show(WindowInsets.Type.ime())
+            }
             moved.await(3L, TimeUnit.SECONDS)
         } finally {
             rule.scenario.onActivity {

@@ -99,6 +99,7 @@ val verifyCentralStaging = tasks.register<Exec>("verifyCentralStaging") {
         check(repository.url.scheme == "file") { "Central release must use a local staging directory." }
         commandLine(
             "python3", "-B", "tools/verify_central_staging.py",
+            "--normalize-signature-checksums",
             "--staging", file(repository.url).absolutePath,
             "--bundle", bundle.get().asFile.absolutePath, "--bundle-report", bundleReport.get().asFile.absolutePath,
             "--version", releaseVersion, "--public-key", file(publicKey.get()).absolutePath,
