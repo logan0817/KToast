@@ -31,9 +31,9 @@
 
   <rect x="320" y="430" width="560" height="150" rx="20" fill="#EDE9FE" stroke="#C4B5FD" stroke-width="2"/>
   <text x="600" y="470" text-anchor="middle" class="boxTitle">KToast.show(...)</text>
-  <text x="600" y="505" text-anchor="middle" class="boxBody">1. Switch to the main thread</text>
-  <text x="600" y="535" text-anchor="middle" class="boxBody">2. Cancel the previous toast</text>
-  <text x="600" y="565" text-anchor="middle" class="boxBody">3. Merge global config and local config</text>
+  <text x="600" y="505" text-anchor="middle" class="boxBody">1. Snapshot configuration and create request</text>
+  <text x="600" y="535" text-anchor="middle" class="boxBody">2. Prepare cancellation; switch to main thread</text>
+  <text x="600" y="565" text-anchor="middle" class="boxBody">3. Dispatcher replaces; then delivers callbacks</text>
 
   <line x1="600" y1="580" x2="600" y2="620" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
 
@@ -53,7 +53,7 @@
   <line x1="1015" y1="810" x2="1015" y2="870" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
 
   <rect x="845" y="880" width="340" height="70" rx="18" fill="#ECFCCB" stroke="#A3E635" stroke-width="2"/>
-  <text x="1015" y="923" text-anchor="middle" class="boxBody">Run enter animation and start auto-dismiss timer</text>
+  <text x="1015" y="923" text-anchor="middle" class="boxBody">Animation, timer, and host cleanup</text>
 
   <line x1="440" y1="720" x2="300" y2="720" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
   <text x="352" y="700" class="branch">No</text>
@@ -66,5 +66,5 @@
   <line x1="185" y1="810" x2="185" y2="870" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
 
   <rect x="55" y="880" width="260" height="70" rx="18" fill="#FDF2F8" stroke="#F472B6" stroke-width="2"/>
-  <text x="185" y="923" text-anchor="middle" class="boxBody">Show the system default toast</text>
+  <text x="185" y="923" text-anchor="middle" class="boxBody">System display attempt</text>
 </svg>

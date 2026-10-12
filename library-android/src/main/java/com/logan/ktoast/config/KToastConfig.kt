@@ -40,7 +40,7 @@ data class KToastConfig(
     /** 弹出/消失动画时长 (ms) */
     var animationDuration: Long = 250L,
 
-    /** 是否允许点击气泡立即消失 */
+    /** 是否允许点击气泡关闭；结束前执行配置的出场动画 */
     var cancelOnTouch: Boolean = false,
 
     /** 图标资源 ID (可选) */
@@ -58,7 +58,7 @@ data class KToastConfig(
     /** 文本最大行数 */
     var maxLines: Int = 4,
 
-    /** 最大宽度比例，相对屏幕宽度 */
+    /** 最大宽度比例：全局入口相对屏幕宽度，页面作用域相对宿主可用宽度 */
     var maxWidthRatio: Float = 0.8f,
 
     /** 最小宽度 (单位: dp) */

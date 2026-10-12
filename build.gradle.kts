@@ -4,3 +4,5 @@ plugins {
     kotlin("android") apply false
     base
 }
+
+apply(from = "gradle/release-verification.gradle.kts")

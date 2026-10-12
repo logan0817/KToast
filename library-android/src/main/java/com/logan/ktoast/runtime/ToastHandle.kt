@@ -1,6 +1,7 @@
 package com.logan.ktoast.runtime
 
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ToastHandle internal constructor(
     val id: Long = nextId.incrementAndGet()
@@ -21,9 +22,11 @@ class ToastHandle internal constructor(
         DEBOUNCED
     }
 
+    @Volatile
     var state: State = State.PENDING
         internal set
 
+    @Volatile
     var dismissReason: DismissReason? = null
         internal set
 
@@ -33,12 +36,26 @@ class ToastHandle internal constructor(
     val isCanceled: Boolean
         get() = state == State.CANCELED
 
+    @Volatile
     private var cancelDelegate: (() -> Boolean)? = null
+    private val cancellationRequested = AtomicBoolean(false)
 
-    fun cancel(): Boolean = cancelDelegate?.invoke() ?: false
+    internal val isCancellationRequested: Boolean
+        get() = cancellationRequested.get()
 
+    /**
+     * 接受一次取消请求。返回 true 表示已接受，工作线程调用的实际清理和回调在主线程执行。
+     * 已结束或已请求取消时返回 false；可通过 state 与 dismissReason 观察最终结果。
+     */
+    fun cancel(): Boolean {
+        val delegate = cancelDelegate ?: return false
+        if (isFinished || !cancellationRequested.compareAndSet(false, true)) return false
+        return delegate()
+    }
+
+    @Synchronized
     internal fun attachCancelDelegate(delegate: () -> Boolean) {
-        cancelDelegate = delegate
+        if (!isFinished && cancelDelegate == null) cancelDelegate = delegate
     }
 
     internal fun markShowing() {
@@ -47,10 +64,13 @@ class ToastHandle internal constructor(
         }
     }
 
-    internal fun markDismissed(reason: DismissReason) {
-        if (isFinished) return
+    @Synchronized
+    internal fun markDismissed(reason: DismissReason): Boolean {
+        if (isFinished) return false
         dismissReason = reason
         state = if (reason == DismissReason.CANCELED) State.CANCELED else State.DISMISSED
+        cancelDelegate = null
+        return true
     }
 
     companion object {

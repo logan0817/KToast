@@ -23,8 +23,8 @@ internal class SystemToastStrategy : IToastStrategy {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 setGravity(config.gravity, config.xOffset, config.yOffset)
             }
-            show()
         }
+        toast?.show()
 
         val displayTime = if (request.duration == Toast.LENGTH_LONG) 3500L else 2000L
         dismissRunnable = Runnable {
@@ -49,6 +49,9 @@ internal class SystemToastStrategy : IToastStrategy {
         if (dismissNotified) return
         val handle = currentRequest?.handle ?: return
         dismissNotified = true
+        dismissRunnable?.let { KToast.mainHandler.removeCallbacks(it) }
+        dismissRunnable = null
+        toast = null
         currentRequest = null
         val currentListener = listener
         listener = null

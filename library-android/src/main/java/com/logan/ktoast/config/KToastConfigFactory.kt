@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
-import com.logan.ktoast.utils.KToastUtils
 
 object KToastConfigFactory {
 
@@ -39,10 +38,10 @@ object KToastConfigFactory {
             if (resId > 0) {
                 context.resources.getDimensionPixelSize(resId)
             } else {
-                KToastUtils.dp2px(64f) // 找不到则保底使用 64dp
+                (64f * context.resources.displayMetrics.density + 0.5f).toInt()
             }
         } catch (e: Exception) {
-            KToastUtils.dp2px(64f)
+            (64f * context.resources.displayMetrics.density + 0.5f).toInt()
         }
     }
 }

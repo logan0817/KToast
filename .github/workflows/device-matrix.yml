@@ -1,0 +1,131 @@
+name: Candidate device matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['main', 'feature/device-matrix']
+    paths:
+      - '.github/workflows/device-matrix.yml'
+      - '**/*.gradle*'
+      - 'gradlew*'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'buildSrc/**'
+      - 'library-android/**'
+      - 'app/**'
+      - 'tools/**'
+      - 'docs/API.md'
+      - 'docs/api/**'
+  pull_request:
+    paths:
+      - '.github/workflows/device-matrix.yml'
+      - '**/*.gradle*'
+      - 'gradlew*'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'buildSrc/**'
+      - 'library-android/**'
+      - 'app/**'
+      - 'tools/**'
+      - 'docs/API.md'
+      - 'docs/api/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: device-matrix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # 旧 tools 包已下架；沿用 Action 的 cmdline-tools，只补齐 adb。
+          packages: platform-tools
+      - name: Provision runner SDK only
+        run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;34.0.0' 'build-tools;30.0.3'
+      - name: Build and validate candidate
+        run: |
+          bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.1.0-SNAPSHOT --console=plain
+          python3 -B tools/verify_signing_configuration.py -- bash ./gradlew
+          bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease --console=plain
+          python3 -B tools/run_device_matrix.py --prepare
+      - name: Share identical APKs across API levels
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: device-matrix-input
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            tools/compatibility/android-consumer/build/outputs/apk/release/ktoast-android-consumer-release.apk
+            library-android/build/outputs/aar/library-android-release.aar
+            build/reports/compatibility/candidate.json
+            build/reports/device-matrix/input.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve build diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: device-matrix-build-reports
+          path: |
+            library-android/build/test-results/**
+            library-android/build/reports/**
+            build/reports/compatibility/**
+            build/reports/signing-modes/configuration.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  devices:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - { api: 21, arch: x86, target: default }
+          - { api: 30, arch: x86_64, target: google_apis }
+          - { api: 31, arch: x86_64, target: google_apis }
+          - { api: 35, arch: x86_64, target: google_apis }
+          - { api: 36, arch: x86_64, target: google_apis }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: device-matrix-input
+          path: .
+      - name: Enable hosted runner KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run instrumentation and R8 consumer
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          target: ${{ matrix.target }}
+          profile: Nexus 6
+          avd-name: ktoast-api-${{ matrix.api }}
+          disable-animations: true
+          enable-hw-keyboard: false
+          script: python3 -B tools/run_device_matrix.py --api ${{ matrix.api }} --serial emulator-5554
+      - name: Preserve device evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: device-matrix-api-${{ matrix.api }}
+          path: build/reports/device-matrix/**
+          if-no-files-found: warn
+          retention-days: 14
