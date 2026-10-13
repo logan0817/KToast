@@ -4,7 +4,7 @@
 
 Java 调试入口兼容修复、发布配置拆分、标准 GPG 配置、Gradle 命令上传流程及窗口测试清理修正已纳入 main。[PR #3](https://github.com/logan0817/KToast/pull/3) 合并提交为 3d0abe5886e3b89e97ebd1b1132cc1fc0ae4c51e，文件树与已授权的 f9146fd 完全一致。2026-10-13（北京时间）的 [第 18 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38273388599) 首尝试整体成功，五版本设备回归、R8 消费者及构建检查通过，七份原始 ZIP 与官方摘要一致。第 15 轮失败证据继续保留；此前持续失焦的根因仍未确定，不以新一轮成功宣称该问题已彻底消除。
 
-正式签名包已在该干净 main 提交下通过本地验收，并通过 Gradle 根 :publishToMavenCentral 上传 USER_MANAGED 批次。上传阶段 Central 状态为 VALIDATED、errors 与 warnings 为空；2026-10-13 经独立授权执行官方 API 发布，状态转为 PUBLISHED，已发布查询为 true。正式 Maven Central 下载的 30 个文件与验收包逐字节一致，五份签名有效。deployment ID 为 a956146e-2061-4eb0-9319-85fc7cc534f0，批次名为 io.github.logan0817-KToast-1.1.0，具体摘要与证据见文末。全新消费者从正式仓库解析 1.1.0，Java/Kotlin 编译及 Debug、R8 Release 构建通过。发布后 status 接口仍返回 Deployment components info not found；此诊断与 PUBLISHED、published=true 及正式下载验收分别记录，不声称查询诊断已消除。未执行 drop、创建标签或 GitHub Release；README 安装坐标已同步为 1.1.0。新增设备失败采证分支没有触发，普通矩阵不替代专用 fixture 或厂商真机覆盖。这里集中维护验证结果与发布待办，不保留沟通过程文档。
+正式签名包已在该干净 main 提交下通过本地验收，并通过 Gradle 根 :publishToMavenCentral 上传 USER_MANAGED 批次。上传阶段 Central 状态为 VALIDATED、errors 与 warnings 为空；2026-10-13 经独立授权执行官方 API 发布，状态转为 PUBLISHED，已发布查询为 true。正式 Maven Central 下载的 30 个文件与验收包逐字节一致，五份签名有效。deployment ID 为 a956146e-2061-4eb0-9319-85fc7cc534f0，批次名为 io.github.logan0817-KToast-1.1.0，具体摘要与证据见文末。全新消费者从正式仓库解析 1.1.0，Java/Kotlin 编译及 Debug、R8 Release 构建通过。发布后 status 接口仍返回 Deployment components info not found；此诊断与 PUBLISHED、published=true 及正式下载验收分别记录，不声称查询诊断已消除。附注标签 1.1.0 与正式 GitHub Release 已创建并验收，README 安装坐标已同步为 1.1.0。新增设备失败采证分支没有触发，普通矩阵不替代专用 fixture 或厂商真机覆盖。这里集中维护验证结果与发布待办，不保留沟通过程文档。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -416,3 +416,11 @@ API 31 全量 logcat 导出出现 UTF-8 解码错误，result.json 已记录 log
 本地证据位于 build/central/a956146e-2061-4eb0-9319-85fc7cc534f0/formal-release：release-request.json、publication-confirmed.json、status-observations.jsonl、official-repository-verification.json、consumer-verification.json、consumer-build.log 及正式下载文件。证据受忽略规则保护，不含凭据，不提交。
 
 发布后的本地收尾将 VERSION、APP_VERSION_NAME、版本目录及中英文安装坐标同步为 1.1.0，Demo APP_VERSION_CODE 从 5 顺序增为 6，并更新 CHANGELOG、页面说明和路线状态；不改变库源码、依赖、工具链或已发布产物，不再次上传。Git 提交、推送、PR、合并、标签和 GitHub Release 仍须分别明确授权。
+
+### 1.1.0 标签与 GitHub Release
+
+PR #5 已合并到 main 4663690f37b708288691effe55bbcda904182d08，文件树与已授权 head bb58d09 一致。[第 20 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38355264325) 六项检查首尝试全部成功，七份原始 ZIP 的摘要与官方记录一致，提交、构建输入及设备产物关联完成验收。API 21 为 28 项通过、8 项未报告；API 30、31、35、36 各为 31 项通过、5 项跳过，必需项及五版本 R8 消费者均通过。32 项 JVM 测试通过，库 Lint 为 0 个 issue。证据位于 build/reports/device-matrix-cloud/38355264325/verification-summary.json；候选 AAR 与正式 AAR 字节一致，但运行证据仍不代表正式仓库新消费者 APK 的设备验证。
+
+2026-10-13 经独立授权，通过 Git 创建并推送附注标签 1.1.0，远端标签对象为 a127df2d8ed193f231e7cea7f18ba11ec72cd13f，剥离后的提交为 4663690f37b708288691effe55bbcda904182d08。标签目标与正式产物发布源码 3d0abe5886e3b89e97ebd1b1132cc1fc0ae4c51e 相比，仅有九个版本配置和文档文件变化，库源码一致；没有移动标签或重发 Central 产物。
+
+[KToast 1.1.0 GitHub Release](https://github.com/logan0817/KToast/releases/tag/1.1.0) 已于当天 15:23（北京时间）正式发布，标记为 Latest，关联标签和提交正确。中文正文记录功能、兼容策略、验证证据和限制，附件仅包含 GitHub 自动生成的源码 ZIP 与 tar.gz，没有上传历史 Demo APK 或其他二进制文件。本地正文与页面截图位于 build/reports/github-release/1.1.0，受忽略规则保护，不进入源码提交。
