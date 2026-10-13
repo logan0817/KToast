@@ -1,6 +1,6 @@
-# Activity 页面作用域（1.1 候选）
+# Activity 页面作用域（1.1.0）
 
-这些接口已在仓库实现，尚未发布到 Maven Central。正式安装坐标仍为 1.0.5；验证候选请依赖本地项目或本地 SNAPSHOT 仓库。
+这些接口已随 1.1.0 发布到 Maven Central，正式安装坐标为 io.github.logan0817:ktoast:1.1.0。接入示例见 [README](../README.md)，验证证据与兼容限制见 [发布检查表](./RELEASING.md)。
 
 ## 接入与生命周期
 

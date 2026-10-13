@@ -31,7 +31,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.0.5") // 替换为上方徽章显示的最新版本
+    implementation("io.github.logan0817:ktoast:1.1.0") // 替换为上方徽章显示的最新版本
 }
 ```
 
@@ -39,7 +39,7 @@ Groovy 写法：
 
 ```gradle
 dependencies {
-    implementation 'io.github.logan0817:ktoast:1.0.5' // 替换为上方徽章显示的最新版本
+    implementation 'io.github.logan0817:ktoast:1.1.0' // 替换为上方徽章显示的最新版本
 }
 ```
 
@@ -369,7 +369,7 @@ KToast.init(application)
 1. 示例工程在 [`app`](./app) 模块。
 2. [MainActivity.kt](./app/src/main/java/com/logan/ktoastapp/MainActivity.kt) 展示了当前 Demo 页的完整能力入口。
 3. 业务封装示例在 [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt)。
-4. 仓库保留了[历史 Demo APK](./app/apk/app-debug.apk)；体验当前 1.1 候选请从源码构建，历史 APK 不作为新功能验证依据。
+4. 仓库保留了[历史 Demo APK](./app/apk/app-debug.apk)；体验当前 1.1.0 功能请从源码构建，历史 APK 不作为新功能验证依据。
 5. 效果展示 <img src="GIF.gif" width="350" />
 ## 进阶能力
 
@@ -401,13 +401,13 @@ import com.logan.ktoast.debugShow
 
 ![KToast 调用链](./docs/images/toast-call-flow-zh.svg)
 
-## 下一版本候选：1.1.0
+## 1.1.0：页面作用域与稳定性
 
-1.1.0 候选提供 Activity 页面作用域、延时句柄、窗口约束、可选输入法避让、无障碍时长、主题与诊断能力。使用规则、Java 示例及兼容边界见 [页面作用域](./docs/PAGE_SCOPE.md)；以下稳定性修复包含在该候选中。
+1.1.0 提供 Activity 页面作用域、延时句柄、窗口约束、可选输入法避让、无障碍时长、主题与诊断能力。使用规则、Java 示例及兼容边界见 [页面作用域](./docs/PAGE_SCOPE.md)；以下稳定性修复包含在该版本中。
 
-当前 Maven Central 发布版本仍为 1.0.5。仓库中的稳定性候选修复保留 Android 5.0+、Kotlin 1.9.23、Startup 1.1.1 和原公开接口，不要求使用方引入 Compose、Material 或协程。
+1.1.0 已于 2026-10-13 发布到 Maven Central。该版本保留 Android 5.0+、Kotlin 1.9.23、Startup 1.1.1 和原公开接口，不要求使用方引入 Compose、Material 或协程。
 
-候选库产物使用 JVM 1.8 字节码，仓库仍用 JDK 17 构建，以降低旧 D8/R8 的接入限制。Kotlin metadata 与依赖要求保持不变，具体实测组合和限制见发布检查表。Demo 的基础提示与普通延时按钮使用页面作用域，可验证页面停止后的取消行为。
+库产物使用 JVM 1.8 字节码，仓库仍用 JDK 17 构建，以降低旧 D8/R8 的接入限制。Kotlin metadata 与依赖要求保持不变，具体实测组合和限制见发布检查表。Demo 的基础提示与普通延时按钮使用页面作用域，可验证页面停止后的取消行为。
 
 - 替换和批量取消先完成内部状态转换，再发送业务回调；回调重入不会留下未结束的旧句柄。
 - `ToastHandle.cancel()` 可在工作线程调用，也可在请求等待主线程入队时调用。返回 `true` 表示首次接受取消请求，实际清理和回调在主线程执行；重复取消或终态取消返回 `false`。

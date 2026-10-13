@@ -4,7 +4,7 @@
 
 Java 调试入口兼容修复、发布配置拆分、标准 GPG 配置、Gradle 命令上传流程及窗口测试清理修正已纳入 main。[PR #3](https://github.com/logan0817/KToast/pull/3) 合并提交为 3d0abe5886e3b89e97ebd1b1132cc1fc0ae4c51e，文件树与已授权的 f9146fd 完全一致。2026-10-13（北京时间）的 [第 18 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38273388599) 首尝试整体成功，五版本设备回归、R8 消费者及构建检查通过，七份原始 ZIP 与官方摘要一致。第 15 轮失败证据继续保留；此前持续失焦的根因仍未确定，不以新一轮成功宣称该问题已彻底消除。
 
-正式签名包已在该干净 main 提交下通过本地验收，并通过 Gradle 根 :publishToMavenCentral 上传 USER_MANAGED 批次。Central 官方状态为 VALIDATED，errors 为空、warnings 为空；该 ID 下下载的 30 个文件与验收包逐字节一致，五份签名有效。deployment ID 为 a956146e-2061-4eb0-9319-85fc7cc534f0，批次名为 io.github.logan0817-KToast-1.1.0，具体摘要与证据见文末。官方已发布状态查询为 false，未执行 release/drop、创建标签或 GitHub Release；README 安装坐标仍指向已发布的 1.0.5。新增设备失败采证分支没有触发，普通矩阵不替代专用 fixture 或厂商真机覆盖。这里集中维护验证结果与发布待办，不保留沟通过程文档。
+正式签名包已在该干净 main 提交下通过本地验收，并通过 Gradle 根 :publishToMavenCentral 上传 USER_MANAGED 批次。上传阶段 Central 状态为 VALIDATED、errors 与 warnings 为空；2026-10-13 经独立授权执行官方 API 发布，状态转为 PUBLISHED，已发布查询为 true。正式 Maven Central 下载的 30 个文件与验收包逐字节一致，五份签名有效。deployment ID 为 a956146e-2061-4eb0-9319-85fc7cc534f0，批次名为 io.github.logan0817-KToast-1.1.0，具体摘要与证据见文末。全新消费者从正式仓库解析 1.1.0，Java/Kotlin 编译及 Debug、R8 Release 构建通过。发布后 status 接口仍返回 Deployment components info not found；此诊断与 PUBLISHED、published=true 及正式下载验收分别记录，不声称查询诊断已消除。未执行 drop、创建标签或 GitHub Release；README 安装坐标已同步为 1.1.0。新增设备失败采证分支没有触发，普通矩阵不替代专用 fixture 或厂商真机覆盖。这里集中维护验证结果与发布待办，不保留沟通过程文档。
 
 产物路径为 library-android/build/outputs/aar/library-android-release.aar，本地仓库为 build/candidate-repository。最新 AAR、sources、发布坐标、文件大小与 SHA-256 由 tools/verify_candidate.py 写入 build/reports/compatibility/candidate.json，以该报告和实际文件一致性为准。构建缓存、设备日志和临时测试配置不进入版本库。
 
@@ -32,7 +32,7 @@ API 文档由 Dokka 1.9.20 从 Kotlin 源码、KDoc 和 [API 模块说明](./API
 | 发布与矩阵校验工具 | 当前本地及第 18 轮 main CI：候选校验 15 项、发布包 13 项、远端离线验收 14 项、矩阵工具 19 项、上传暂存验收 22 项，共 83 项回归通过 | 设备失败采证分支未触发；工具测试不替代设备或服务端验收 |
 | 本地签名演练 | 五类产物签名通过，生成 30 文件 Central ZIP；错误指纹、产物篡改、签名损坏均拒绝 | 临时测试密钥已移除；未使用正式密钥、未上传或服务端校验 |
 | 签名配置边界 | 当前本地及第 18 轮 main CI 的 19 项真实 Gradle 配置回归通过；复用标准 keyName，短/缺失指纹、冲突密钥、Gradle 口令、旧 GPG、configuration cache 均拒绝 | 配置回归不签名、不访问个人密钥环；历史 12 项仅对应旧配置 |
-| 正式签名与 Central 上传验收 | 干净 main 下根命令上传成功，USER_MANAGED 批次 VALIDATED；官方 30 文件与验收包一致，五份签名有效，未发布 | VALIDATED 不等于正式上线；发布前须再次核对 ID 和实时状态并获得发布授权 |
+| 正式签名、Central 发布与消费者 | 干净 main 上传成功；独立授权后 PUBLISHED、published=true；正式仓库 30 文件一致、五份签名有效；全新旧 AGP 消费者 Debug/R8 Release 构建通过 | status 组件查询诊断仍存在；发布后未再次运行设备矩阵，既有矩阵对应相同 AAR 字节 |
 | 旧公开 API 与 metadata | 15 个旧公开类基线一致；major=52；关键 metadata=1.9.0 | 不承诺所有旧编译器 |
 | 已编译 1.0.5 消费者 | Java/Kotlin 保持原字节码，替换本轮候选运行通过 | JVM 样例不执行窗口 |
 | Kotlin 源码消费 | 1.9.22、2.0.21 配置样例编译运行通过；页面源码编译通过 | 此前源码样例验证；本轮旧 AGP 消费者使用 1.9.22，完整仓库使用 1.9.23 |
@@ -366,7 +366,7 @@ API 35 首次输入法前置用例及两个 Demo 交互用例报 RootViewWithout
 
 本轮窗口测试及普通 IME 场景实际通过，但所有版本都没有失败，新增诊断规则的设备采证及 adb 拉取分支未触发，不能将其写成设备失败路径已经验证。第 15 轮持续失焦根因仍未确定；本轮成功不证明该问题已消除，也不替代合并后的 main CI。证据归档于 build/reports/device-matrix-cloud/38267311302，verification-summary.json 的 accepted=true 只表示本次 PR 验收通过。后续仅记录结果的文档提交不改变已验收的测试或生产库源码；最终 PR 检查和合并后的 main CI 状态仍须分别核对。
 
-### 最终 main 与真实 Central 上传验收
+### 最终 main 与真实 Central 上传验收（发布前记录）
 
 最终 PR head f9146fd 的 [第 17 轮 CI](https://github.com/logan0817/KToast/actions/runs/38269476190) 首尝试通过。PR #3 经授权合并后，[第 18 轮 main CI](https://github.com/logan0817/KToast/actions/runs/38273388599) 于 2026-10-13（北京时间）首尝试整体 Success，未重跑。构建与设备运行提交均为 3d0abe5886e3b89e97ebd1b1132cc1fc0ae4c51e；合并父提交为 5be2c22 和 f9146fd，文件树与授权 head 一致。
 
@@ -399,4 +399,20 @@ API 31 全量 logcat 导出出现 UTF-8 解码错误，result.json 已记录 log
 
 通过该 ID 的官方认证 API 下载全部 30 个制品、签名及校验文件，逐文件与验收 ZIP 匹配，再运行 tools/verify_central_deployment.py 验证五份真实签名、名称、坐标、ID 和 VALIDATED 状态。随后官方实时状态及已发布查询均为 HTTP 200，仍为 VALIDATED、无错误无警告、published=false。该结果包含真实官方查询和下载证据，不仅是离线样例通过；离线工具本身仍不认证网络来源。
 
-本地证据目录为 build/central/a956146e-2061-4eb0-9319-85fc7cc534f0，包含原始/最终状态、官方查询来源、30 个下载文件、签名验收、实际插件 ZIP 及 acceptance-summary.json。证据受忽略规则保护，不包含 token、私钥或口令，不进入源码提交。本次仅完成上传验证，未正式发布；README、版本目录和 CHANGELOG 不标记 1.1.0 已上线。文档收尾仅更新本文件与 CHANGELOG 的状态说明，不改变已上传产物或其发布源码记录，也不要求再次上传。正式发布前仍须取得独立授权并再次查询该 ID 的实时状态，发布后再验收正式 Maven Central 消费者。
+本地证据目录为 build/central/a956146e-2061-4eb0-9319-85fc7cc534f0，包含原始/最终状态、官方查询来源、30 个下载文件、签名验收、实际插件 ZIP 及 acceptance-summary.json。证据受忽略规则保护，不包含 token、私钥或口令，不进入源码提交。上述记录对应发布前的上传验收，PR #4 的文档收尾没有改变产物或发布源码，也没有再次上传。随后正式发布及公开版本入口同步结果见下一节。
+
+### 1.1.0 正式发布与正式仓库验收
+
+2026-10-13 经独立发布授权，在 main 637ae7c 上先重新查询指定 deployment ID：状态为 VALIDATED、errors 为空、warnings 为空、published=false；已下载 30 个文件与冻结报告一致。使用受控标准 Central Token 对官方 /api/v1/publisher/deployment/a956146e-2061-4eb0-9319-85fc7cc534f0 仅发送一次 POST，2026-10-13 12:03:58（北京时间）收到 HTTP 204，随后进入 PUBLISHING。没有重新上传、drop 或修改批次坐标。
+
+2026-10-13 12:13:19（北京时间）官方状态为 PUBLISHED，已发布查询为 true，正式 Maven Central 的 POM 返回 HTTP 200。status 接口的 purls 为空，errors.common 仍包含 Deployment components info not found；原始响应保留，不能写成发布后无诊断。实际正式下载和消费者解析是独立证据，不修改响应或仅以界面状态验收。
+
+从 https://repo.maven.apache.org/maven2/io/github/logan0817/ktoast/1.1.0/ 下载全部 30 个文件，与冻结 ZIP 及上传验收文件逐字节一致；五份正式签名有效，POM、旧公开 API、minSdk 21、major=52、metadata 1.9、生产依赖、sources 与 javadoc 检查通过。AAR SHA-256 为 e599259a80368161214c4e5961c2e804629d048e067585a920884b2ac4b633f1，发布源码仍为 3d0abe5886e3b89e97ebd1b1132cc1fc0ae4c51e，不改写为发布操作所在的文档提交。
+
+全新独立消费者沿用 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、minSdk 21 与 JVM 1.8，KToast 仅允许从正式 Maven Central 解析；构建前共享缓存没有 1.1.0 坐标，不使用本地候选或未发布批次。Java/Kotlin 编译、Debug 与 R8 Release 构建通过，两变体解析 AAR SHA 均与正式产物一致。旧 Lint 对 metadata 1.9 的分析诊断仍存在，SDK XML 版本提示也保留。临时报告任务首次写错 APK 文件名，改为读取 AGP 实际 output-metadata.json 后增量验收通过，没有修改源码、测试断言或依赖。
+
+发布后无本机连接设备，未再次执行设备运行；第 18 轮五版本矩阵已运行相同 AAR 字节，不能将它描述为正式仓库新消费者 APK 的运行结果。厂商真机、fixture 和此前失焦诊断限制继续保留。
+
+本地证据位于 build/central/a956146e-2061-4eb0-9319-85fc7cc534f0/formal-release：release-request.json、publication-confirmed.json、status-observations.jsonl、official-repository-verification.json、consumer-verification.json、consumer-build.log 及正式下载文件。证据受忽略规则保护，不含凭据，不提交。
+
+发布后的本地收尾将 VERSION、APP_VERSION_NAME、版本目录及中英文安装坐标同步为 1.1.0，Demo APP_VERSION_CODE 从 5 顺序增为 6，并更新 CHANGELOG、页面说明和路线状态；不改变库源码、依赖、工具链或已发布产物，不再次上传。Git 提交、推送、PR、合并、标签和 GitHub Release 仍须分别明确授权。
