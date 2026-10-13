@@ -31,7 +31,7 @@ Module `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.0.5") // Replace with the latest version shown by the badge above
+    implementation("io.github.logan0817:ktoast:1.1.0") // Replace with the latest version shown by the badge above
 }
 ```
 
@@ -39,7 +39,7 @@ Groovy:
 
 ```gradle
 dependencies {
-    implementation 'io.github.logan0817:ktoast:1.0.5' // Replace with the latest version shown by the badge above
+    implementation 'io.github.logan0817:ktoast:1.1.0' // Replace with the latest version shown by the badge above
 }
 ```
 
@@ -369,7 +369,7 @@ Usually no. The library already ships with `consumer-rules.pro`.
 1. The sample app lives in the [`app`](./app) module.
 2. [MainActivity.kt](./app/src/main/java/com/logan/ktoastapp/MainActivity.kt) contains the current Demo page and its capability entry points.
 3. App-level wrapper examples live in [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt).
-4. The repository retains a [historical Demo APK](./app/apk/app-debug.apk). Build from source to try the current 1.1 candidate; the archived APK does not verify the new features.
+4. The repository retains a [historical Demo APK](./app/apk/app-debug.apk). Build from source to try the current 1.1.0 features; the archived APK does not verify the new features.
 
 ## Advanced Capabilities
 
@@ -401,13 +401,13 @@ Call-flow overview:
 
 ![KToast call flow](./docs/images/toast-call-flow-en.svg)
 
-## Next-version candidate: 1.1.0
+## 1.1.0: Activity scopes and stability
 
-The 1.1.0 candidate provides Activity scope, delayed handles, window constraints, optional IME avoidance, accessibility timeout, theme options, and diagnostics. See [Activity scopes (Chinese)](./docs/PAGE_SCOPE.md) for lifecycle rules, Java examples, and limitations. The stability fixes below are included in this candidate.
+Version 1.1.0 provides Activity scope, delayed handles, window constraints, optional IME avoidance, accessibility timeout, theme options, and diagnostics. See [Activity scopes (Chinese)](./docs/PAGE_SCOPE.md) for lifecycle rules, Java examples, and limitations. The stability fixes below are included in this release.
 
-The Maven Central release remains 1.0.5. Candidate fixes retain Android 5.0+, Kotlin 1.9.23, Startup 1.1.1, and the existing public API. Compose, Material, and coroutines are not added to the core dependency graph.
+Version 1.1.0 was published to Maven Central on 2026-10-13. This release retains Android 5.0+, Kotlin 1.9.23, Startup 1.1.1, and the existing public API. Compose, Material, and coroutines are not added to the core dependency graph.
 
-The candidate library emits JVM 1.8 bytecode while this repository still builds with JDK 17, reducing class-file restrictions in older D8/R8 versions. Kotlin metadata and dependency requirements remain unchanged; see the release checklist for tested combinations and limitations. The Demo's basic and regular delayed actions use Activity scopes to demonstrate cancellation when the page stops.
+The library emits JVM 1.8 bytecode while this repository still builds with JDK 17, reducing class-file restrictions in older D8/R8 versions. Kotlin metadata and dependency requirements remain unchanged; see the release checklist for tested combinations and limitations. The Demo's basic and regular delayed actions use Activity scopes to demonstrate cancellation when the page stops.
 
 - Replacement and cancellation complete internal transitions before delivering callbacks, so callback reentry does not orphan old handles.
 - `ToastHandle.cancel()` accepts cancellation from a worker thread and before main-thread submission. `true` means the first cancellation request was accepted; cleanup and callbacks run on the main thread. Repeated or terminal cancellation returns `false`.

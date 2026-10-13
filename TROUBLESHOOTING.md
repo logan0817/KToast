@@ -67,7 +67,7 @@ Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolba
 
 开启 `KToast.setDebugMode(true)` 查看窗口挂载、内容工厂、渲染和业务回调异常。调度层隔离业务回调异常并保证内部收尾，日志只用于诊断，不应包含敏感业务消息。
 
-1.0.5 的 debugMode 属性 setter 与静态 setDebugMode(boolean) 在 JVM 中同名，Java 源码直接调用可能出现歧义。1.1 候选将属性 setter 标记为 JVM synthetic，保留原签名和 Kotlin 属性访问，Java 使用静态入口即可；独立 Java/R8 消费者同时验证开关的实际启用和关闭。
+1.0.5 的 debugMode 属性 setter 与静态 setDebugMode(boolean) 在 JVM 中同名，Java 源码直接调用可能出现歧义。1.1.0 将属性 setter 标记为 JVM synthetic，保留原签名和 Kotlin 属性访问，Java 使用静态入口即可；独立 Java/R8 消费者同时验证开关的实际启用和关闭。
 
 系统降级只能尝试显示：后台限流、通知状态和 ROM 策略可能导致系统 Toast 不可见。当前 onShow 表示渲染调用返回，系统 COMPLETED 表示本地预计时间到达，不代表真实送达。需要用户操作的前台消息应评估 Snackbar，后台重要消息应使用应用自己的通知方案。
 
@@ -90,7 +90,7 @@ Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolba
 python3 tools/verify_candidate.py
 ```
 
-Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。正式 VERSION 和安装坐标仍为 1.0.5。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告写入 build/reports/compatibility/candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
+Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。正式 VERSION 和安装坐标为 1.1.0；1.0.5 仍用于旧 API 兼容基线。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告写入 build/reports/compatibility/candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
 
 也可从项目根目录执行 ./gradlew verifyReleaseCandidate -PVERSION=1.1.0-SNAPSHOT --console=plain，集中运行 JVM 测试、库 Lint、工具回归与候选生成/校验；verifyCandidateArtifacts 自动选择实际版本的文档包及构建 JDK 的 javap。原库发布任务和 Python 命令保持可用。发布实现位于 gradle/release-publishing.gradle.kts，验证入口位于 gradle/release-verification.gradle.kts，公开 POM 字段位于 gradle.properties；消费者与设备运行仍需独立完成。
 
