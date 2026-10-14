@@ -48,7 +48,7 @@ def artifacts(root=ROOT):
 def required_tests(api, root=ROOT):
     required = set()
     source = root / 'app/src/androidTest/java/com/logan/ktoastapp/app'
-    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest'):
+    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest', 'WindowFailureDiagnosticsTest'):
         text = (source / (name + '.kt')).read_text(encoding='utf-8')
         methods = re.findall(r'@Test\b(?:(?!\bfun\b).)*\bfun\s+(\w+)', text, re.S)
         if not methods:
@@ -160,6 +160,18 @@ def run_device(api, serial):
         reported = set().union(*(report['instrumentation'][key] for key in ('passed', 'skipped', 'failed')))
         # SDK 过滤可能没有逐项状态；未报告项单列，不能算作成功或猜测为跳过。
         report['instrumentation']['notReported'] = sorted(all_tests() - reported)
+        selfcheck = TEST_PACKAGE + 'WindowFailureDiagnosticsTest#failurePreservesOriginalAndWritesShellReadableSnapshots'
+        if report['instrumentation']['success'] and selfcheck in report['instrumentation']['passed']:
+            destination = output / 'diagnostics-selfcheck'
+            adb('pull', '/sdcard/Android/data/com.logan.ktoastapp/files/window-failures/' +
+                diagnostic_run + '/' + TEST_PACKAGE + 'WindowFailureDiagnosticsTest#syntheticFailure',
+                str(destination), timeout=60)
+            for name in ('failure', 'window', 'input', 'activity', 'display'):
+                file = destination / (name + '.txt')
+                if not file.is_file() or not file.stat().st_size:
+                    raise ValueError('采证设备自检缺失或为空：' + name)
+            report['diagnosticsSelfcheck'] = {'runId': diagnostic_run,
+                'files': sorted(str(path.relative_to(output)) for path in destination.iterdir() if path.is_file())}
         if not report['instrumentation']['success']:
             raise ValueError('设备回归未满足必需用例或 Runner 未正常完成')
         for key, consumer in (('r8Consumer', CONSUMER), ('lifecycleR8Consumer', 'com.logan.ktoast.lifecycleconsumer')):
@@ -212,7 +224,7 @@ def run_device(api, serial):
                     try:
                         test_output = output / 'window-failures' / diagnostic_run
                         test_output.parent.mkdir(parents=True, exist_ok=True)
-                        adb('pull', '/sdcard/Android/data/com.logan.ktoastapp.test/files/window-failures/' +
+                        adb('pull', '/sdcard/Android/data/com.logan.ktoastapp/files/window-failures/' +
                             diagnostic_run, str(test_output), timeout=60)
                         files = sorted(str(path.relative_to(output)) for path in
                                        test_output.rglob('*') if path.is_file())

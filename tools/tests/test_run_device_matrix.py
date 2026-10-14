@@ -30,8 +30,8 @@ INSTRUMENTATION_STATUS_CODE: -4
 
 class DeviceMatrixTest(unittest.TestCase):
     def test_real_required_source_count_and_modern_subset(self):
-        self.assertEqual(37, len(required_tests(21)))
-        self.assertEqual(40, len(required_tests(30)))
+        self.assertEqual(38, len(required_tests(21)))
+        self.assertEqual(41, len(required_tests(30)))
         self.assertEqual(required_tests(30), required_tests(36))
         self.assertFalse(any('cutout' in name.lower() for name in required_tests(36)))
 
@@ -92,7 +92,8 @@ class DeviceMatrixTest(unittest.TestCase):
                 artifacts(Path(folder))
 
     def exercise_device(self, *, actual_api='21', instrumentation=PASS, install='Success',
-                        diagnostic_failure=None, pull_files=True, instrumentation_timeout=False):
+                        diagnostic_failure=None, pull_files=True, instrumentation_timeout=False,
+                        selfcheck=False, selfcheck_files=True):
         """模拟 adb 协议完成整条入口，验证结果写入和失败收尾；不伪造真实设备证据。"""
         commands = []
         log_reads = 0
@@ -113,6 +114,11 @@ class DeviceMatrixTest(unittest.TestCase):
                 if instrumentation_timeout:
                     raise subprocess.TimeoutExpired(command, 900, output='Runner partial output')
                 text = instrumentation
+                if selfcheck:
+                    text = text.replace('INSTRUMENTATION_CODE:',
+                        'INSTRUMENTATION_STATUS: class=com.logan.ktoastapp.app.WindowFailureDiagnosticsTest\n'
+                        'INSTRUMENTATION_STATUS: test=failurePreservesOriginalAndWritesShellReadableSnapshots\n'
+                        'INSTRUMENTATION_STATUS_CODE: 0\nINSTRUMENTATION_CODE:')
             elif args[:2] == ['shell', 'dumpsys']:
                 if args[4] == diagnostic_failure:
                     raise subprocess.TimeoutExpired(command, 15)
@@ -121,9 +127,14 @@ class DeviceMatrixTest(unittest.TestCase):
                 if diagnostic_failure == 'pull':
                     return subprocess.CompletedProcess(command, 1, 'remote object does not exist')
                 if pull_files:
-                    destination = Path(args[2]) / 'sample.Test#required'
+                    destination = Path(args[2])
+                    if destination.name != 'diagnostics-selfcheck':
+                        destination /= 'sample.Test#required'
                     destination.mkdir(parents=True)
-                    (destination / 'window.txt').write_text('failure window state', encoding='utf-8')
+                    names = ('failure', 'window', 'input', 'activity', 'display') if (
+                        destination.name == 'diagnostics-selfcheck' and selfcheck_files) else ('window',)
+                    for name in names:
+                        (destination / (name + '.txt')).write_text('failure system state', encoding='utf-8')
             elif args[:3] == ['shell', 'am', 'force-stop']:
                 active_package = args[3]
                 log_reads = 0
@@ -171,6 +182,20 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertIn('实际设备 API', result['error'])
         self.assertFalse(any(command[0] == 'install' for command in commands))
 
+    def test_device_selfcheck_requires_host_pull_of_five_nonempty_files(self):
+        result, commands = self.exercise_device(selfcheck=True)
+        self.assertTrue(result['success'])
+        self.assertEqual(5, len(result['diagnosticsSelfcheck']['files']))
+        pull = next(command for command in commands if command[0] == 'pull')
+        self.assertIn('/com.logan.ktoastapp/files/window-failures/', pull[1])
+        self.assertTrue(pull[1].endswith('WindowFailureDiagnosticsTest#syntheticFailure'))
+
+    def test_device_selfcheck_missing_file_blocks_consumers(self):
+        result, commands = self.exercise_device(selfcheck=True, selfcheck_files=False)
+        self.assertFalse(result['success'])
+        self.assertIn('采证设备自检缺失或为空', result['error'])
+        self.assertFalse(any(command[:3] == ['shell', 'am', 'start'] for command in commands))
+
     def test_instrumentation_failure_prevents_consumer_launch(self):
         result, commands = self.exercise_device(instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'))
         self.assertFalse(result['success'])
@@ -184,7 +209,7 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertTrue(run_id.isdigit())
         self.assertIn(run_id, result['failureDiagnostics']['testFailures']['files'][0])
         pull = next(command for command in commands if command[0] == 'pull')
-        self.assertTrue(pull[1].endswith('/' + run_id))
+        self.assertEqual('/sdcard/Android/data/com.logan.ktoastapp/files/window-failures/' + run_id, pull[1])
 
     def test_diagnostic_timeout_preserves_original_failure_and_other_snapshots(self):
         result, _ = self.exercise_device(
