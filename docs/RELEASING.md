@@ -1,6 +1,6 @@
 # 1.2.0-SNAPSHOT 本地实施验收（未发布）
 
-更新时间：2026-10-14。当前正式版本仍为 1.1.0。核心容量治理、LifecycleOwner 扩展、Demo、双模块候选和发布门禁已实施；首轮云端矩阵 API 21/30/31/36 通过，API 35 因窗口失焦失败；采证目录修复与真实设备自检已补齐，修复后的最终产物矩阵待运行，完整 P0 验收仍未完成。
+更新时间：2026-10-14。当前正式版本仍为 1.1.0。核心容量治理、LifecycleOwner 扩展、Demo、双模块候选和发布门禁已实施；首轮云端矩阵 API 21/30/31/36 通过，API 35 因窗口失焦失败。第 22 轮验证了 API 31/35 的采证自检，但 API 21/30 暴露外部存储限制；最新修复改用宿主私有目录和主机 `run-as` 导出，第 23 轮待运行，完整 P0 验收仍未完成。
 
 ## 本版真实验证证据
 
@@ -21,7 +21,7 @@
 | Central service 隔离回归 | 双模块验收失败不上传、成功将两个模块合并只上传一次且 USER_MANAGED，两项通过 | build/reports/central-publishing/service.json；仅本机假 Portal 与临时项目 |
 | Demo 与设备 APK | 构建通过；双 Fragment 切换、View 重建、停止恢复实际运行通过 | 公开 create 的初始 STARTED、已 DESTROYED 与结束宿主门禁均在 API 24/37 验证，关闭后 observerCount 为 0 |
 | Demo Lint（额外检查） | 剩余 9 项既有主页面问题；新页面 SetTextI18n 已修正 | InflateParams、7 项未用资源、TooManyViews；该额外检查失败，不声明全项目 Lint 通过 |
-| 关键五版本矩阵 | 首轮四版本通过、API 35 失败；修复后待运行 | CI 新增采证回归后要求 38/41 项必需回归及两份 R8 消费者，同批 APK/AAR 摘要关联；历史 1.1.0 成功不认证本版 |
+| 关键五版本矩阵 | 首轮 API 21/30/31/36 通过、API 35 失败；第 22 轮 API 31/35 通过，API 21/30 因采证自检存储限制失败；第 23 轮待运行 | CI 新增采证回归后要求 38/41 项必需回归及两份 R8 消费者，同批 APK/AAR 摘要关联；历史 1.1.0 成功不认证本版 |
 
 依赖边界：核心保持 stdlib 1.9.23、Startup 1.1.1、minSdk 21、JVM 1.8、metadata 1.9。扩展同版依赖核心和 lifecycle-common 2.5.1，仅后者传递 annotation；实际独立消费者拒绝协程、Fragment、Compose。2.6.2 的真实 POM 会增加协程，因此本版使用提供所需观察 API 的 2.5.1，不通过排除依赖掩盖问题。应用主动升级 Lifecycle 时需重新检查解析图。
 
@@ -70,7 +70,7 @@ python3 -B tools/run_device_matrix.py --prepare
 
 API 35 为 36 项通过、5 项跳过、4 项失败，R8 未执行。失败均为 RootViewWithoutFocusException，涉及两项 IME 场景与两项主页面交互。完整 logcat 显示 Launcher 于 13:30:43 ANR，首个失焦用例于 13:32:39 开始；收尾 window/input 仍指向该 ANR 对话框。这支持本次存在环境故障，不证明历史所有失焦均有同一原因，也不以其他版本成功替代 API 35 验收。
 
-本次真实失败暴露测试进程的 instrumentation.context.getExternalFilesDir(null) 返回 null，三个失败用例的诊断规则未保存文件。现改为 targetContext 的宿主包外部目录，并同步主机拉取路径。新增 WindowFailureDiagnosticsTest 在存活宿主中用真实 JUnit 规则触发可控异常，验证原异常对象保留、五份非空文件及 shell 可读；矩阵再从主机 adb pull 并检查五文件，证据单列 diagnostics-selfcheck。自检内部捕获预期异常，正常 Runner 不产生伪造失败，原业务断言、超时及用例集合均保留。98 项 Python 回归与最终测试 APK 编译通过；真实设备自检和修复后的完整矩阵尚待运行。
+本次真实失败暴露测试进程的 `instrumentation.context.getExternalFilesDir(null)` 返回 null，三个失败用例的诊断规则未保存文件。第一处修复改用宿主包外部目录并同步主机拉取路径；第 22 轮表明 API 21/30 的外部存储仍可能未挂载或不可访问，因此最终修复改写入宿主 `filesDir`，矩阵主机通过 `adb shell run-as` 列目录、`adb exec-out run-as` 导出文件。新增 `WindowFailureDiagnosticsTest` 在存活宿主中用真实 JUnit 规则触发可控异常，验证原异常对象保留和五份非空文件；自检不在旧系统测试进程内执行 `run-as`，避免触发系统 shell 崩溃。98 项 Python 回归、测试 APK 编译及 API 24 实际设备私有目录导出通过；第 23 轮完整矩阵尚待运行。
 
 以下为 1.1.0 历史发布证据，保留原日期与原制品范围，不能替代 1.2.0 验证。
 
@@ -142,9 +142,9 @@ SDK 准备沿用 Action 的 cmdline-tools，显式设置 packages: platform-tool
 
 工具将 passed、skipped、failed 和 notReported 分开记录。SDK 过滤可能不产生逐项状态，未报告项不计为成功，也不猜测为已跳过。任一必需用例未通过、Runner 中断、空运行、安装失败、API 不一致、产物变化或新进程未输出 PASS，任务均失败；失败报告仍上传。矩阵 fail-fast 关闭，一个 API 失败不会取消其他 API 的运行。
 
-矩阵入口显式传入 windowFailureDiagnostics=true 和本次唯一的 windowFailureRunId。在三个窗口相关测试类内，诊断规则位于 ActivityScenario 规则内部；失败时于 @After 执行后、宿主销毁前保存 window、input、activity activities 和 display 的 dumpsys 输出。每条系统采证命令使用五秒上限；采证失败只记录错误，不替换测试失败、不重试和不放宽断言。文件保存在宿主包的专用外部文件目录 /sdcard/Android/data/com.logan.ktoastapp/files/window-failures，按运行 ID 与用例区分；只供临时模拟器诊断使用。
+矩阵入口显式传入 windowFailureDiagnostics=true 和本次唯一的 windowFailureRunId。在三个窗口相关测试类内，诊断规则位于 ActivityScenario 规则内部；失败时于 @After 执行后、宿主销毁前保存 window、input、activity activities 和 display 的 dumpsys 输出。每条系统采证命令使用五秒上限；采证失败只记录错误，不替换测试失败、不重试和不放宽断言。文件保存在宿主包的私有目录 `files/window-failures`，按运行 ID 与用例区分；仅由调试宿主和矩阵主机的 `run-as` 读取，避免依赖外部存储挂载。
 
-运行入口失败时另保存 after-run-*.txt，并拉取本次用例的 window-failures 目录；result.json 的 failureDiagnostics 分别记录成功取得的文件与采证错误。收尾快照属于 Runner 结束后的状态；用例快照也已执行测试清理，两者都不能直接证明失焦首次发生的时刻或原因。Runner 崩溃、安装失败或诊断文件缺失仍保留原始失败，不将缺失诊断标记为取得成功，不读取其他运行的目录。普通成功用例不执行失败采证；专用自检会执行真实采证并由主机拉取。第 16 轮 PR CI 五版本无失败，采证分支未触发；1.2 首轮真实失败暴露目录问题，修复与后续验收见本版记录。
+运行入口失败时另保存 after-run-*.txt，并通过 `run-as` 导出本次用例的 `files/window-failures` 目录；result.json 的 failureDiagnostics 分别记录成功取得的文件与采证错误。收尾快照属于 Runner 结束后的状态；用例快照也已执行测试清理，两者都不能直接证明失焦首次发生的时刻或原因。Runner 崩溃、安装失败或诊断文件缺失仍保留原始失败，不将缺失诊断标记为取得成功，不读取其他运行的目录。普通成功用例不执行失败采证；专用自检会执行真实采证并由主机拉取。第 22 轮 API 21/30 的外部存储限制已保留为失败证据；第 23 轮使用私有目录方案。
 
 工作流支持 Pull Request、手动触发，以及 main 和 feature/device-matrix 分支推送。自动触发按代码、构建、校验工具、API 文档输入及工作流路径过滤，main 上仅推送发布结果或 README 文档不会重复构建设备矩阵；Pull Request 按整个 PR 相对目标分支的差异筛选路径，已有代码差异的 PR 即使仅追加发布结果文档，也可能重新运行。工作流已合入默认分支，手动入口现可使用。创建提交、推送、创建 PR 和触发远程运行须按维护者授权分别执行。推送成功只表示代码已上传，设备结论以对应提交的 Actions 结果和产物报告为准。
 
