@@ -1,10 +1,10 @@
-# 1.2.0-SNAPSHOT 本地实施验收（未发布）
+# 1.2.0-SNAPSHOT 候选实施验收（未发布）
 
-更新时间：2026-10-14。当前正式版本仍为 1.1.0。核心容量治理、LifecycleOwner 扩展、Demo、双模块候选和发布门禁已实施；首轮云端矩阵 API 21/30/31/36 通过，API 35 因窗口失焦失败。第 22 轮验证了 API 31/35 的采证自检，但 API 21/30 暴露外部存储限制；最新修复改用宿主私有目录和主机 `run-as` 导出，第 23 轮又发现 API 21 不支持 dumpsys -t。最新采证使用兼容命令和读取端五秒上限，修复后的最终矩阵待运行，完整 P0 验收仍未完成。
+更新时间：2026-10-15。当前正式版本仍为 1.1.0。核心容量治理、LifecycleOwner 扩展、Demo、双模块候选和发布门禁已实施，完整 P0 候选验收通过。[第 24 轮五版本矩阵](https://github.com/logan0817/KToast/actions/runs/38591887066) 首尝试整体成功，运行提交为 `4cedfc185a7fdb77027f8f5d7156c834932b102f`；官方 ZIP 摘要、原始 Runner、两份 R8 新进程及五份有效采证文件均已核验。此前失败记录保留于下文。候选分支结果不代表合并后 main CI 或正式发布。
 
 ## 本版真实验证证据
 
-| 项目 | 本地结果 | 证据与边界 |
+| 项目 | 实际结果 | 证据与边界 |
 | --- | --- | --- |
 | 核心 JVM | 48 项通过，含默认回归、准入/冻结竞态、LRU、队列尾部过期、计时溢出、回调重入异常、5000 混合请求 | library-android/build/test-results/testDebugUnitTest；可控时钟，不作为性能或进程内存证明 |
 | 生命周期 JVM | 7 项通过，含 STARTED 新代理、停止/恢复、销毁清理、工厂与关闭交错、主线程清理回调 | library-lifecycle/build/test-results/testDebugUnitTest |
@@ -21,7 +21,7 @@
 | Central service 隔离回归 | 双模块验收失败不上传、成功将两个模块合并只上传一次且 USER_MANAGED，两项通过 | build/reports/central-publishing/service.json；仅本机假 Portal 与临时项目 |
 | Demo 与设备 APK | 构建通过；双 Fragment 切换、View 重建、停止恢复实际运行通过 | 公开 create 的初始 STARTED、已 DESTROYED 与结束宿主门禁均在 API 24/37 验证，关闭后 observerCount 为 0 |
 | Demo Lint（额外检查） | 剩余 9 项既有主页面问题；新页面 SetTextI18n 已修正 | InflateParams、7 项未用资源、TooManyViews；该额外检查失败，不声明全项目 Lint 通过 |
-| 关键五版本矩阵 | 首轮 API 21/30/31/36 通过、API 35 失败；第 22 轮 API 31/35/36 通过，API 21/30 因采证自检存储限制失败；第 23 轮 API 21 因不支持 dumpsys -t 失败；最终矩阵待运行 | CI 新增采证回归后要求 38/41 项必需回归及两份 R8 消费者，同批 APK/AAR 摘要关联；历史 1.1.0 成功不认证本版 |
+| 关键五版本矩阵 | 第 24 轮 API 21/30/31/35/36 全部通过，首尝试无重跑 | 同一提交、同批六产物；API 21 为 38 项通过、8 项 SDK 过滤未报告，现代版本各 41 项通过、5 项 fixture 跳过；每个版本两份 R8 新进程 PASS，采证自检五文件导出且服务标识有效 |
 
 依赖边界：核心保持 stdlib 1.9.23、Startup 1.1.1、minSdk 21、JVM 1.8、metadata 1.9。扩展同版依赖核心和 lifecycle-common 2.5.1，仅后者传递 annotation；实际独立消费者拒绝协程、Fragment、Compose。2.6.2 的真实 POM 会增加协程，因此本版使用提供所需观察 API 的 2.5.1，不通过排除依赖掩盖问题。应用主动升级 Lifecycle 时需重新检查解析图。
 
@@ -62,7 +62,7 @@ python3 -B tools/run_device_matrix.py --prepare
 
 根 prepareCentralBundle 聚合两个 Staging publication；签名、源代码关联和 ZIP 逐文件验收均覆盖两个模块。正式 Central 上传要求干净源码、完整双模块报告、非演练包、指定公钥、人工发布模式以及根入口，禁止直接模块上传、跳过检查、--continue、自动 release/drop。本地候选、测试签名和 dry-run 不代表已上传或发布。
 
-候选实现已按授权提交为 8652fe39d6dc574a2596212ef6b56043d57d9f0b，推送 codex/1.2.0-candidate 并手动触发远端矩阵。正式签名、上传和发布尚未执行；完成修复后最终产物的验证才能关闭本版完整验收门槛。厂商真机、分屏、无障碍/显示缺口专用 fixture 未补测，不将普通矩阵推广为这些场景已通过。
+候选实现已按授权提交为 8652fe39d6dc574a2596212ef6b56043d57d9f0b，推送 codex/1.2.0-candidate 并手动触发远端矩阵。修复后的最终同批候选已通过完整 P0 验收。正式签名、上传和发布尚未执行。厂商真机、分屏、无障碍/显示缺口专用 fixture 未补测，不将普通矩阵推广为这些场景已通过。
 
 ## 首轮云端候选及采证修复
 
@@ -70,7 +70,34 @@ python3 -B tools/run_device_matrix.py --prepare
 
 API 35 为 36 项通过、5 项跳过、4 项失败，R8 未执行。失败均为 RootViewWithoutFocusException，涉及两项 IME 场景与两项主页面交互。完整 logcat 显示 Launcher 于 13:30:43 ANR，首个失焦用例于 13:32:39 开始；收尾 window/input 仍指向该 ANR 对话框。这支持本次存在环境故障，不证明历史所有失焦均有同一原因，也不以其他版本成功替代 API 35 验收。
 
-本次真实失败暴露测试进程的 `instrumentation.context.getExternalFilesDir(null)` 返回 null，三个失败用例的诊断规则未保存文件。第一处修复改用宿主包外部目录并同步主机拉取路径；第 22 轮表明 API 21/30 的外部存储仍可能未挂载或不可访问，因此最终修复改写入宿主 `filesDir`，矩阵主机通过 `adb shell run-as` 列目录、`adb exec-out run-as` 导出文件。新增 `WindowFailureDiagnosticsTest` 在存活宿主中用真实 JUnit 规则触发可控异常，验证原异常对象保留和五份非空文件；自检不在旧系统测试进程内执行 `run-as`，避免触发系统 shell 崩溃。第 23 轮 API 30/31/35/36 通过，API 21 自检发现 dumpsys 不支持 -t；后者用例内输出为空、收尾输出为 Can't find service: -t，不能作为快照。现统一使用兼容 dumpsys 命令，用例内读取端五秒超时关闭管道，主机收尾命令保留十五秒超时。设备和主机共同验证 WINDOW/INPUT/ACTIVITY/DISPLAY MANAGER 标识，不再将命令错误文本当作有效快照。100 项 Python 回归、测试 APK 编译及 API 24 实际设备五份有效快照导出通过；最终完整矩阵尚待运行。
+本次真实失败暴露测试进程的 `instrumentation.context.getExternalFilesDir(null)` 返回 null，三个失败用例的诊断规则未保存文件。第一处修复改用宿主包外部目录并同步主机拉取路径；第 22 轮表明 API 21/30 的外部存储仍可能未挂载或不可访问，因此最终修复改写入宿主 `filesDir`，矩阵主机通过 `adb shell run-as` 列目录、`adb exec-out run-as` 导出文件。新增 `WindowFailureDiagnosticsTest` 在存活宿主中用真实 JUnit 规则触发可控异常，验证原异常对象保留和五份非空文件；自检不在旧系统测试进程内执行 `run-as`，避免触发系统 shell 崩溃。第 23 轮 API 30/31/35/36 通过，API 21 自检发现 dumpsys 不支持 -t；后者用例内输出为空、收尾输出为 Can't find service: -t，不能作为快照。现统一使用兼容 dumpsys 命令，用例内读取端五秒超时关闭管道，主机收尾命令保留十五秒超时。设备和主机共同验证 WINDOW/INPUT/ACTIVITY/DISPLAY MANAGER 标识，不再将命令错误文本当作有效快照。100 项 Python 回归、测试 APK 编译及 API 24 实际设备五份有效快照导出通过；修复后第 24 轮完整矩阵通过，见下方证据。
+
+## 最终同批候选矩阵（第 24 轮）
+
+[第 24 轮矩阵](https://github.com/logan0817/KToast/actions/runs/38591887066) 对应运行提交 `4cedfc185a7fdb77027f8f5d7156c834932b102f`，attempt 1，构建与五个设备任务全部成功，无重跑。归档为 `build/reports/device-matrix-cloud/38591887066`；`verified-summary.json` 的 `allFiveVerified=true`，`verified-build.json` 保存构建验证明细。七份 ZIP 与 GitHub 官方 SHA-256 一致，六份真实产物的摘要与输入、逐 API 报告一致；设备证据来自这一轮，未拼接其他轮次的成功。
+
+| API | 通过 | fixture 跳过 | SDK 过滤未报告 | 核心 R8 PID | 生命周期 R8 PID |
+| --- | --- | --- | --- | --- | --- |
+| 21 | 38 | 0 | 8 | 2765 | 2815 |
+| 30 | 41 | 5 | 0 | 6595 | 6660 |
+| 31 | 41 | 5 | 0 | 6513 | 6558 |
+| 35 | 41 | 5 | 0 | 5005 | 5062 |
+| 36 | 41 | 5 | 0 | 5295 | 5384 |
+
+所有版本必需用例均通过，无失败，原始 Runner 正常结束。两个 R8 消费者均在新进程输出对应 PID 的 PASS。采证自检保留原异常对象，于存活宿主内执行真实规则；主机从本次运行私有目录导出 failure/window/input/activity/display 五文件，并核验系统服务标识。此自检证明可控异常的采证路径，不证明所有偶发窗口失焦已消除。
+
+构建证据另核验核心 48 项、生命周期 7 项 JVM 测试，失败、错误、跳过均为零，两库 Lint 为零 issue，双模块完整候选报告与最初云端报告一致；19 项签名配置、23 项 Central 模型及两项隔离 service 回归全部通过。正式 1.0.5/1.1.0 的冻结 Java/Kotlin 字节码、基线 AAR 及候选 classes.jar 摘要与实际运行输出已核验。100 项 Python 回归在本地通过。
+
+| 本轮产物 | SHA-256 |
+| --- | --- |
+| 核心 Release AAR | 0b3b3d6979099d4ac86ed36b70da5a4981f04d71047bd31ca4c0f125c948cabf |
+| 生命周期 Release AAR | 163fca78a0dd7dfcbd157178cbaf37afda8040c8163eb5f6bf4998a88db08321 |
+| Demo Debug APK | eb21ab4445b260669c985406fbf627ee0a3bf90350ff1cc4ac8a10efceeb96f4 |
+| 设备测试 APK | 3764b89fb267cfcef9271b951a8ac4ad8d9c713bb2f7019d6f0631e5c97c714c |
+| 核心 R8 消费者 APK | 6019a994138eeec694b1d1342527b60f6254b69654e5e0c8a3f287ab005b9ec6 |
+| 生命周期 R8 消费者 APK | be1aad1f57f09eedda84cfefbfc99b5759a5d46259c360ce2ab549ae2d39d22e |
+
+后续仅验收记录文档提交须核对与本轮的生产库、测试、构建、工具及工作流输入相同；该文档提交自身没有运行此轮 CI。API 21 的未报告项和现代系统的 fixture 跳过不计成功。厂商真机、分屏、无障碍/显示缺口专用 fixture，以及 AGP 8.6 与 compileSdk 36 官方支持范围风险保持既有边界。Demo 的九项既有 Lint 问题仍未通过，不声明全项目 Lint 通过。正式发布前另核对合并后的 main CI 与正式签名产物。
 
 以下为 1.1.0 历史发布证据，保留原日期与原制品范围，不能替代 1.2.0 验证。
 
