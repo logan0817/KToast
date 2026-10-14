@@ -6,6 +6,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * 仅专用矩阵启用：失败后、ActivityScenario 销毁宿主前保存系统窗口状态。
@@ -36,10 +38,21 @@ class WindowFailureDiagnosticsRule : TestWatcher() {
                 "activity" to "activity activities", "display" to "display"
             )) {
                 try {
-                    ParcelFileDescriptor.AutoCloseInputStream(
-                        instrumentation.uiAutomation.executeShellCommand("dumpsys -t 5 $service")
-                    ).use { input ->
-                        File(output, "$name.txt").outputStream().use { sink -> input.copyTo(sink) }
+                    // 旧系统不支持 dumpsys -t；读取端限时，超时关闭管道并保留原始失败。
+                    val reader = Executors.newSingleThreadExecutor { task ->
+                        Thread(task, "KToastFailureCapture").apply { isDaemon = true }
+                    }
+                    try {
+                        instrumentation.uiAutomation.executeShellCommand("dumpsys $service").use { descriptor ->
+                            val capture = reader.submit {
+                                ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
+                                    File(output, "$name.txt").outputStream().use { sink -> input.copyTo(sink) }
+                                }
+                            }
+                            try { capture.get(5, TimeUnit.SECONDS) } finally { capture.cancel(true) }
+                        }
+                    } finally {
+                        reader.shutdownNow()
                     }
                 } catch (captureError: Exception) {
                     Log.e("KToastDeviceFailure", "Capture failed: $test $name", captureError)

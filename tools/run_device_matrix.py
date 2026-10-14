@@ -22,6 +22,13 @@ FILES = {
 }
 TEST_PACKAGE = 'com.logan.ktoastapp.app.'
 CONSUMER = 'com.logan.ktoast.compatibility'
+SNAPSHOT_MARKERS = {'window': 'WINDOW MANAGER', 'input': 'INPUT MANAGER',
+                    'activity': 'ACTIVITY MANAGER', 'display': 'DISPLAY MANAGER'}
+
+
+def validate_snapshot(name, content):
+    if not content.strip() or (name in SNAPSHOT_MARKERS and SNAPSHOT_MARKERS[name] not in content):
+        raise ValueError('诊断输出为空或不是系统快照：' + name)
 
 
 def save_json(path, data):
@@ -137,8 +144,7 @@ def run_device(api, serial):
         destination.mkdir(parents=True, exist_ok=True)
         for name in names:
             content = adb('exec-out', 'run-as', 'com.logan.ktoastapp', 'cat', remote + '/' + name)
-            if not content.strip():
-                raise ValueError('诊断文件为空：' + name)
+            validate_snapshot(name.removesuffix('.txt'), content)
             (destination / name).write_text(content, encoding='utf-8')
         return set(names)
 
@@ -228,8 +234,9 @@ def run_device(api, serial):
                 ):
                     try:
                         filename = 'after-run-' + name + '.txt'
-                        (output / filename).write_text(
-                            adb('shell', 'dumpsys', '-t', '5', *service, timeout=15), encoding='utf-8')
+                        content = adb('shell', 'dumpsys', *service, timeout=15)
+                        (output / filename).write_text(content, encoding='utf-8')
+                        validate_snapshot(name, content)
                         diagnostics['snapshots'][name] = {'file': filename}
                     except (ValueError, OSError, subprocess.TimeoutExpired) as error:
                         diagnostics['snapshots'][name] = {'error': str(error)}

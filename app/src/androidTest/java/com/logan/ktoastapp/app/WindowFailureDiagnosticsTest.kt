@@ -42,6 +42,10 @@ class WindowFailureDiagnosticsTest {
             val file = File(output, "$name.txt")
             assertTrue("Missing or empty diagnostics: $file", file.isFile && file.length() > 0)
         }
+        for ((name, marker) in listOf("window" to "WINDOW MANAGER", "input" to "INPUT MANAGER",
+            "activity" to "ACTIVITY MANAGER", "display" to "DISPLAY MANAGER")) {
+            assertTrue("Invalid dumpsys output: $name", File(output, "$name.txt").readText().contains(marker))
+        }
         assertTrue(File(output, "failure.txt").readText().contains(original.message!!))
         // 专用矩阵保留自检证据供主机 run-as 导出；模拟器随后销毁。
     }

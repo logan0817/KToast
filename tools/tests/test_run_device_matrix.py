@@ -120,9 +120,9 @@ class DeviceMatrixTest(unittest.TestCase):
                         'INSTRUMENTATION_STATUS: test=failurePreservesOriginalAndWritesShellReadableSnapshots\n'
                         'INSTRUMENTATION_STATUS_CODE: 0\nINSTRUMENTATION_CODE:')
             elif args[:2] == ['shell', 'dumpsys']:
-                if args[4] == diagnostic_failure:
+                if args[2] == diagnostic_failure:
                     raise subprocess.TimeoutExpired(command, 15)
-                text = 'system state: ' + args[4]
+                text = matrix.SNAPSHOT_MARKERS[args[2]] + ' fixture state'
             elif len(args) > 2 and args[1:3] == ['run-as', 'com.logan.ktoastapp']:
                 if diagnostic_failure == 'pull':
                     return subprocess.CompletedProcess(command, 1, 'private directory does not exist')
@@ -134,7 +134,8 @@ class DeviceMatrixTest(unittest.TestCase):
                             args[4].endswith('WindowFailureDiagnosticsTest#syntheticFailure') and selfcheck_files) else ('window',)
                         text = ' '.join(name + '.txt' for name in names)
                 elif args[3] == 'cat':
-                    text = 'failure system state'
+                    name = Path(args[4]).stem
+                    text = matrix.SNAPSHOT_MARKERS.get(name, 'failure') + ' fixture state'
             elif args[:3] == ['shell', 'am', 'force-stop']:
                 active_package = args[3]
                 log_reads = 0
@@ -189,6 +190,18 @@ class DeviceMatrixTest(unittest.TestCase):
         exports = [command for command in commands if command[:4] == ['exec-out', 'run-as', 'com.logan.ktoastapp', 'cat']]
         self.assertEqual(5, len(exports))
         self.assertTrue(all(command[4].startswith('files/window-failures/') for command in exports))
+
+    def test_command_errors_and_empty_outputs_are_not_snapshots(self):
+        for name in matrix.SNAPSHOT_MARKERS:
+            for content in ('', "Can't find service: -t", 'Permission Denial'):
+                with self.subTest(name=name, content=content), self.assertRaises(ValueError):
+                    matrix.validate_snapshot(name, content)
+
+    def test_legacy_dumpsys_command_has_no_unsupported_timeout_flag(self):
+        _, commands = self.exercise_device(instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'))
+        dumps = [command for command in commands if command[:2] == ['shell', 'dumpsys']]
+        self.assertEqual(4, len(dumps))
+        self.assertTrue(all('-t' not in command for command in dumps))
 
     def test_device_selfcheck_missing_file_blocks_consumers(self):
         result, commands = self.exercise_device(selfcheck=True, selfcheck_files=False)
