@@ -24,7 +24,7 @@ class WindowFailureDiagnosticsTest {
             arguments.getString("windowFailureDiagnostics") == "true")
         val runId = requireNotNull(arguments.getString("windowFailureRunId"))
         val description = Description.createTestDescription(javaClass, "syntheticFailure")
-        val output = File(requireNotNull(instrumentation.targetContext.getExternalFilesDir(null)),
+        val output = File(instrumentation.targetContext.filesDir,
             "window-failures/$runId/${javaClass.name}#syntheticFailure")
         val original = AssertionError("diagnostics device regression")
         val failing = object : Statement() {
@@ -43,10 +43,6 @@ class WindowFailureDiagnosticsTest {
             assertTrue("Missing or empty diagnostics: $file", file.isFile && file.length() > 0)
         }
         assertTrue(File(output, "failure.txt").readText().contains(original.message!!))
-        // adb shell 与 UIAutomation 使用相同 shell 身份，检查目录确实可从外部读取。
-        android.os.ParcelFileDescriptor.AutoCloseInputStream(
-            instrumentation.uiAutomation.executeShellCommand("cat ${File(output, "failure.txt").absolutePath}")
-        ).bufferedReader().use { assertTrue(it.readText().contains(original.message!!)) }
-        // 专用矩阵保留自检证据供主机 adb pull；模拟器随后销毁。
+        // 专用矩阵保留自检证据供主机 run-as 导出；模拟器随后销毁。
     }
 }

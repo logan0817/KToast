@@ -20,8 +20,8 @@ class WindowFailureDiagnosticsRule : TestWatcher() {
                 InstrumentationRegistry.getArguments().getString("windowFailureRunId")
             )
             require(runId.matches(Regex("[0-9]+")))
-            // 测试运行在宿主进程，测试 APK 的外部目录在部分系统上不可用。
-            val base = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+            // 私有目录不依赖外部存储挂载，主机通过调试宿主的 run-as 导出。
+            val base = instrumentation.targetContext.filesDir
             val test = (description.className + "#" + description.methodName)
                 .replace(Regex("[^A-Za-z0-9_.#-]"), "_")
             val output = File(base, "window-failures/$runId/$test")

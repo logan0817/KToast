@@ -128,6 +128,20 @@ def run_device(api, serial):
             raise ValueError('adb 失败：' + process.stdout)
         return process.stdout
 
+    def export_diagnostics(remote, destination):
+        # Debug 宿主的 run-as 可访问私有目录，避免依赖外部存储或 root。
+        names = adb('shell', 'run-as', 'com.logan.ktoastapp', 'ls', remote).split()
+        if not names or any(name not in ('failure.txt', 'window.txt', 'input.txt', 'activity.txt', 'display.txt')
+                            for name in names):
+            raise ValueError('失败诊断文件列表缺失或不合法')
+        destination.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            content = adb('exec-out', 'run-as', 'com.logan.ktoastapp', 'cat', remote + '/' + name)
+            if not content.strip():
+                raise ValueError('诊断文件为空：' + name)
+            (destination / name).write_text(content, encoding='utf-8')
+        return set(names)
+
     try:
         # 此入口只用于临时模拟器，禁止对日常真机执行安装和生命周期操作。
         if not serial.startswith('emulator-') or adb('shell', 'getprop', 'ro.kernel.qemu').strip() != '1':
@@ -163,12 +177,11 @@ def run_device(api, serial):
         selfcheck = TEST_PACKAGE + 'WindowFailureDiagnosticsTest#failurePreservesOriginalAndWritesShellReadableSnapshots'
         if report['instrumentation']['success'] and selfcheck in report['instrumentation']['passed']:
             destination = output / 'diagnostics-selfcheck'
-            adb('pull', '/sdcard/Android/data/com.logan.ktoastapp/files/window-failures/' +
-                diagnostic_run + '/' + TEST_PACKAGE + 'WindowFailureDiagnosticsTest#syntheticFailure',
-                str(destination), timeout=60)
+            names = export_diagnostics('files/window-failures/' + diagnostic_run + '/' +
+                TEST_PACKAGE + 'WindowFailureDiagnosticsTest#syntheticFailure', destination)
             for name in ('failure', 'window', 'input', 'activity', 'display'):
                 file = destination / (name + '.txt')
-                if not file.is_file() or not file.stat().st_size:
+                if file.name not in names or not file.is_file() or not file.stat().st_size:
                     raise ValueError('采证设备自检缺失或为空：' + name)
             report['diagnosticsSelfcheck'] = {'runId': diagnostic_run,
                 'files': sorted(str(path.relative_to(output)) for path in destination.iterdir() if path.is_file())}
@@ -224,8 +237,12 @@ def run_device(api, serial):
                     try:
                         test_output = output / 'window-failures' / diagnostic_run
                         test_output.parent.mkdir(parents=True, exist_ok=True)
-                        adb('pull', '/sdcard/Android/data/com.logan.ktoastapp/files/window-failures/' +
-                            diagnostic_run, str(test_output), timeout=60)
+                        remote = 'files/window-failures/' + diagnostic_run
+                        tests = adb('shell', 'run-as', 'com.logan.ktoastapp', 'ls', remote).split()
+                        if not tests or any(not re.fullmatch(r'[A-Za-z0-9_.#-]+', test) for test in tests):
+                            raise ValueError('失败诊断用例目录缺失或不合法')
+                        for test in tests:
+                            export_diagnostics(remote + '/' + test, test_output / test)
                         files = sorted(str(path.relative_to(output)) for path in
                                        test_output.rglob('*') if path.is_file())
                         if not files:

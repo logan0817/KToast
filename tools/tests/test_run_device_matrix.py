@@ -123,18 +123,18 @@ class DeviceMatrixTest(unittest.TestCase):
                 if args[4] == diagnostic_failure:
                     raise subprocess.TimeoutExpired(command, 15)
                 text = 'system state: ' + args[4]
-            elif args[0] == 'pull':
+            elif len(args) > 2 and args[1:3] == ['run-as', 'com.logan.ktoastapp']:
                 if diagnostic_failure == 'pull':
-                    return subprocess.CompletedProcess(command, 1, 'remote object does not exist')
-                if pull_files:
-                    destination = Path(args[2])
-                    if destination.name != 'diagnostics-selfcheck':
-                        destination /= 'sample.Test#required'
-                    destination.mkdir(parents=True)
-                    names = ('failure', 'window', 'input', 'activity', 'display') if (
-                        destination.name == 'diagnostics-selfcheck' and selfcheck_files) else ('window',)
-                    for name in names:
-                        (destination / (name + '.txt')).write_text('failure system state', encoding='utf-8')
+                    return subprocess.CompletedProcess(command, 1, 'private directory does not exist')
+                if args[3] == 'ls':
+                    if args[4].count('/') == 2:
+                        text = 'sample.Test#required' if pull_files else ''
+                    elif pull_files:
+                        names = ('failure', 'window', 'input', 'activity', 'display') if (
+                            args[4].endswith('WindowFailureDiagnosticsTest#syntheticFailure') and selfcheck_files) else ('window',)
+                        text = ' '.join(name + '.txt' for name in names)
+                elif args[3] == 'cat':
+                    text = 'failure system state'
             elif args[:3] == ['shell', 'am', 'force-stop']:
                 active_package = args[3]
                 log_reads = 0
@@ -182,13 +182,13 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertIn('实际设备 API', result['error'])
         self.assertFalse(any(command[0] == 'install' for command in commands))
 
-    def test_device_selfcheck_requires_host_pull_of_five_nonempty_files(self):
+    def test_device_selfcheck_requires_host_export_of_five_nonempty_files(self):
         result, commands = self.exercise_device(selfcheck=True)
         self.assertTrue(result['success'])
         self.assertEqual(5, len(result['diagnosticsSelfcheck']['files']))
-        pull = next(command for command in commands if command[0] == 'pull')
-        self.assertIn('/com.logan.ktoastapp/files/window-failures/', pull[1])
-        self.assertTrue(pull[1].endswith('WindowFailureDiagnosticsTest#syntheticFailure'))
+        exports = [command for command in commands if command[:4] == ['exec-out', 'run-as', 'com.logan.ktoastapp', 'cat']]
+        self.assertEqual(5, len(exports))
+        self.assertTrue(all(command[4].startswith('files/window-failures/') for command in exports))
 
     def test_device_selfcheck_missing_file_blocks_consumers(self):
         result, commands = self.exercise_device(selfcheck=True, selfcheck_files=False)
@@ -208,8 +208,8 @@ class DeviceMatrixTest(unittest.TestCase):
         run_id = command[command.index('windowFailureRunId') + 1]
         self.assertTrue(run_id.isdigit())
         self.assertIn(run_id, result['failureDiagnostics']['testFailures']['files'][0])
-        pull = next(command for command in commands if command[0] == 'pull')
-        self.assertEqual('/sdcard/Android/data/com.logan.ktoastapp/files/window-failures/' + run_id, pull[1])
+        listing = next(command for command in commands if command[:4] == ['shell', 'run-as', 'com.logan.ktoastapp', 'ls'])
+        self.assertEqual('files/window-failures/' + run_id, listing[4])
 
     def test_diagnostic_timeout_preserves_original_failure_and_other_snapshots(self):
         result, _ = self.exercise_device(
@@ -239,7 +239,7 @@ class DeviceMatrixTest(unittest.TestCase):
         result, commands = self.exercise_device(install='Failure [INSTALL_FAILED]')
         self.assertIn('安装失败', result['error'])
         self.assertNotIn('testFailures', result['failureDiagnostics'])
-        self.assertFalse(any(command[0] == 'pull' for command in commands))
+        self.assertFalse(any(len(command)>1 and command[1]=='run-as' for command in commands))
 
 
 if __name__ == '__main__':
