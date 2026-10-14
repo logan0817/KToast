@@ -10,6 +10,32 @@ KToast is a modern Android Toast library with automatic initialization, custom f
 
 The sections below cover dependency setup, default behavior, and common integration paths.
 
+## 1.2.0 candidate: capacity and lifecycle scopes (unreleased)
+
+The current Maven Central release remains 1.1.0. The local `1.2.0-SNAPSHOT` candidate provides core and `ktoast-lifecycle` artifacts through `build/candidate-repository`; it is not available from Maven Central. See the [release checklist](docs/RELEASING.md) for actual validation coverage.
+
+| Use case | Entry point | On stop and restart |
+| --- | --- | --- |
+| Application-wide messages and legacy system fallback | KToast / toast extensions | Existing global semantics |
+| Messages owned by an Activity | KToastScope | Cancel pending work; reuse after restart |
+| Messages owned by a Fragment View or another Owner | KToastLifecycleScope | Bind viewLifecycleOwner; close the old delegate below STARTED and accept only new work after restart |
+
+The optional artifact `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT` exposes the same-version core and lifecycle-common 2.5.1. It adds no Fragment, Compose, or coroutine dependency. Core alone has no Lifecycle dependency. All scopes share one serial presentation queue. See [LifecycleOwner scopes](docs/LIFECYCLE_SCOPE.md) for examples and page visibility boundaries.
+
+Opt in during Application initialization, on the main thread, before the first request or legacy delayed task is registered:
+
+```kotlin
+KToast.setRuntimePolicy(KToastRuntimePolicy(
+    maxPendingRequests = 32,
+    maxQueueWaitMillis = 10_000L,
+    maxDedupeEntries = 256
+))
+```
+
+All limits default to null, preserving previous behavior. These numbers are illustrative. The policy freezes on first registration; adjust initialization for the next process start to change it. Pending capacity includes preparation, main-thread submission, queues, debounce, and delays; active presentations do not consume it. New requests, including REPLACE, are rejected when full, and their DSL is skipped. Queue expiry starts when eligible: at the planned trigger for delays and at the window end for debounce. Late execution does not reset expiry. LRU eviction can allow the same message again. Counts are not a process memory limit.
+
+`ToastHandle.dropReason` reports CAPACITY_EXCEEDED or EXPIRED while preserving the existing CANCELED state and reason. Ordinary cancellations have a null drop reason. See the [API documentation](docs/API.md) for cancellation and exception behavior.
+
 ## 30-Second Setup
 
 ### 1. Add repositories

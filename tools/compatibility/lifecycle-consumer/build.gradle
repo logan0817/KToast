@@ -1,0 +1,69 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.logan.ktoast.lifecycleconsumer'
+    compileSdk 31
+    buildToolsVersion '30.0.3'
+    defaultConfig {
+        applicationId 'com.logan.ktoast.lifecycleconsumer'
+        minSdk 21
+        targetSdk 31
+        versionCode 1
+        versionName 'verification'
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions { jvmTarget = '1.8' }
+}
+
+dependencies {
+    implementation 'io.github.logan0817:ktoast-lifecycle:' + providers.gradleProperty('ktoastVersion').getOrElse('1.2.0-SNAPSHOT')
+}
+
+// 本地候选会重复生成，同一 SNAPSHOT 坐标每次构建都读取最新元数据。
+configurations.configureEach {
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+
+tasks.register('verifyCandidateArtifact') {
+    doLast {
+        def expected = new File(projectDir, '../../../library-lifecycle/build/outputs/aar/library-lifecycle-release.aar')
+        def digest = { file ->
+            java.security.MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString()
+        }
+        ['debugRuntimeClasspath', 'releaseRuntimeClasspath'].each { name ->
+            def resolved = configurations.getByName(name).resolvedConfiguration.resolvedArtifacts.find {
+                it.moduleVersion.id.group == 'io.github.logan0817' && it.name == 'ktoast-lifecycle'
+            }
+            if (resolved == null) throw new GradleException('KToast AAR was not resolved: ' + name)
+            if (digest(expected) != digest(resolved.file)) {
+                throw new GradleException('Resolved AAR differs from the current build: ' + name)
+            }
+            def artifacts = configurations.getByName(name).resolvedConfiguration.resolvedArtifacts
+            def core = artifacts.find { it.moduleVersion.id.group == 'io.github.logan0817' && it.name == 'ktoast' }
+            def expectedCore = new File(projectDir, '../../../library-android/build/outputs/aar/library-android-release.aar')
+            if (core == null || digest(core.file) != digest(expectedCore)) {
+                throw new GradleException('Lifecycle consumer resolved a different core AAR: ' + name)
+            }
+            if (artifacts.any { it.moduleVersion.id.group.startsWith('org.jetbrains.kotlinx') ||
+                it.moduleVersion.id.group.startsWith('androidx.fragment') ||
+                it.moduleVersion.id.group.startsWith('androidx.compose') }) {
+                throw new GradleException('Lifecycle consumer resolved a forbidden optional dependency: ' + name)
+            }
+            println "Consumer " + name + " SHA-256: " + digest(resolved.file)
+        }
+    }
+}
+tasks.named('preBuild') { dependsOn 'verifyCandidateArtifact' }

@@ -147,3 +147,7 @@ val options = KToastScopeOptions(
 诊断事件为 SHOWN、DISMISSED、ERROR。SHOWN 表示渲染调用返回，DISMISSED 的 detail 是已有结束原因，ERROR 的 detail 只包含异常类型，不包含消息正文或异常消息。监听器异常被隔离。诊断是可选观察能力，不保证真正送达，也不改变业务回调的兼容语义。
 
 当前验证矩阵与发布前未覆盖项见 [RELEASING.md](./RELEASING.md)。Compose 扩展仍属于后续独立模块，本版核心没有新增 Compose、协程或 lifecycle 生产依赖。
+
+## 1.2.0 可选扩展（未发布）
+
+Activity 作用域的停止/恢复语义保持不变。Fragment View 应使用独立 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)，绑定 viewLifecycleOwner；Owner 每次 STARTED 使用新代理，停止后旧请求不复活。所有入口共享显式设置的 KToastRuntimePolicy，容量拒绝和等待过期通过 ToastHandle.dropReason 表达，详见 [API 说明](API.md)。未设置策略保持旧默认行为。

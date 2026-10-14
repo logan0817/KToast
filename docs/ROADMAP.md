@@ -1,6 +1,8 @@
 # KToast 兼容优先版本路线
 
-当前已发布版本为 1.1.0，包含稳定性修复与页面作用域；安装坐标为 io.github.logan0817:ktoast:1.1.0，旧公开 API 兼容基线继续使用 1.0.5。版本变化见 [CHANGELOG.md](../CHANGELOG.md)，验证状态与发版步骤统一维护在 [RELEASING.md](./RELEASING.md)。
+当前已发布版本为 1.1.0，包含稳定性修复与页面作用域；安装坐标为 io.github.logan0817:ktoast:1.1.0，旧公开 API 同时保护 1.0.5 和正式 1.1.0 基线。版本变化见 [CHANGELOG.md](../CHANGELOG.md)，验证状态与发版步骤统一维护在 [RELEASING.md](./RELEASING.md)。
+
+下一版建议范围、接口设计、实现顺序与验收标准见 [1.2.0 实现与验收方案](./NEXT_VERSION_PLAN.md)。核心治理和生命周期扩展已进入本地验收，尚未发布；全部 P0 完成状态见发布检查表。
 
 ## 兼容约束
 
@@ -12,9 +14,9 @@
 | Java/Kotlin 字节码 | 库 JVM 1.8；Demo/buildSrc JVM 17 | 构建 JDK 保持 17；字节码目标不代表 Android 标准库 API 可用性 |
 | 构建工具 | AGP 8.6.0、Gradle 8.14.3 | 调整先评估实际需求、官方支持范围和消费者影响 |
 | SDK | compileSdk/示例 targetSdk 36 | 本版保留已确认配置及支持范围风险；实测结果与官方支持范围见发布检查表 |
-| 公开 API | 1.0.5 类、构造、成员和枚举 | 不改旧 data class 主构造，不增加旧枚举值；对发布基线检查 JVM 签名 |
+| 公开 API | 1.0.5/1.1.0 类、构造、成员和枚举 | 不改旧 data class 主构造，不增加旧枚举值；对发布基线检查 JVM 签名 |
 
-库仓库的构建工具与消费者的接入要求分别评估。AAR 的 minCompileSdk、最低 AGP 元数据和 JVM 1.8 目标不能证明所有旧工具链兼容；Kotlin metadata、传递依赖、R8 和设备运行均需独立验证。公开 API 基线来源及原发布 AAR SHA-256 保存在 [api/ktoast-1.0.5.json](./api/ktoast-1.0.5.json)。
+库仓库的构建工具与消费者的接入要求分别评估。AAR 的 minCompileSdk、最低 AGP 元数据和 JVM 1.8 目标不能证明所有旧工具链兼容；Kotlin metadata、传递依赖、R8 和设备运行均需独立验证。公开 API 基线来源及原发布 AAR SHA-256 保存在 [1.0.5 基线](./api/ktoast-1.0.5.json) 和 [1.1.0 基线](./api/ktoast-1.1.0.json)。
 
 依赖调整必须检查 minSdk、minCompileSdk、metadata、字节码、传递依赖、产物体积及消费者构建。确需提高门槛的可选功能应放在独立模块，显式说明其最低要求。
 
@@ -33,11 +35,11 @@
 
 发布前完成相关回归、旧 API/消费者/R8 检查、关键 Android 版本运行矩阵、工具链支持范围评估及正式发布产物检查。任何未覆盖项均在 [发布检查表](./RELEASING.md) 标明，不能用构建成功替代运行验证。
 
-## 后续可选容量策略
+## 1.2.0 可选容量策略与生命周期扩展（未发布）
 
-当前队列没有容量上限；旧全局去重历史在相同键再次请求时处理过期，不主动清扫全部历史键。不同请求可指定不同去重窗口，直接按历史窗口清扫可能改变旧行为。
+未开启运行策略时队列没有容量上限；旧全局去重历史在相同键再次请求时处理过期，不主动清扫全部历史键。不同请求可指定不同去重窗口，直接按历史窗口清扫可能改变旧行为。
 
-后续先定义可选容量、过期和淘汰策略，再实现限制；默认行为保持兼容。长期高频业务目前应按句柄、作用域或 groupKey 主动清理。
+本地候选提供 KToastRuntimePolicy：显式待处理容量、等待有效期和 LRU 历史容量，默认 null 保持兼容。新增独立 ktoast-lifecycle 绑定 LifecycleOwner，Fragment 使用 viewLifecycleOwner。实现与验收范围见 NEXT_VERSION_PLAN.md，接入见 LIFECYCLE_SCOPE.md。
 
 ## 后续可选 Compose 集成
 

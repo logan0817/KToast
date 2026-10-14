@@ -19,7 +19,7 @@ java -version
 
 ## 公开 API 检查
 
-基线来自 Maven Central 发布的 1.0.5 AAR。Release 构建完成后提取 classes.jar，在已有 Python 3.9+ 和 JDK 17 下检查：
+基线来自 Maven Central 正式发布的 1.0.5 与 1.1.0 AAR，候选新增 API 使用精确审阅清单。Release 构建完成后提取 classes.jar，在已有 Python 3.9+ 和 JDK 17 下检查：
 
 ```bash
 python3 - <<'PY'
@@ -90,7 +90,7 @@ Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolba
 python3 tools/verify_candidate.py
 ```
 
-Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。正式 VERSION 和安装坐标为 1.1.0；1.0.5 仍用于旧 API 兼容基线。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告写入 build/reports/compatibility/candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
+Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。当前正式安装坐标为 1.1.0，本地 VERSION 为 1.2.0-SNAPSHOT；1.0.5/1.1.0 同时用于旧 API 兼容基线。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告按模块写入 build/reports/compatibility/ktoast-candidate.json 或 ktoast-lifecycle-candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
 
 也可从项目根目录执行 ./gradlew verifyReleaseCandidate -PVERSION=1.1.0-SNAPSHOT --console=plain，集中运行 JVM 测试、库 Lint、工具回归与候选生成/校验；verifyCandidateArtifacts 自动选择实际版本的文档包及构建 JDK 的 javap。原库发布任务和 Python 命令保持可用。发布实现位于 gradle/release-publishing.gradle.kts，验证入口位于 gradle/release-verification.gradle.kts，公开 POM 字段位于 gradle.properties；消费者与设备运行仍需独立完成。
 
@@ -144,3 +144,22 @@ AGP 7.2.2 的实际 R8 构建对原 JVM 17 库字节码发出不正式支持警�
 若安装报 INSTALL_FAILED_UPDATE_INCOMPATIBLE，不要直接卸载使用方的已有 Demo。可通过临时 Gradle init script 设置独立 applicationId/testApplicationId 构建验证包，库 namespace 和业务代码保持原值；测试结束只清理本次创建的独立包。
 
 如果 connected 测试因额外测试平台组件下载受限，可在 APK 构建成功后，使用 adb 安装独立 Demo 与测试 APK，再运行对应测试包的 AndroidJUnitRunner。系统安装确认、设备锁屏或 USB 安装策略需要先处理，不能把“APK 编译成功”报告为“设备测试通过”。
+
+## 1.2.0 候选新增检查
+
+`verifyReleaseCandidate` 同时验收核心和生命周期扩展，报告为 `build/reports/compatibility/ktoast-candidate.json`、`ktoast-lifecycle-candidate.json`。使用 `-PVERSION=1.2.0-SNAPSHOT`；两个独立消费者都显式传入 `-PktoastVersion=1.2.0-SNAPSHOT`。旧消费者源码、1.0.5/1.1.0 已编译字节码与扩展源码分别验证，不能互相替代。
+
+已缓存 Kotlin 编译器、stdlib 和 SDK 后可运行：
+
+```bash
+python3 -B tools/verify_binary_consumers.py \
+  --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
+```
+
+该入口从正式仓库核验旧 AAR 摘要，分别对正式 1.0.5/1.1.0 编译样例，再保持消费者字节码不变运行候选；结果和冻结字节码留在忽略的 build 目录。JVM 样例不执行 Android 窗口。
+
+策略配置失败：检查是否在主线程、已初始化、且未登记任何请求或旧延时任务。容量满时 REPLACE 也会拒绝；用 ToastHandle.dropReason 区分 CAPACITY_EXCEEDED、EXPIRED 和普通取消。不能通过延长 delay 重置已经迟到请求的等待时效。
+
+生命周期不显示：确认 Owner 达到 STARTED、宿主仍有效，Fragment 使用 viewLifecycleOwner。hide/show 若未改变 Owner 状态不会自动取消；View 重建后须创建新作用域。扩展的生命周期监听不引入协程，但应用升级 Lifecycle 依赖后应检查实际解析图。
+
+双模块本地签名包使用 `prepare_central_bundle.py --artifacts ktoast ktoast-lifecycle`，包含 60 个文件。根 Central 上传任务强制双模块、完整验收、干净源码和人工发布模式；直调任一模块上传、跳过检查或自动 release/drop 都拒绝。未获得授权时只运行本地校验与 dry-run，不上传。

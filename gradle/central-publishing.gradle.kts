@@ -7,6 +7,7 @@ import org.gradle.plugins.signing.Sign
 
 // 仅根入口可上传；保留原 Publication/签名，正式 release/drop 仍须独立审批。
 val library = project(":library-android")
+val libraries = listOf(library, project(":library-lifecycle"))
 val releaseVersion = providers.gradleProperty("VERSION").get()
 val releaseGroup = providers.gradleProperty("GROUP").get()
 val releaseArtifact = providers.gradleProperty("POM_ARTIFACT_ID").get()
@@ -19,24 +20,27 @@ val bundleReport = layout.buildDirectory.file("central/$releaseArtifact-$release
 
 // 插件 0.33.0 没有批次名公开 DSL；仅改 staging 标识，不改 MavenPublication 坐标。
 // 依赖此内部模型的访问集中在这里，版本升级前须跑真实配置回归，字段缺失直接失败。
-fun stagingProperty(name: String): Property<*> =
-    library.tasks.getByName("createStagingRepository").property(name) as Property<*>
+fun stagingProperty(name: String, module: Project = library): Property<*> =
+    module.tasks.getByName("createStagingRepository").property(name) as Property<*>
 fun serviceProperty(name: String): Property<*> {
     val parameters = gradle.sharedServices.registrations.getByName("sonatype-repository-build-service").parameters
     return parameters.javaClass.getMethod("get$name").invoke(parameters) as Property<*>
 }
 fun verifyCentralModel() {
-    val publications = library.extensions.getByType<PublishingExtension>().publications
-    check(publications.size == 1 && publications.findByName("release") is MavenPublication) {
-        "Central requires exactly one release MavenPublication."
+    for (module in libraries) {
+        val publications = module.extensions.getByType<PublishingExtension>().publications
+        check(publications.size == 1 && publications.findByName("release") is MavenPublication) {
+            "Central requires exactly one release MavenPublication per module."
+        }
+        val publication = publications.getByName("release") as MavenPublication
+        val artifact = if (module == library) releaseArtifact else "ktoast-lifecycle"
+        check(releaseGroup == "io.github.logan0817" && releaseArtifact == "ktoast" && deploymentProject == "KToast" &&
+            publication.groupId == releaseGroup && publication.artifactId == artifact &&
+            publication.version == releaseVersion) { "Central publication coordinates changed unexpectedly." }
+        check(stagingProperty("projectGroup", module).get() == releaseGroup &&
+            stagingProperty("artifactId", module).get() == deploymentProject &&
+            stagingProperty("version", module).get() == releaseVersion) { "Central deployment identity does not match KToast." }
     }
-    val publication = publications.getByName("release") as MavenPublication
-    check(releaseGroup == "io.github.logan0817" && releaseArtifact == "ktoast" && deploymentProject == "KToast" &&
-        publication.groupId == releaseGroup && publication.artifactId == releaseArtifact &&
-        publication.version == releaseVersion) { "Central publication coordinates changed unexpectedly." }
-    check(stagingProperty("projectGroup").get() == releaseGroup &&
-        stagingProperty("artifactId").get() == deploymentProject &&
-        stagingProperty("version").get() == releaseVersion) { "Central deployment identity does not match KToast." }
     val host = serviceProperty("SonatypeHost").get()
     check(serviceProperty("AutomaticRelease").get() == false &&
         host == host.javaClass.getField("CENTRAL_PORTAL").get(null) &&
@@ -73,7 +77,7 @@ val verifyCentralUploadEnvironment = tasks.register<Exec>("verifyCentralUploadEn
 val prepareCentralBundle = tasks.register<Exec>("prepareCentralBundle") {
     group = "release"
     description = "生成本地签名产物并完整验收 Central ZIP；不上传。"
-    dependsOn(":library-android:publishReleasePublicationToStagingRepository")
+    dependsOn(libraries.map { "${it.path}:publishReleasePublicationToStagingRepository" })
     workingDir(rootDir)
     doFirst {
         check(publicKey.isPresent && file(publicKey.get()).isFile && fingerprint.isPresent) {
@@ -82,6 +86,7 @@ val prepareCentralBundle = tasks.register<Exec>("prepareCentralBundle") {
         commandLine(
             "python3", "-B", "tools/prepare_central_bundle.py", "--version", releaseVersion,
             "--public-key", file(publicKey.get()).absolutePath, "--fingerprint", fingerprint.get(),
+            "--artifacts", "ktoast", "ktoast-lifecycle",
             "--output", bundle.get().asFile.absolutePath,
             "--javap", file("${System.getProperty("java.home")}/bin/javap").absolutePath
         )
@@ -90,12 +95,15 @@ val prepareCentralBundle = tasks.register<Exec>("prepareCentralBundle") {
 val verifyCentralStaging = tasks.register<Exec>("verifyCentralStaging") {
     group = "verification"
     description = "网络上传前核对插件暂存的所有文件与已验收 ZIP；任一差异终止上传。"
-    dependsOn(":library-android:publishReleasePublicationToMavenCentralRepository")
+    dependsOn(libraries.map { "${it.path}:publishReleasePublicationToMavenCentralRepository" })
     workingDir(rootDir)
     doFirst {
         verifyCentralModel()
         val repository = library.extensions.getByType<PublishingExtension>().repositories
             .getByName("mavenCentral") as MavenArtifactRepository
+        check(libraries.all {
+            (it.extensions.getByType<PublishingExtension>().repositories.getByName("mavenCentral") as MavenArtifactRepository).url == repository.url
+        }) { "Both modules must use the same verified staging directory." }
         check(repository.url.scheme == "file") { "Central release must use a local staging directory." }
         commandLine(
             "python3", "-B", "tools/verify_central_staging.py",
@@ -115,22 +123,26 @@ tasks.register("publishToMavenCentral") {
 }
 
 gradle.projectsEvaluated {
-    @Suppress("UNCHECKED_CAST")
-    (stagingProperty("artifactId") as Property<String>).set(deploymentProject)
+    for (module in libraries) {
+        @Suppress("UNCHECKED_CAST")
+        (stagingProperty("artifactId", module) as Property<String>).set(deploymentProject)
+    }
     // 环境门禁先于签名、打包和插件 create；最终验收在 build service 的网络上传前执行。
     prepareCentralBundle.configure { mustRunAfter(verifyCentralUploadEnvironment) }
-    library.tasks.withType<Sign>().configureEach { mustRunAfter(verifyCentralUploadEnvironment) }
-    library.tasks.named("publishReleasePublicationToStagingRepository") {
-        mustRunAfter(verifyCentralUploadEnvironment)
-    }
-    library.tasks.named("createStagingRepository") {
-        dependsOn(verifyCentralUploadEnvironment, prepareCentralBundle)
+    for (module in libraries) {
+        module.tasks.withType<Sign>().configureEach { mustRunAfter(verifyCentralUploadEnvironment) }
+        module.tasks.named("publishReleasePublicationToStagingRepository") {
+            mustRunAfter(verifyCentralUploadEnvironment)
+        }
+        module.tasks.named("createStagingRepository") {
+            dependsOn(verifyCentralUploadEnvironment, prepareCentralBundle)
+        }
     }
 }
 
 gradle.taskGraph.whenReady {
     val centralTasks = allTasks.filter {
-        it.project == library && (it.name.endsWith("ToMavenCentralRepository") ||
+        it.project in libraries && (it.name.endsWith("ToMavenCentralRepository") ||
             it.name in setOf("createStagingRepository", "releaseRepository", "dropRepository",
                 "publishToMavenCentral", "publishAndReleaseToMavenCentral"))
     }

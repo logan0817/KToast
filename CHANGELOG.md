@@ -1,5 +1,16 @@
 # 版本变更
 
+## 1.2.0-SNAPSHOT（未发布）
+
+- 新增可选 KToastRuntimePolicy，统一限制准备、队列、防抖与延时请求的待处理容量；展示开始归还额度，拒绝请求不执行局部配置。
+- 新增资格后等待有效期及单定时器清理，迟到延时保留计划时间；支持可选 LRU 去重历史上限，默认关闭全部限制。
+- 新增 ToastHandle.dropReason：容量拒绝 CAPACITY_EXCEEDED、等待过期 EXPIRED，保留旧状态和结束原因枚举。
+- 新增独立 ktoast-lifecycle，LifecycleOwner 每轮 STARTED 创建新代理；停止关闭旧代理，Owner/View 或宿主结束永久清理。Fragment 使用 viewLifecycleOwner。
+- 增加双 Fragment、容量拒绝与过期 Demo，1.1.0 正式 API 基线及精确增量、旧字节码消费者、双模块产物/签名/暂存校验和设备回归。
+- 核心 minSdk 21、JVM 1.8、metadata 1.9 与原生产依赖保持；扩展使用 lifecycle-common 2.5.1，不额外引入协程、Fragment 或 Compose。
+
+完整 P0 验收尚在进行，当前正式版本仍为 1.1.0。实际证据与限制见 [发布检查表](docs/RELEASING.md)。
+
 ## 1.1.0（2026-10-13）
 
 1.1.0 已正式发布到 Maven Central。官方批次状态为 PUBLISHED，正式仓库 30 个文件与冻结产物一致，五份签名有效；全新消费者通过正式坐标解析、Java/Kotlin 编译和 R8 Release 构建。发布证据、设备矩阵与兼容限制见 [发布检查表](./docs/RELEASING.md)。

@@ -29,7 +29,7 @@ android {
 }
 
 dependencies {
-    implementation 'io.github.logan0817:ktoast:' + providers.gradleProperty('ktoastVersion').getOrElse('1.1.0-SNAPSHOT')
+    implementation 'io.github.logan0817:ktoast:' + providers.gradleProperty('ktoastVersion').getOrElse('1.2.0-SNAPSHOT')
 }
 
 // 本地候选会重复生成，同一 SNAPSHOT 坐标每次构建都读取最新元数据。
@@ -44,6 +44,13 @@ tasks.register('verifyCandidateArtifact') {
             java.security.MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString()
         }
         ['debugRuntimeClasspath', 'releaseRuntimeClasspath'].each { name ->
+            def modules = configurations.getByName(name).resolvedConfiguration.resolvedArtifacts
+            if (modules.any { it.moduleVersion.id.group.startsWith('androidx.lifecycle') ||
+                it.moduleVersion.id.group.startsWith('androidx.fragment') ||
+                it.moduleVersion.id.group.startsWith('androidx.compose') ||
+                it.moduleVersion.id.group.startsWith('org.jetbrains.kotlinx') }) {
+                throw new GradleException('Core consumer resolved a forbidden optional dependency: ' + name)
+            }
             def resolved = configurations.getByName(name).resolvedConfiguration.resolvedArtifacts.find {
                 it.moduleVersion.id.group == 'io.github.logan0817' && it.name == 'ktoast'
             }

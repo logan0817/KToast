@@ -17,6 +17,8 @@ FILES = {
     'tests': 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',
     'r8Consumer': 'tools/compatibility/android-consumer/build/outputs/apk/release/ktoast-android-consumer-release.apk',
     'aar': 'library-android/build/outputs/aar/library-android-release.aar',
+    'lifecycleR8Consumer': 'tools/compatibility/lifecycle-consumer/build/outputs/apk/release/ktoast-lifecycle-consumer-release.apk',
+    'lifecycleAar': 'library-lifecycle/build/outputs/aar/library-lifecycle-release.aar',
 }
 TEST_PACKAGE = 'com.logan.ktoastapp.app.'
 CONSUMER = 'com.logan.ktoast.compatibility'
@@ -34,16 +36,19 @@ def artifacts(root=ROOT):
         if not path.is_file() or path.stat().st_size == 0:
             raise ValueError('缺失或空产物：' + relative)
         result[name] = {'path': relative, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
-    candidate = json.loads((root / 'build/reports/compatibility/candidate.json').read_text(encoding='utf-8'))
+    candidate = json.loads((root / 'build/reports/compatibility/ktoast-candidate.json').read_text(encoding='utf-8'))
     if candidate['sha256'] != result['aar']['sha256']:
         raise ValueError('AAR 与候选报告 SHA-256 不一致')
+    lifecycle = json.loads((root / 'build/reports/compatibility/ktoast-lifecycle-candidate.json').read_text(encoding='utf-8'))
+    if lifecycle['sha256'] != result['lifecycleAar']['sha256']:
+        raise ValueError('Lifecycle AAR 与报告 SHA-256 不一致')
     return result
 
 
 def required_tests(api, root=ROOT):
     required = set()
     source = root / 'app/src/androidTest/java/com/logan/ktoastapp/app'
-    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest'):
+    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest'):
         text = (source / (name + '.kt')).read_text(encoding='utf-8')
         methods = re.findall(r'@Test\b(?:(?!\bfun\b).)*\bfun\s+(\w+)', text, re.S)
         if not methods:
@@ -141,7 +146,7 @@ def run_device(api, serial):
         report['buildCommit'] = expected['commit']
         if report['commit'] and report['commit'] != report['buildCommit']:
             raise ValueError('构建与运行提交不一致')
-        for name in ('demo', 'tests', 'r8Consumer'):
+        for name in ('demo', 'tests', 'r8Consumer', 'lifecycleR8Consumer'):
             result = adb('install', '-r', str(ROOT / FILES[name]), timeout=120)
             (output / (name + '-install.txt')).write_text(result, encoding='utf-8')
             if 'Success' not in result:
@@ -157,27 +162,28 @@ def run_device(api, serial):
         report['instrumentation']['notReported'] = sorted(all_tests() - reported)
         if not report['instrumentation']['success']:
             raise ValueError('设备回归未满足必需用例或 Runner 未正常完成')
-        adb('shell', 'am', 'force-stop', CONSUMER)
-        baseline = set(adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S').splitlines())
-        launch = adb('shell', 'am', 'start', '-W', '-n', CONSUMER + '/.ConsumerActivity')
-        (output / 'r8-launch.txt').write_text(launch, encoding='utf-8')
-        deadline = time.monotonic() + 30
-        while time.monotonic() < deadline:
-            # API 21 没有通用 pidof/logcat --pid，使用 ps 与 threadtime 的 PID 列。
-            processes = adb('shell', 'ps')
-            pid = next((line.split()[1] for line in processes.splitlines()
-                        if line.split() and line.split()[-1] == CONSUMER), None)
-            logs = adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S')
-            (output / 'r8-logcat.txt').write_text(logs, encoding='utf-8')
-            if pid:
-                line = consumer_line(logs, pid, baseline)
-                if line:
-                    report['r8Consumer'] = {'pid': pid, 'passLine': line}
-                    report['success'] = True
-                    break
-            time.sleep(0.5)
-        if not report['success']:
-            raise ValueError('R8 消费者新进程未输出 PASS')
+        for key, consumer in (('r8Consumer', CONSUMER), ('lifecycleR8Consumer', 'com.logan.ktoast.lifecycleconsumer')):
+            adb('shell', 'am', 'force-stop', consumer)
+            baseline = set(adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S').splitlines())
+            launch = adb('shell', 'am', 'start', '-W', '-n', consumer + '/.ConsumerActivity')
+            (output / (key + '-launch.txt')).write_text(launch, encoding='utf-8')
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                # API 21 没有通用 pidof/logcat --pid，使用 ps 与 threadtime 的 PID 列。
+                processes = adb('shell', 'ps')
+                pid = next((line.split()[1] for line in processes.splitlines()
+                            if line.split() and line.split()[-1] == consumer), None)
+                logs = adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S')
+                (output / (key + '-logcat.txt')).write_text(logs, encoding='utf-8')
+                if pid:
+                    line = consumer_line(logs, pid, baseline)
+                    if line:
+                        report[key] = {'pid': pid, 'passLine': line}
+                        break
+                time.sleep(0.5)
+            if key not in report:
+                raise ValueError('R8 消费者新进程未输出 PASS')
+        report['success'] = True
     except (ValueError, OSError, subprocess.TimeoutExpired) as error:
         report['error'] = str(error)
         if isinstance(error, subprocess.TimeoutExpired) and error.stdout:

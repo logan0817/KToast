@@ -33,6 +33,8 @@ class PublicationValidationTest(unittest.TestCase):
                 "com.logan.ktoast/-k-toast-scope-options/index.html",
                 "com.logan.ktoast.config/-k-toast-config/index.html",
                 "com.logan.ktoast.runtime/-toast-handle/index.html",
+                "com.logan.ktoast.runtime/-k-toast-runtime-policy/index.html",
+                "com.logan.ktoast.runtime/-toast-drop-reason/index.html",
             ):
                 archive.writestr(name, "<html>API fixture</html>")
         self.write_sources(b"package com.logan.ktoast")

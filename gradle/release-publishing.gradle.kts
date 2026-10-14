@@ -4,7 +4,7 @@ import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.plugins.signing.SigningExtension
 
-// 由 library-android 应用，维护既有 Publication 与本地候选；Central 入口由根脚本保护。
+// 核心与可选扩展共用 Publication/签名规则；Central 入口由根脚本保护。
 val apiDocsJar = tasks.register<Jar>("apiDocsJar") {
     dependsOn("dokkaHtml")
     archiveClassifier.set("javadoc")
@@ -72,10 +72,13 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 artifact(apiDocsJar)
-                artifactId = providers.gradleProperty("POM_ARTIFACT_ID").get()
+                artifactId = if (project.name == "library-lifecycle") "ktoast-lifecycle"
+                    else providers.gradleProperty("POM_ARTIFACT_ID").get()
                 pom {
-                    name.set(providers.gradleProperty("POM_NAME"))
-                    description.set(providers.gradleProperty("POM_DESCRIPTION"))
+                    name.set(if (project.name == "library-lifecycle") "KToast Lifecycle"
+                        else providers.gradleProperty("POM_NAME").get())
+                    description.set(if (project.name == "library-lifecycle") "Optional LifecycleOwner scopes for KToast."
+                        else providers.gradleProperty("POM_DESCRIPTION").get())
                     url.set(providers.gradleProperty("POM_URL"))
                     licenses {
                         license {

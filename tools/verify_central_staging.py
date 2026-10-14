@@ -38,17 +38,32 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
     require(bundle.is_file() and not bundle.is_symlink(), "正式 ZIP 缺失或为符号链接")
     bundle_sha = hashlib.sha256(bundle.read_bytes()).hexdigest()
     require(bundle_sha == report["bundle"]["sha256"], "正式 ZIP 与报告摘要不一致")
-    relative = GROUP_PATH / version
-    names = ["ktoast-" + version + suffix for suffix in
-             (".aar", "-sources.jar", "-javadoc.jar", ".pom", ".module")]
-    allowed = set(names + [name + ".asc" for name in names]) | {
-        name + "." + algorithm for name in names for algorithm in ("md5", "sha1", "sha256", "sha512")}
-    expected = {(relative / name).as_posix() for name in allowed}
-    signature_checksums = {(relative / (name + ".asc." + algorithm)).as_posix()
-                           for name in names for algorithm in ("md5", "sha1", "sha256", "sha512")}
-    # 插件只忽略 Maven 元数据；仅允许 Gradle 在当前 artifact 目录生成的精确文件名。
-    metadata = {(GROUP_PATH / ("maven-metadata.xml" + suffix)).as_posix()
-                for suffix in ("", ".md5", ".sha1", ".sha256", ".sha512")}
+    modules = report.get("modules", {"ktoast": report})
+    require(set(modules) in ({"ktoast"}, {"ktoast", "ktoast-lifecycle"}), "双模块报告缺少必需模块")
+    paths = {}
+    signatures_by_module = {}
+    metadata = set()
+    for artifact, child in modules.items():
+        require(all(child.get("coordinate", {}).get(key) == value for key, value in
+                    {"group": "io.github.logan0817", "module": artifact, "version": version}.items())
+                and child.get("source") == source and child.get("deployment") == identity, "模块坐标或源码不一致")
+        prefix = GROUP_PATH.parent / artifact
+        names = [artifact + "-" + version + suffix for suffix in
+                 (".aar", "-sources.jar", "-javadoc.jar", ".pom", ".module")]
+        signatures_by_module[artifact] = names
+        allowed = set(names + [name + ".asc" for name in names]) | {
+            name + "." + algorithm for name in names for algorithm in ("md5", "sha1", "sha256", "sha512")}
+        require(set(child.get("files", {})) == allowed, "模块逐文件报告不完整")
+        paths.update({(prefix / version / name).as_posix(): child["files"][name] for name in allowed})
+        metadata.update((prefix / ("maven-metadata.xml" + suffix)).as_posix()
+                        for suffix in ("", ".md5", ".sha1", ".sha256", ".sha512"))
+    expected = set(paths)
+    signature_checksums = {name + "." + algorithm for name in expected if name.endswith(".asc")
+                           for algorithm in ("md5", "sha1", "sha256", "sha512")}
+    if "modules" in report:
+        require(report.get("files") == paths and report["bundle"].get("files") == len(paths), "双模块逐文件报告不完整")
+    else:
+        require(report["bundle"].get("files") == len(paths), "正式报告的逐文件集合不完整")
     require(staging.is_dir() and not staging.is_symlink(), "插件暂存目录缺失或为符号链接")
     actual = set()
     for path in staging.rglob("*"):
@@ -64,27 +79,29 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
         require(derived == signature_checksums, "签名派生校验和不完整，禁止规范化或上传")
         require(staging.resolve().parent == (root / "build/publish/staging").resolve(),
                 "仅允许规范化插件的临时暂存目录，不能修改本地发布仓库")
-    require(set(report.get("files", {})) == allowed and report["bundle"].get("files") == len(allowed),
-            "正式报告的逐文件集合不完整")
     checked = {}
     with ZipFile(bundle) as archive:
         entries = archive.namelist()
         require(len(entries) == len(set(entries)) and set(entries) == expected,
                 "正式 ZIP 包含缺失、重复或非预期文件")
-        for name in sorted(allowed):
-            content = archive.read((relative / name).as_posix())
+        for name in sorted(expected):
+            content = archive.read(name)
             item = {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
-            require(item == report["files"][name], "ZIP 文件与报告不一致: " + name)
-            require((staging / relative / name).read_bytes() == content, "插件暂存与正式 ZIP 不一致: " + name)
+            require(item == paths[name], "ZIP 文件与报告不一致: " + name)
+            require((staging / name).read_bytes() == content, "插件暂存与正式 ZIP 不一致: " + name)
             checked[name] = item
-        for name in names:
-            for algorithm in ("md5", "sha1", "sha256", "sha512"):
-                checksum = archive.read((relative / (name + "." + algorithm)).as_posix()).decode("ascii").strip()
-                require(checksum == hashlib.new(algorithm, archive.read((relative / name).as_posix())).hexdigest(),
-                        "正式 ZIP 校验和错误: " + name)
-    signatures = verify_signatures(staging / relative, names, public_key, fingerprint, gpg)
+        for artifact, names in signatures_by_module.items():
+            relative = GROUP_PATH.parent / artifact / version
+            for name in names:
+                for algorithm in ("md5", "sha1", "sha256", "sha512"):
+                    checksum = archive.read((relative / (name + "." + algorithm)).as_posix()).decode("ascii").strip()
+                    require(checksum == hashlib.new(algorithm, archive.read((relative / name).as_posix())).hexdigest(),
+                            "正式 ZIP 校验和错误: " + name)
+    signatures = {artifact: verify_signatures(staging / GROUP_PATH.parent / artifact / version, names,
+                                             public_key, fingerprint, gpg)
+                  for artifact, names in signatures_by_module.items()}
     normalized = {}
-    # Gradle 会给五份 .asc 另生成 20 份校验和。它们不属于冻结的 30 文件发布包，
+    # Gradle 会给 .asc 另生成校验和；它们不属于已验收发布包，
     # 必须全部验证后才从插件临时目录移除；禁止放宽文件集合或静默丢弃未知文件。
     for path in sorted(derived):
         algorithm = path.rsplit(".", 1)[1]
@@ -106,7 +123,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-source", action="store_true")
     parser.add_argument("--normalize-signature-checksums", action="store_true",
-                        help="仅在插件临时目录验证并移除 .asc 的派生校验和，使上传仍精确包含 30 文件")
+                        help="仅在插件临时目录验证并移除 .asc 的派生校验和，使上传文件集合与已验收 ZIP 一致")
     parser.add_argument("--staging", type=Path)
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--bundle-report", type=Path)

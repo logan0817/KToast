@@ -10,6 +10,37 @@ KToast 是一个面向 Android 的现代 Toast 组件库，提供自动初始化
 
 下面给出依赖、默认行为和常用接入方式。
 
+## 1.2.0 候选：容量治理与页面生命周期（未发布）
+
+当前正式版本仍为 1.1.0。以下能力已加入本地 `1.2.0-SNAPSHOT` 候选，完整验收状态见 [发布检查表](docs/RELEASING.md)。本地仓库 `build/candidate-repository` 提供核心和 `ktoast-lifecycle` 两个坐标；正式发布前不能直接从 Maven Central 安装该候选。
+
+| 场景 | 入口 | 停止后行为 |
+| --- | --- | --- |
+| 应用全局提示、沿用旧后台降级 | KToast / toast 扩展 | 保留旧全局语义 |
+| 提示属于 Activity | KToastScope | 取消本轮请求，恢复后可复用 |
+| 提示属于 Fragment View 或其他 Owner | KToastLifecycleScope | 绑定 viewLifecycleOwner；离开 STARTED 关闭旧代理，恢复只接受新请求 |
+
+三个入口共享串行展示队列。扩展坐标为 `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`，传递依赖同版核心和 lifecycle-common 2.5.1，不增加 Fragment、Compose 或协程依赖；核心单独接入不依赖 Lifecycle。详细接入见 [LifecycleOwner 作用域](docs/LIFECYCLE_SCOPE.md)。
+
+需要容量治理时，在 Application 初始化、首个请求登记前显式配置：
+
+```kotlin
+import com.logan.ktoast.KToast
+import com.logan.ktoast.runtime.KToastRuntimePolicy
+
+KToast.setRuntimePolicy(KToastRuntimePolicy(
+    maxPendingRequests = 32,
+    maxQueueWaitMillis = 10_000L,
+    maxDedupeEntries = 256
+))
+```
+
+三个参数默认均为 null，升级后未开启策略保持原规则。示例数值仅用于演示。策略必须在主线程设置，首个请求或旧延时任务登记后冻结；后续调整需在下次进程启动前修改初始化代码。
+
+待处理容量含准备、主线程提交、排队、防抖和延时，展示中的请求不占额度。满额保留旧请求，拒绝新请求且不执行其 DSL；REPLACE 同样可能拒绝。等待有效期从展示资格起算，延时从计划触发、防抖从窗口结束计算，迟到执行不重置截止时间。LRU 历史被淘汰后，相同消息可能再次接受。容量是登记数限制，不是进程内存字节上限。
+
+拒绝与过期仍以 CANCELED 结束，新增只读 `handle.dropReason` 分别表示 CAPACITY_EXCEEDED / EXPIRED，普通取消为 null；原状态与结束原因枚举不变。参数、取消、异常和时效边界见 [API 说明](docs/API.md)。
+
 ## 30 秒接入
 
 ### 1. 添加仓库

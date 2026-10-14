@@ -10,9 +10,14 @@ import com.logan.ktoast.config.KToastConfig
 import com.logan.ktoast.config.KToastConfigFactory
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastCallbacks
+import com.logan.ktoast.runtime.KToastDisplayMode
+import com.logan.ktoast.runtime.KToastRuntimePolicy
+import com.logan.ktoast.runtime.ToastAdmission
 import com.logan.ktoast.runtime.ToastDispatcher
+import com.logan.ktoast.runtime.ToastDropReason
 import com.logan.ktoast.runtime.ToastHandle
 import com.logan.ktoast.runtime.ToastRequest
+import com.logan.ktoast.runtime.ToastTime
 import com.logan.ktoast.strategy.IToastStrategy
 import com.logan.ktoast.strategy.ModernToastStrategy
 import com.logan.ktoast.strategy.SystemToastStrategy
@@ -36,6 +41,7 @@ object KToast {
 
     /** 主线程 Handler，用于调度 UI 操作和延时任务 */
     internal val mainHandler = Handler(Looper.getMainLooper())
+    private val admission = ToastAdmission()
 
     internal val dispatcher = ToastDispatcher(
         runtime = object : ToastDispatcher.Runtime {
@@ -55,7 +61,7 @@ object KToast {
                 action: () -> Unit
             ): ToastDispatcher.Cancellable {
                 val task = Runnable(action)
-                mainHandler.postDelayed(task, delayMillis)
+                mainHandler.postAtTime(task, ToastTime.add(SystemClock.uptimeMillis(), delayMillis))
                 return ToastDispatcher.Cancellable {
                     mainHandler.removeCallbacks(task)
                 }
@@ -64,7 +70,8 @@ object KToast {
         nowProvider = { SystemClock.uptimeMillis() },
         onError = { error ->
             if (debugMode) Log.e("KToast", "Toast request or callback failed.", error)
-        }
+        },
+        policyProvider = admission::policy
     )
 
     /** 全局配置对象，存储默认样式 */
@@ -73,8 +80,9 @@ object KToast {
     /** 当前正在显示的策略实例，用于处理连续调用时的取消逻辑 */
     private var currentStrategy: IToastStrategy? = null
     private val pendingSubmissions = ConcurrentHashMap<Long, ToastRequest>()
-    private val delayedTasks = mutableSetOf<Runnable>()
+    private val delayedTasks = mutableMapOf<Runnable, ToastAdmission.Ticket>()
     private val scheduledSubmissions = mutableMapOf<Long, Runnable>()
+    @Volatile private var globalCancelGeneration = 0L
     private val initLock = Any()
 
     /**
@@ -128,6 +136,17 @@ object KToast {
     fun setDebugMode(enabled: Boolean): KToast {
         this.debugMode = enabled
         return this
+    }
+
+    /**
+     * 设置可选全库运行限制，必须在主线程、初始化完成后、首个请求/延时任务前调用。
+     * 首次登记会冻结策略，后续修改抛出 IllegalStateException；null 限制保留旧规则。
+     */
+    @JvmStatic
+    fun setRuntimePolicy(policy: KToastRuntimePolicy) {
+        check(KToastUtils.isMainThread()) { "KToast.setRuntimePolicy must run on the main thread." }
+        KToastUtils.checkInit()
+        admission.configure(policy)
     }
 
     /**
@@ -193,29 +212,7 @@ object KToast {
         behavior: KToastBehavior,
         callbacks: KToastCallbacks,
         localConfig: (KToastConfig.() -> Unit)? = null
-    ): ToastHandle {
-        KToastUtils.checkInit()
-        val finalConfig = globalConfig.copy().apply {
-            localConfig?.invoke(this)
-        }
-        val request = ToastRequest(
-            message = message,
-            duration = duration,
-            config = finalConfig,
-            behavior = behavior.copy(),
-            callbacks = callbacks,
-            handle = ToastHandle()
-        )
-
-        // 先准备取消能力，避免工作线程返回句柄后、主线程入队前无法撤回。
-        dispatcher.prepare(request, KToastUtils::runOnMainThread)
-        pendingSubmissions[request.handle.id] = request
-        KToastUtils.runOnMainThread {
-            pendingSubmissions.remove(request.handle.id)
-            dispatcher.submit(request)
-        }
-        return request.handle
-    }
+    ): ToastHandle = prepareSubmission(message, duration, behavior, callbacks, localConfig)
 
     internal fun submitScopedRequest(
         scope: KToastScope,
@@ -226,52 +223,90 @@ object KToast {
         callbacks: KToastCallbacks,
         localConfig: (KToastConfig.() -> Unit)?,
         explicitConfig: KToastConfig? = null
+    ): ToastHandle = prepareSubmission(message, duration, behavior, callbacks, localConfig,
+        scope, delayMillis, explicitConfig)
+
+    private fun prepareSubmission(
+        message: CharSequence,
+        duration: Int,
+        behavior: KToastBehavior,
+        callbacks: KToastCallbacks,
+        localConfig: (KToastConfig.() -> Unit)?,
+        scope: KToastScope? = null,
+        delayMillis: Long = 0L,
+        explicitConfig: KToastConfig? = null,
+        transferredTicket: ToastAdmission.Ticket? = null,
+        plannedAt: Long? = null,
+        submittedGeneration: Long = globalCancelGeneration
     ): ToastHandle {
         KToastUtils.checkInit()
-        // 配置准备可发生在工作线程；取消或页面停止后恢复也不能复活旧请求。
-        val generation = scope.submissionGeneration()
+        val generation = scope?.submissionGeneration()
         val submittedAt = SystemClock.uptimeMillis()
-        val config = (explicitConfig ?: globalConfig).copy()
-        if (explicitConfig == null && scope.options.followHostTheme) {
-            scope.host()?.let { host ->
-                val colors = host.obtainStyledAttributes(R.styleable.KToastHostTheme)
-                try {
-                    config.backgroundColor = colors.getColor(R.styleable.KToastHostTheme_android_colorBackground, config.backgroundColor)
-                    config.textColor = colors.getColor(R.styleable.KToastHostTheme_android_textColorPrimary, config.textColor)
-                } finally {
-                    colors.recycle()
+        val dueAt = ToastTime.add(submittedAt, delayMillis)
+        // 旧 Runnable 手动提前 run 仍立即触发；迟到执行则保留原计划时间计算有效期。
+        val eligibleAt = plannedAt?.coerceAtMost(submittedAt) ?: dueAt
+        val ticket = transferredTicket ?: admission.acquire()
+        val handle = ToastHandle()
+        val request = ToastRequest(message, duration, behavior = behavior.copy(), callbacks = callbacks,
+            handle = handle, scope = scope, admission = ticket,
+            eligibleAt = eligibleAt.takeUnless { behavior.displayMode == KToastDisplayMode.DEBOUNCE },
+            cleanup = {
+                pendingSubmissions.remove(handle.id)
+                removeScheduledSubmission(handle.id)
+            })
+        dispatcher.prepare(request) { action ->
+            KToastUtils.runOnMainThread(action)
+        }
+        if (ticket == null) {
+            KToastUtils.runOnMainThread { dispatcher.reject(request, ToastDropReason.CAPACITY_EXCEEDED) }
+            return handle
+        }
+        // 先登记再执行 DSL，取消能够找到仍在配置准备中的请求；额度直到准备退出才归还。
+        pendingSubmissions[handle.id] = request
+        try {
+            val config = (explicitConfig ?: globalConfig).copy()
+            if (explicitConfig == null && scope?.options?.followHostTheme == true) {
+                scope.host()?.let { host ->
+                    val colors = host.obtainStyledAttributes(R.styleable.KToastHostTheme)
+                    try {
+                        config.backgroundColor = colors.getColor(R.styleable.KToastHostTheme_android_colorBackground, config.backgroundColor)
+                        config.textColor = colors.getColor(R.styleable.KToastHostTheme_android_textColorPrimary, config.textColor)
+                    } finally {
+                        colors.recycle()
+                    }
                 }
             }
+            if (!handle.isFinished) localConfig?.invoke(config)
+            request.config = config
+        } catch (error: Throwable) {
+            pendingSubmissions.remove(handle.id)
+            ticket.release()
+            throw error
+        } finally {
+            ticket.endPreparation()
         }
-        localConfig?.invoke(config)
-        val dueAt = submittedAt + delayMillis.coerceIn(0L, Long.MAX_VALUE - submittedAt)
-        val request = ToastRequest(message, duration, config, behavior.copy(), callbacks, ToastHandle(), scope)
-        dispatcher.prepare(request) { action ->
-            KToastUtils.runOnMainThread {
-                removeScheduledSubmission(request.handle.id)
-                pendingSubmissions.remove(request.handle.id)
-                action()
-            }
-        }
-        pendingSubmissions[request.handle.id] = request
         KToastUtils.runOnMainThread {
-            if (generation == null || !scope.canShow(generation) || request.handle.isCancellationRequested || request.handle.isFinished) {
-                pendingSubmissions.remove(request.handle.id)
+            if (submittedGeneration != globalCancelGeneration ||
+                (scope != null && (generation == null || !scope.canShow(generation))) ||
+                handle.isCancellationRequested || handle.isFinished) {
                 dispatcher.cancelPreparedRequest(request)
             } else if (dueAt > SystemClock.uptimeMillis()) {
-                val task = Runnable {
-                    scheduledSubmissions.remove(request.handle.id)
-                    pendingSubmissions.remove(request.handle.id)
-                    dispatcher.submit(request)
+                dispatcher.watch(request)
+                if (!handle.isFinished) {
+                    val task = Runnable {
+                        scheduledSubmissions.remove(handle.id)
+                        pendingSubmissions.remove(handle.id)
+                        dispatcher.submit(request)
+                    }
+                    scheduledSubmissions[handle.id] = task
+                    mainHandler.postAtTime(task, dueAt)
                 }
-                scheduledSubmissions[request.handle.id] = task
-                mainHandler.postDelayed(task, (dueAt - SystemClock.uptimeMillis()).coerceAtLeast(0L))
             } else {
-                pendingSubmissions.remove(request.handle.id)
+                pendingSubmissions.remove(handle.id)
                 dispatcher.submit(request)
             }
         }
-        return request.handle
+        return handle
     }
 
     internal fun cancelScope(scopeId: Long) {
@@ -346,19 +381,30 @@ object KToast {
         localConfig: (KToastConfig.() -> Unit)? = null
     ): Runnable {
         KToastUtils.checkInit()
-
+        val ticket = admission.acquire()
+        val dueAt = ToastTime.add(SystemClock.uptimeMillis(), delayMillis)
         val task = object : Runnable {
             override fun run() {
-                val accepted = synchronized(delayedTasks) { delayedTasks.remove(this) }
-                if (accepted) {
+                val generation = globalCancelGeneration
+                val accepted = synchronized(delayedTasks) {
+                    delayedTasks.remove(this)?.also { it.beginPreparation() }
+                }
+                if (accepted != null) {
                     mainHandler.removeCallbacks(this)
-                    show(message, duration, localConfig)
+                    prepareSubmission(message, duration, KToastBehavior(), KToastCallbacks(), localConfig,
+                        transferredTicket = accepted, plannedAt = dueAt, submittedGeneration = generation)
                 }
             }
         }
-        synchronized(delayedTasks) {
-            delayedTasks.add(task)
-            mainHandler.postDelayed(task, delayMillis)
+        if (ticket != null) {
+            try {
+                synchronized(delayedTasks) {
+                    delayedTasks[task] = ticket
+                    mainHandler.postAtTime(task, dueAt)
+                }
+            } finally {
+                ticket.endPreparation()
+            }
         }
         return task
     }
@@ -370,7 +416,7 @@ object KToast {
     fun cancelDelayed(task: Runnable?) {
         if (task == null) return
         synchronized(delayedTasks) {
-            delayedTasks.remove(task)
+            delayedTasks.remove(task)?.release()
             mainHandler.removeCallbacks(task)
         }
     }
@@ -383,8 +429,12 @@ object KToast {
     @JvmStatic
     fun cancel() {
         KToastUtils.runOnMainThread {
+            globalCancelGeneration++
             synchronized(delayedTasks) {
-                delayedTasks.forEach { mainHandler.removeCallbacks(it) }
+                delayedTasks.forEach { (task, ticket) ->
+                    mainHandler.removeCallbacks(task)
+                    ticket.release()
+                }
                 delayedTasks.clear()
             }
             val pending = pendingSubmissions.values.toList()

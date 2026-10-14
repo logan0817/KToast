@@ -30,6 +30,11 @@ class ToastHandle internal constructor(
     var dismissReason: DismissReason? = null
         internal set
 
+    /** 容量拒绝或等待过期的附加原因，普通结束为 null；在终态回调前可见。 */
+    @Volatile
+    var dropReason: ToastDropReason? = null
+        private set
+
     val isFinished: Boolean
         get() = state == State.DISMISSED || state == State.CANCELED
 
@@ -65,8 +70,9 @@ class ToastHandle internal constructor(
     }
 
     @Synchronized
-    internal fun markDismissed(reason: DismissReason): Boolean {
+    internal fun markDismissed(reason: DismissReason, drop: ToastDropReason? = null): Boolean {
         if (isFinished) return false
+        dropReason = drop
         dismissReason = reason
         state = if (reason == DismissReason.CANCELED) State.CANCELED else State.DISMISSED
         cancelDelegate = null

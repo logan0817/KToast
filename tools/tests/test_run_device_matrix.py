@@ -30,8 +30,8 @@ INSTRUMENTATION_STATUS_CODE: -4
 
 class DeviceMatrixTest(unittest.TestCase):
     def test_real_required_source_count_and_modern_subset(self):
-        self.assertEqual(28, len(required_tests(21)))
-        self.assertEqual(31, len(required_tests(30)))
+        self.assertEqual(37, len(required_tests(21)))
+        self.assertEqual(40, len(required_tests(30)))
         self.assertEqual(required_tests(30), required_tests(36))
         self.assertFalse(any('cutout' in name.lower() for name in required_tests(36)))
 
@@ -80,7 +80,7 @@ class DeviceMatrixTest(unittest.TestCase):
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b'fixture')
-            candidate = root / 'build/reports/compatibility/candidate.json'
+            candidate = root / 'build/reports/compatibility/ktoast-candidate.json'
             candidate.parent.mkdir(parents=True)
             candidate.write_text(json.dumps({'sha256': 'wrong'}), encoding='utf-8')
             with self.assertRaisesRegex(ValueError, 'SHA-256'):
@@ -96,9 +96,11 @@ class DeviceMatrixTest(unittest.TestCase):
         """模拟 adb 协议完成整条入口，验证结果写入和失败收尾；不伪造真实设备证据。"""
         commands = []
         log_reads = 0
+        generation = 0
+        active_package = ""
 
         def fake_adb(command, **kwargs):
-            nonlocal log_reads
+            nonlocal log_reads, generation, active_package
             args = command[3:]
             commands.append(args)
             text = ''
@@ -122,12 +124,16 @@ class DeviceMatrixTest(unittest.TestCase):
                     destination = Path(args[2]) / 'sample.Test#required'
                     destination.mkdir(parents=True)
                     (destination / 'window.txt').write_text('failure window state', encoding='utf-8')
+            elif args[:3] == ['shell', 'am', 'force-stop']:
+                active_package = args[3]
+                log_reads = 0
+                generation += 1
             elif args[:2] == ['shell', 'ps']:
-                text = 'u0_a1 10633 1 0 0 com.logan.ktoast.compatibility'
+                text = 'u0_a1 10633 1 0 0 ' + active_package
             elif args[0] == 'logcat':
                 log_reads += 1
                 if log_reads > 1:
-                    text = '10-10 15:01:21.041 10633 10633 I KToastConsumer: PASS: fixture'
+                    text = '10-10 15:01:21.041 10633 10633 I KToastConsumer: PASS: fixture ' + str(generation)
             return subprocess.CompletedProcess(command, 0, text)
 
         with tempfile.TemporaryDirectory(prefix='ktoast-matrix-flow-test-') as folder:
@@ -154,7 +160,7 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertTrue(result['success'])
         self.assertEqual('10633', result['r8Consumer']['pid'])
         self.assertEqual(['sample.Test#filtered'], result['instrumentation']['notReported'])
-        self.assertEqual(3, sum(command[0] == 'install' for command in commands))
+        self.assertEqual(4, sum(command[0] == 'install' for command in commands))
         self.assertNotIn('failureDiagnostics', result)
         self.assertFalse(any(command[0] == 'pull' or command[:2] == ['shell', 'dumpsys']
                              for command in commands))

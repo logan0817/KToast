@@ -1,3 +1,73 @@
+# 1.2.0-SNAPSHOT 本地实施验收（未发布）
+
+更新时间：2026-10-14。当前正式版本仍为 1.1.0。核心容量治理、LifecycleOwner 扩展、Demo、双模块候选和发布门禁已实施；关键 API 21/30/31/35/36 的最终产物矩阵尚未运行，因此完整 P0 验收仍未完成。
+
+## 本版真实验证证据
+
+| 项目 | 本地结果 | 证据与边界 |
+| --- | --- | --- |
+| 核心 JVM | 48 项通过，含默认回归、准入/冻结竞态、LRU、队列尾部过期、计时溢出、回调重入异常、5000 混合请求 | library-android/build/test-results/testDebugUnitTest；可控时钟，不作为性能或进程内存证明 |
+| 生命周期 JVM | 7 项通过，含 STARTED 新代理、停止/恢复、销毁清理、工厂与关闭交错、主线程清理回调 | library-lifecycle/build/test-results/testDebugUnitTest |
+| 双模块库 Lint | 通过 | 各库 lint-results-debug；无工具链升级 |
+| 双模块候选 | AAR、POM、Gradle metadata、sources、真实 Dokka 文档与精确 API 校验通过 | build/reports/compatibility/ktoast-candidate.json、ktoast-lifecycle-candidate.json；核心保护正式 1.0.5/1.1.0，新增两类和两个旧类成员 |
+| 旧字节码消费者 | 正式 1.0.5、1.1.0 Java/Kotlin 编译后保持字节码不变，替换当前候选运行通过 | build/reports/compatibility/binary-consumers/result.json；不执行 Android 窗口 |
+| 独立源码消费者 | 核心和扩展均通过 Debug、R8 Release；实际解析 AAR 摘要核对 | AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、JVM 1.8；旧 Lint/R8 metadata 提示保留，不承诺任意旧组合 |
+| Python 工具 | 96 项通过，新增双模块文件集合、缺失/篡改拒绝、原子校验和清理与公开类型扫描 | tools/tests；夹具不冒充真实 PGP 或 Portal |
+| Central 模型/任务图 | 23 项真实 Gradle 回归通过 | build/reports/central-publishing/configuration.json；dry-run，不签名或联网上传；保护两个模块与人工发布模式 |
+| 本地双模块签名演练 | 10 类实际产物签名有效，生成 60 文件 ZIP；扩展 AAR 篡改、坏签名、错误指纹均拒绝 | build/reports/dual-signing；临时测试密钥已移除，不访问个人密钥环，不上传 |
+| API 24 arm64 | 最终同批产物 37 项通过、0 项显式跳过、8 项高版本 SDK 过滤未报告、0 项失败；核心/扩展 R8 新进程均 PASS | build/reports/device-matrix/api-24；含最终四项策略设备回归 |
+| API 37 arm64，16KB 系统镜像 | 最终同批产物 40 项通过、5 项专用 fixture 跳过、0 项失败；核心/扩展 R8 新进程均 PASS | build/reports/device-matrix/api-37；含最终四项策略设备回归 |
+| 策略设备回归（API 37） | 4 项通过：容量拒绝、10 秒准备过期、旧 Runnable 转移/重复触发与 DSL 抛错、Long.MAX_VALUE 延时不溢出 Handler 时钟 | 纳入最终完整矩阵；回调在主线程且各一次 |
+| Central service 隔离回归 | 双模块验收失败不上传、成功将两个模块合并只上传一次且 USER_MANAGED，两项通过 | build/reports/central-publishing/service.json；仅本机假 Portal 与临时项目 |
+| Demo 与设备 APK | 构建通过；双 Fragment 切换、View 重建、停止恢复实际运行通过 | 公开 create 的初始 STARTED、已 DESTROYED 与结束宿主门禁均在 API 24/37 验证，关闭后 observerCount 为 0 |
+| Demo Lint（额外检查） | 剩余 9 项既有主页面问题；新页面 SetTextI18n 已修正 | InflateParams、7 项未用资源、TooManyViews；该额外检查失败，不声明全项目 Lint 通过 |
+| 关键五版本矩阵 | 待运行 | CI 已要求 37/40 项必需回归及两份 R8 消费者，同批 APK/AAR 摘要关联；历史 1.1.0 成功不认证本版 |
+
+依赖边界：核心保持 stdlib 1.9.23、Startup 1.1.1、minSdk 21、JVM 1.8、metadata 1.9。扩展同版依赖核心和 lifecycle-common 2.5.1，仅后者传递 annotation；实际独立消费者拒绝协程、Fragment、Compose。2.6.2 的真实 POM 会增加协程，因此本版使用提供所需观察 API 的 2.5.1，不通过排除依赖掩盖问题。应用主动升级 Lifecycle 时需重新检查解析图。
+
+AGP 8.6 与 compileSdk 36 的既有官方支持范围风险保持记录。当前 SDK 只有可复用的 API 24/37 arm64 镜像；旧 avdmanager 与 JDK 不兼容，验证使用忽略的 build/validation-avds 临时配置直接复用镜像，没有安装或升级 SDK。设备验证完毕后关闭本任务模拟器。
+
+本地未裁剪 AAR 与完整 R8 消费者 APK 测量如下；未建立同条件基线增量，不宣传更轻或更快：
+
+- coreAar：164772 bytes。
+- lifecycleAar：16890 bytes。
+- coreR8Apk：72215 bytes。
+- lifecycleR8Apk：74828 bytes。
+
+测量摘要保存在 build/reports/compatibility/artifact-sizes.json。两份消费者 APK 具有不同页面代码，总 APK 差值不能当作生命周期库的纯增量。
+
+API 24/37 最终运行复用以下同批产物；本地尚无候选提交，报告 buildCommit/commit 为 null，源码与候选由实际 sources/API/产物校验关联，不冒充提交级 CI 证据。
+
+| 产物 | SHA-256 |
+| --- | --- |
+| 核心 Release AAR | 0b3b3d6979099d4ac86ed36b70da5a4981f04d71047bd31ca4c0f125c948cabf |
+| 生命周期 Release AAR | 163fca78a0dd7dfcbd157178cbaf37afda8040c8163eb5f6bf4998a88db08321 |
+| Demo Debug APK | bf38be09e02f596b292030cf3275706394fb3c8b5483e50b3864421781c434c7 |
+| 设备测试 APK | 399f52125fa13fb6a3934164bca94248143d124ce1edb0e85684f0e3287d3f12 |
+| 核心 R8 消费者 APK | b1c6d8130236b67b6e145e57b4cb74b0ab1499f3d58f8851c9cd722946240d9a |
+| 生命周期 R8 消费者 APK | 87ccf962ea8c54576452c0d0376db562361d9dcee3f08869341e1cd1a14c818e |
+
+API 37 最终运行前曾出现消费者入口缺类：移动源码目录后的增量构建将 Java 编译判为 UP-TO-DATE，但实际输出缺少 ConsumerActivity.class，设备报 ClassNotFoundException。已通过临时 init 脚本仅重新编译消费者 Debug/Release Java 任务恢复输出，随后常规构建、R8 映射和新进程运行均验证成功；未修改永久构建策略。增量失效的具体机制未确定，失败证据保留于 build/reports/device-matrix-history/api-37-consumer-missing-activity。
+
+## 本版入口与发布门槛
+
+```bash
+bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
+bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+bash ./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+python3 -B tools/run_device_matrix.py --prepare
+```
+
+维护者本机 Gradle 验证仍通过 Android Studio build environment Skill 启动，复用 JDK17、SDK、共享 Gradle 缓存。候选报告文件改为按模块命名，矩阵和工作流同步引用；旧 candidate.json 可能属于历史构建，不用于本版验收。
+
+根 prepareCentralBundle 聚合两个 Staging publication；签名、源代码关联和 ZIP 逐文件验收均覆盖两个模块。正式 Central 上传要求干净源码、完整双模块报告、非演练包、指定公钥、人工发布模式以及根入口，禁止直接模块上传、跳过检查、--continue、自动 release/drop。本地候选、测试签名和 dry-run 不代表已上传或发布。
+
+尚未创建提交、推送分支、触发远端工作流或发布。关键五版本矩阵需要适合镜像的环境或维护者明确授权的远端 CI；完成对应最终产物的验证后才能关闭本版完整验收门槛。厂商真机、分屏、无障碍/显示缺口专用 fixture 未补测，不将普通矩阵推广为这些场景已通过。
+
+以下为 1.1.0 历史发布证据，保留原日期与原制品范围，不能替代 1.2.0 验证。
+
+---
+
 # 1.1.0 发布检查表
 
 ## 当前状态与产物

@@ -12,6 +12,7 @@ on:
       - 'gradle.properties'
       - 'buildSrc/**'
       - 'library-android/**'
+      - 'library-lifecycle/**'
       - 'app/**'
       - 'tools/**'
       - 'docs/API.md'
@@ -25,6 +26,7 @@ on:
       - 'gradle.properties'
       - 'buildSrc/**'
       - 'library-android/**'
+      - 'library-lifecycle/**'
       - 'app/**'
       - 'tools/**'
       - 'docs/API.md'
@@ -55,11 +57,13 @@ jobs:
         run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;34.0.0' 'build-tools;30.0.3'
       - name: Build and validate candidate
         run: |
-          bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.1.0-SNAPSHOT --console=plain
+          bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
           python3 -B tools/verify_signing_configuration.py -- bash ./gradlew
           python3 -B tools/verify_central_publishing_configuration.py -- bash ./gradlew
           python3 -B tools/verify_central_service.py -- bash ./gradlew
-          bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease --console=plain
+          bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+          bash ./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+          python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
           python3 -B tools/run_device_matrix.py --prepare
       - name: Share identical APKs across API levels
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -69,8 +73,10 @@ jobs:
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             tools/compatibility/android-consumer/build/outputs/apk/release/ktoast-android-consumer-release.apk
+            tools/compatibility/lifecycle-consumer/build/outputs/apk/release/ktoast-lifecycle-consumer-release.apk
             library-android/build/outputs/aar/library-android-release.aar
-            build/reports/compatibility/candidate.json
+            build/reports/compatibility/*candidate.json
+            library-lifecycle/build/outputs/aar/library-lifecycle-release.aar
             build/reports/device-matrix/input.json
           if-no-files-found: error
           retention-days: 14
@@ -82,6 +88,8 @@ jobs:
           path: |
             library-android/build/test-results/**
             library-android/build/reports/**
+            library-lifecycle/build/test-results/**
+            library-lifecycle/build/reports/**
             build/reports/compatibility/**
             build/reports/signing-modes/configuration.json
             build/reports/central-publishing/**

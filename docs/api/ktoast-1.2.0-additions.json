@@ -1,0 +1,111 @@
+{
+  "version": "1.2.0",
+  "classes": {
+    "com.logan.ktoast.KToast": [
+      {
+        "declaration": "public static final void setRuntimePolicy(com.logan.ktoast.runtime.KToastRuntimePolicy);",
+        "descriptor": "(Lcom/logan/ktoast/runtime/KToastRuntimePolicy;)V"
+      }
+    ],
+    "com.logan.ktoast.runtime.KToastRuntimePolicy": [
+      {
+        "declaration": "public boolean equals(java.lang.Object);",
+        "descriptor": "(Ljava/lang/Object;)Z"
+      },
+      {
+        "declaration": "public com.logan.ktoast.runtime.KToastRuntimePolicy();",
+        "descriptor": "()V"
+      },
+      {
+        "declaration": "public com.logan.ktoast.runtime.KToastRuntimePolicy(java.lang.Integer);",
+        "descriptor": "(Ljava/lang/Integer;)V"
+      },
+      {
+        "declaration": "public com.logan.ktoast.runtime.KToastRuntimePolicy(java.lang.Integer, java.lang.Long);",
+        "descriptor": "(Ljava/lang/Integer;Ljava/lang/Long;)V"
+      },
+      {
+        "declaration": "public com.logan.ktoast.runtime.KToastRuntimePolicy(java.lang.Integer, java.lang.Long, java.lang.Integer);",
+        "descriptor": "(Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Integer;)V"
+      },
+      {
+        "declaration": "public com.logan.ktoast.runtime.KToastRuntimePolicy(java.lang.Integer, java.lang.Long, java.lang.Integer, int, kotlin.jvm.internal.DefaultConstructorMarker);",
+        "descriptor": "(Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V"
+      },
+      {
+        "declaration": "public final class com.logan.ktoast.runtime.KToastRuntimePolicy {"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.KToastRuntimePolicy copy(java.lang.Integer, java.lang.Long, java.lang.Integer);",
+        "descriptor": "(Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Integer;)Lcom/logan/ktoast/runtime/KToastRuntimePolicy;"
+      },
+      {
+        "declaration": "public final java.lang.Integer component1();",
+        "descriptor": "()Ljava/lang/Integer;"
+      },
+      {
+        "declaration": "public final java.lang.Integer component3();",
+        "descriptor": "()Ljava/lang/Integer;"
+      },
+      {
+        "declaration": "public final java.lang.Integer getMaxDedupeEntries();",
+        "descriptor": "()Ljava/lang/Integer;"
+      },
+      {
+        "declaration": "public final java.lang.Integer getMaxPendingRequests();",
+        "descriptor": "()Ljava/lang/Integer;"
+      },
+      {
+        "declaration": "public final java.lang.Long component2();",
+        "descriptor": "()Ljava/lang/Long;"
+      },
+      {
+        "declaration": "public final java.lang.Long getMaxQueueWaitMillis();",
+        "descriptor": "()Ljava/lang/Long;"
+      },
+      {
+        "declaration": "public int hashCode();",
+        "descriptor": "()I"
+      },
+      {
+        "declaration": "public java.lang.String toString();",
+        "descriptor": "()Ljava/lang/String;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.KToastRuntimePolicy copy$default(com.logan.ktoast.runtime.KToastRuntimePolicy, java.lang.Integer, java.lang.Long, java.lang.Integer, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/runtime/KToastRuntimePolicy;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/KToastRuntimePolicy;"
+      }
+    ],
+    "com.logan.ktoast.runtime.ToastDropReason": [
+      {
+        "declaration": "public final class com.logan.ktoast.runtime.ToastDropReason extends java.lang.Enum<com.logan.ktoast.runtime.ToastDropReason> {"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastDropReason valueOf(java.lang.String);",
+        "descriptor": "(Ljava/lang/String;)Lcom/logan/ktoast/runtime/ToastDropReason;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastDropReason[] values();",
+        "descriptor": "()[Lcom/logan/ktoast/runtime/ToastDropReason;"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.runtime.ToastDropReason CAPACITY_EXCEEDED;",
+        "descriptor": "Lcom/logan/ktoast/runtime/ToastDropReason;"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.runtime.ToastDropReason EXPIRED;",
+        "descriptor": "Lcom/logan/ktoast/runtime/ToastDropReason;"
+      },
+      {
+        "declaration": "public static kotlin.enums.EnumEntries<com.logan.ktoast.runtime.ToastDropReason> getEntries();",
+        "descriptor": "()Lkotlin/enums/EnumEntries;"
+      }
+    ],
+    "com.logan.ktoast.runtime.ToastHandle": [
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastDropReason getDropReason();",
+        "descriptor": "()Lcom/logan/ktoast/runtime/ToastDropReason;"
+      }
+    ]
+  }
+}
