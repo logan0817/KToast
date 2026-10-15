@@ -23,7 +23,8 @@ FILES = {
 TEST_PACKAGE = 'com.logan.ktoastapp.app.'
 CONSUMER = 'com.logan.ktoast.compatibility'
 SNAPSHOT_MARKERS = {'window': 'WINDOW MANAGER', 'input': 'INPUT MANAGER',
-                    'activity': 'ACTIVITY MANAGER', 'display': 'DISPLAY MANAGER'}
+                    'activity': 'ACTIVITY MANAGER', 'display': 'DISPLAY MANAGER',
+                    'surfaceflinger': 'Build configuration:'}
 
 
 def validate_snapshot(name, content):
@@ -151,7 +152,7 @@ def run_device(api, serial):
     def export_diagnostics(remote, destination):
         # Debug 宿主的 run-as 可访问私有目录，避免依赖外部存储或 root。
         names = adb('shell', 'run-as', 'com.logan.ktoastapp', 'ls', remote).split()
-        if not names or any(name not in ('failure.txt', 'window.txt', 'input.txt', 'activity.txt', 'display.txt')
+        if not names or any(name not in ('failure.txt', 'window.txt', 'input.txt', 'activity.txt', 'display.txt', 'surfaceflinger.txt')
                             for name in names):
             raise ValueError('失败诊断文件列表缺失或不合法')
         destination.mkdir(parents=True, exist_ok=True)
@@ -214,7 +215,7 @@ def run_device(api, serial):
             destination = output / 'diagnostics-selfcheck'
             names = export_diagnostics('files/window-failures/' + diagnostic_run + '/' +
                 TEST_PACKAGE + 'WindowFailureDiagnosticsTest#syntheticFailure', destination)
-            for name in ('failure', 'window', 'input', 'activity', 'display'):
+            for name in ('failure', 'window', 'input', 'activity', 'display', 'surfaceflinger'):
                 file = destination / (name + '.txt')
                 if file.name not in names or not file.is_file() or not file.stat().st_size:
                     raise ValueError('采证设备自检缺失或为空：' + name)
@@ -259,7 +260,8 @@ def run_device(api, serial):
                 report['failureDiagnostics'] = diagnostics
                 for name, service in (
                     ('window', ('window',)), ('input', ('input',)),
-                    ('activity', ('activity', 'activities')), ('display', ('display',))
+                    ('activity', ('activity', 'activities')), ('display', ('display',)),
+                    ('surfaceflinger', ('SurfaceFlinger',))
                 ):
                     try:
                         filename = 'after-run-' + name + '.txt'

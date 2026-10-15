@@ -38,12 +38,13 @@ class WindowFailureDiagnosticsTest {
         }
         assertSame(original, received)
         host.scenario.onActivity { assertFalse(it.isDestroyed) }
-        for (name in listOf("failure", "window", "input", "activity", "display")) {
+        for (name in listOf("failure", "window", "input", "activity", "display", "surfaceflinger")) {
             val file = File(output, "$name.txt")
             assertTrue("Missing or empty diagnostics: $file", file.isFile && file.length() > 0)
         }
         for ((name, marker) in listOf("window" to "WINDOW MANAGER", "input" to "INPUT MANAGER",
-            "activity" to "ACTIVITY MANAGER", "display" to "DISPLAY MANAGER")) {
+            "activity" to "ACTIVITY MANAGER", "display" to "DISPLAY MANAGER",
+            "surfaceflinger" to "Build configuration:")) {
             assertTrue("Invalid dumpsys output: $name", File(output, "$name.txt").readText().contains(marker))
         }
         assertTrue(File(output, "failure.txt").readText().contains(original.message!!))

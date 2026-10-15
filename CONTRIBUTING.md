@@ -75,6 +75,8 @@ python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$AND
 
 设备运行与专用 fixture 见[排障指南](TROUBLESHOOTING.md#设备回归与专用场景)，云端五版本流程见[发布指南](docs/RELEASING.md#云端设备矩阵)。每个结果需关联实际提交、设备与产物，区分通过、失败、跳过和未报告。
 
+云端 CI 在一个构建任务中分步完成候选与消费者验证，再让五个 API 任务消费同批产物；并行上限为 5，实际并发受 GitHub 配额和 runner 可用性限制。Gradle 跨运行缓存由官方 `setup-gradle` 统一管理，`main` 写入、PR/其他分支只读；缓存依赖和 Wrapper，不缓存本轮候选、报告或 APK，也不叠加其他 Gradle 缓存 Action。缓存未命中仍运行完整构建，消费者继续重新解析 SNAPSHOT 并校验本轮 AAR SHA。修改 CI 时核对命令顺序、产物路径及失败归档，并执行 YAML/工作流静态检查；不要仅因 YAML 调整重跑本地设备矩阵，云端缓存和排队效果须另行验收。
+
 ## 报告问题
 
 在 [GitHub Issues](https://github.com/logan0817/KToast/issues) 提供：

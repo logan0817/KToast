@@ -44,6 +44,16 @@ python3 -B tools/verify_central_service.py -- ./gradlew
 
 [Candidate device matrix](https://github.com/logan0817/KToast/actions/workflows/device-matrix.yml) 在构建任务生成同一批 Demo、测试、核心/扩展 R8 APK 和两份 AAR，再由 API 21、30、31、35、36 的设备任务消费。手动触发时明确选择待验收分支，并核对实际运行提交。
 
+设备矩阵的 `max-parallel: 5` 允许五个 API 任务在构建完成后同时运行，每个任务使用独立 runner。实际并发仍受账号配额、其他任务和 runner 可用性限制；该设置减少矩阵内部排队，不缩短构建或单个设备任务，也不修复设备失焦。
+
+构建任务使用固定提交的官方 [`gradle/actions/setup-gradle`](https://github.com/gradle/actions/tree/v5.0.2/setup-gradle) v5.0.2 管理跨运行 Gradle User Home 缓存；主工程仍用 Wrapper 8.14.3，两个消费者仍用各自 Wrapper 7.4.2，共用 JDK 17。不叠加 `setup-java` 的 Gradle 缓存或 `actions/cache`。仅 `main` 写入缓存，PR 和其他分支只读可访问的缓存；缓存缺失时按原命令下载依赖和构建，不跳过任何验证步骤。
+
+缓存复用依赖、Wrapper 分发包、编译脚本和依赖转换结果，排除 `caches/build-cache-*` 与 `caches/keyrings`；不缓存项目构建目录（含候选仓库、受测 APK/AAR 与报告）、用户 `gradle.properties`、签名资料或其他本机配置。不开启配置缓存、Build Scan 发布或依赖图上传。依赖缓存可能包含此前解析的 SNAPSHOT，消费者保持 `cacheChangingModulesFor 0`，每次重新解析，并核对 Debug/Release 实际解析 AAR 与本轮双模块 AAR 的 SHA-256。缓存命中不能作为候选或设备验收证据。
+
+构建任务按依赖顺序展示候选/JVM/Lint/工具回归、签名与 Central 配置回归、核心消费者、生命周期消费者、旧 Java/Kotlin 字节码检查、矩阵输入准备六个步骤；原命令及失败即停止行为保留。它们仍属于一个构建任务，共享工作区与 Gradle 缓存，设备任务只消费同批输入，不重复构建。签名和 Central 回归只检查配置及本地隔离服务，不执行正式签名或真实上传。
+
+优化效果必须由后续获授权的云端运行确认。第 28/29 轮日志中的大块构建步骤分别为 6 分 8 秒、4 分 46 秒，无法可靠拆出其中各命令耗时。下一轮分别记录冷缓存/缓存命中、恢复与保存耗时和大小、六个构建步骤耗时、各设备从构建结束到开始的等待时间、单设备耗时、整轮墙钟时间及所有任务耗时之和（不等同于计费分钟）。同时核验原始 Runner、报告与同批摘要，不能只比较绿灯或总耗时；缓存和并行上限的预期收益不等于已经实现的提速。
+
 本地等价工具入口（先完成上面的所有构建）：
 
 ```bash
@@ -55,11 +65,11 @@ python3 -B tools/run_device_matrix.py --api 35 --serial emulator-5554
 
 安装后、启动 Runner 前执行启动检查：轮询启动完成与有效窗口焦点，等待期限为 60 秒，单次 adb 命令另有超时。当前焦点为 ANR 对话框或系统报告锁屏时立即失败，保存 `preflight-window.txt`、`startupPreflight` 结果及收尾诊断，不自动关闭对话框或重跑。检查通过只说明当时满足启动条件，不能保证测试期间不会出现 ANR。
 
-矩阵启用采证自检，用真实 JUnit 规则触发可控异常，检查原异常保留、宿主销毁前生成快照，并由主机 `run-as` 导出本次私有目录中的五个文件。设备与主机验证系统服务标识。旧系统使用兼容的 `dumpsys` 命令，用例读取端五秒超时，主机收尾命令十五秒超时；采证错误保留原始失败，不重试业务断言。
+矩阵启用采证自检，用真实 JUnit 规则触发可控异常，检查原异常保留、宿主销毁前生成快照，并由主机 `run-as` 导出本次私有目录中的六个文件：`failure.txt`、`window.txt`、`input.txt`、`activity.txt`、`display.txt`、`surfaceflinger.txt`。设备与主机验证系统服务标识；SurfaceFlinger 输出检查 `Build configuration:`，供定位输入层 `NOT_VISIBLE` 与合成层可见性是否一致。旧系统使用兼容的 `dumpsys` 命令，用例读取端五秒超时，主机收尾命令十五秒超时；采证错误保留原始失败，不重试业务断言。
 
 停止/恢复用例使用 Debug 专用的同进程不透明 Activity 遮挡宿主，等待真实生命周期事件并核对 ActivityScenario 状态；恢复后在 finally 中移除观察器。该夹具不进入 Demo Release 或两个库，不修改、跳过或重试业务断言。
 
-普通失败另有宿主清理后、Runner 结束后的收尾快照，这些时间点不能直接证明失焦首次发生时的原因。成功的采证自检也不证明所有偶发窗口故障已经消除。
+普通失败另有宿主清理后、Runner 结束后的收尾快照，也包含 SurfaceFlinger；这些串行采集的快照并非同一时刻，不能直接证明失焦首次发生时的原因。成功的采证自检也不证明所有偶发窗口故障已经消除。
 
 Actions 的输入、构建报告及逐 API 报告保留 **14 天**。验收时下载七份原始 ZIP，核对 GitHub 官方 digest、提交、同批六产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与两个 R8 新进程 PID，并保存运行 URL。不同轮次的部分成功不能拼成最终矩阵。
 
