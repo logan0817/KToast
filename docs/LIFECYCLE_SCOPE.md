@@ -2,7 +2,7 @@
 
 `ktoast-lifecycle` 是独立可选模块，通过 `api` 暴露同版本核心和 `lifecycle-common:2.5.1`。该 Lifecycle 版本仅传递依赖 annotation，不为观察生命周期引入协程、Fragment 或 Compose。应用解析更高 Lifecycle 版本时，其传递依赖可能改变；核心单独接入仍只有 stdlib 1.9.23、Startup 1.1.1。
 
-正式坐标仍是核心 `io.github.logan0817:ktoast:1.1.0`。扩展尚未发布；本地候选仓库 `build/candidate-repository` 提供 `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`，不可直接从 Maven Central 安装。本地仓库配置与构建见[贡献指南](../CONTRIBUTING.md#构建本地候选与消费者)。
+正式扩展坐标为 `io.github.logan0817:ktoast-lifecycle:1.2.0`，从 Maven Central 安装并传递依赖同版核心；核心与扩展版本须保持一致。安装示例见 [README](../README.md#lifecycleowner-扩展)，源码开发与本地候选构建见[贡献指南](../CONTRIBUTING.md#构建本地候选与消费者)。
 
 ## 选择入口
 
@@ -62,7 +62,7 @@ delayed.cancel();
 scope.close();
 ```
 
-Java/Kotlin 独立消费者位于 `tools/compatibility/lifecycle-consumer`，使用 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、JVM 1.8 验证源码和 R8。旧分析器的 metadata 提示仍存在，这一组合的构建和运行结果不代表任意旧编译器可用。设备范围和候选摘要见 [发布检查表](RELEASING.md)。
+Java/Kotlin 独立消费者位于 `tools/compatibility/lifecycle-consumer`，使用 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、JVM 1.8 验证源码和 R8。旧分析器的 metadata 提示仍存在，这一组合的构建和运行结果不代表任意旧编译器可用。设备范围、正式制品摘要和消费者结果见 [1.2.0 验收记录](releases/1.2.0.md)。
 
 ## Demo 与回退
 

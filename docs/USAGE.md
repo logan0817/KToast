@@ -1,6 +1,6 @@
 # 核心用法与样式示例
 
-以下核心 API 已随 1.1.0 发布，适用于当前候选；先完成 [README 安装步骤](../README.md)。页面独有提示优先使用 [Activity 作用域](PAGE_SCOPE.md) 或 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)。
+以下核心 API 从 1.1.0 起可用，适用于当前正式 1.2.0；先完成 [README 安装步骤](../README.md)。页面独有提示优先使用 [Activity 作用域](PAGE_SCOPE.md) 或 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)。
 
 [English](USAGE_EN.md) · [文档导航](README.md)
 

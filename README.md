@@ -10,7 +10,7 @@ KToast 是支持 Kotlin 和 Java 的 Android 提示库。它提供前台自定�
 
 核心支持 Android 5.0+，不依赖 Compose、Material 或协程。全局提示在后台可尝试系统 Toast；页面提示随宿主停止取消，适合保存成功、上传状态等短暂反馈。需要用户操作的提示应评估 Snackbar，重要后台消息应使用通知。
 
-> 当前正式版本为 **1.1.0**。**1.2.0-SNAPSHOT** 已实施，尚未发布到 Maven Central；验收按提交和运行轮次分别记录。新增运行策略与生命周期扩展的接入见下文，逐轮结果与实际覆盖范围见 [1.2.0 验收记录](docs/releases/1.2.0.md)。
+> 当前正式版本为 **1.2.0**，核心与可选 LifecycleOwner 扩展均已发布到 Maven Central。正式仓库文件、签名及两个独立消费者已验收；逐轮 CI、设备覆盖与限制见 [1.2.0 验收记录](docs/releases/1.2.0.md)。
 
 ## 安装
 
@@ -29,14 +29,14 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.1.0")
+    implementation("io.github.logan0817:ktoast:1.2.0")
 }
 ```
 
 Groovy：
 
 ```groovy
-implementation 'io.github.logan0817:ktoast:1.1.0'
+implementation 'io.github.logan0817:ktoast:1.2.0'
 ```
 
 默认通过 AndroidX App Startup 自动初始化，无需额外权限，也无需申请悬浮窗权限。关闭本库自动初始化时，须在 `Application.onCreate` 调用 `KToast.init(this)`；[手动初始化说明](docs/PAGE_SCOPE.md#接入与生命周期)包含 Manifest 配置。
@@ -81,7 +81,7 @@ import com.logan.ktoast.toast
 | --- | --- | --- | --- |
 | 应用全局提示 | `KToast` / `toast` 扩展 | 保留全局控制与后台系统降级规则 | 1.1.0 |
 | 消息属于某个 Activity | `KToastScope` | 取消本轮请求；恢复后作用域可复用 | 1.1.0 |
-| 消息属于 Fragment View 或独立 Owner | `KToastLifecycleScope` | 关闭旧活动期；恢复只接受新请求 | 1.2.0 候选 |
+| 消息属于 Fragment View 或独立 Owner | `KToastLifecycleScope` | 关闭旧活动期；恢复只接受新请求 | 1.2.0 |
 
 三个入口共享同一串行展示队列。Activity 作用域示例：
 
@@ -107,9 +107,9 @@ class EditorActivity : Activity() {
 
 Activity 重建后为新实例创建作用域。窗口约束、输入法避让、无障碍时长、主题、Java 示例和线程约定见 [Activity 作用域](docs/PAGE_SCOPE.md)。
 
-## 1.2.0 候选能力
+## 1.2.0 可选能力
 
-以下 API 需要本地构建的 `1.2.0-SNAPSHOT`，不能与上方正式 `1.1.0` 依赖混用。[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)说明如何生成和消费本地候选。
+以下 API 可直接使用正式 `1.2.0`。运行策略属于核心库；LifecycleOwner 作用域须添加同版可选扩展。源码开发与本地候选验证见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。
 
 ### 可选运行策略
 
@@ -132,7 +132,13 @@ KToast.setRuntimePolicy(
 
 ### LifecycleOwner 扩展
 
-独立模块坐标为 `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`，传递依赖同版核心和 `lifecycle-common:2.5.1`，不额外引入 Fragment、Compose 或协程。单独接入核心不会引入 Lifecycle。
+独立模块坐标为 `io.github.logan0817:ktoast-lifecycle:1.2.0`，传递依赖同版核心和 `lifecycle-common:2.5.1`，不额外引入 Fragment、Compose 或协程。单独接入核心不会引入 Lifecycle。添加扩展时使用同版坐标：
+
+```kotlin
+implementation("io.github.logan0817:ktoast-lifecycle:1.2.0")
+```
+
+扩展传递依赖同版核心，不必重复声明核心依赖；只需运行策略时使用核心即可。
 
 ```kotlin
 import com.logan.ktoast.lifecycle.KToastLifecycleScope
@@ -160,7 +166,7 @@ View 销毁后旧作用域永久关闭，View 重建时重新创建。完整说�
 - [贡献指南](CONTRIBUTING.md)：环境准备、测试和提交约定。
 - [发布指南](docs/RELEASING.md)与[版本路线](docs/ROADMAP.md)。
 
-历史演示动画仅展示基础样式，不代表当前候选的设备验收：
+历史演示动画仅展示基础样式；当前版本的设备验收见上方记录：
 
 <img src="GIF.gif" width="350" alt="KToast 基础提示样式演示" />
 

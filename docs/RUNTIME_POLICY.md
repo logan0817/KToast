@@ -1,6 +1,6 @@
 # 可选运行策略
 
-> 适用于尚未发布的 1.2.0 候选。正式 1.1.0 没有本页 API。[构建本地候选](../CONTRIBUTING.md#构建本地候选与消费者)后使用。
+> 适用于正式 1.2.0 及以上版本；1.1.0 没有本页 API。按 [README](../README.md#安装) 从 Maven Central 添加核心依赖即可使用。
 
 `KToastRuntimePolicy` 为全局、Activity 和 LifecycleOwner 入口设置共享的待处理容量、等待有效期与去重历史容量。三个限制默认均为 `null`，保持 1.1.0 的默认行为；不设置策略即可继续使用旧入口。
 
