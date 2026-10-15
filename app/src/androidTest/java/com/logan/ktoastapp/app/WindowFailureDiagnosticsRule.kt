@@ -35,7 +35,9 @@ class WindowFailureDiagnosticsRule : TestWatcher() {
             )
             for ((name, service) in listOf(
                 "window" to "window", "input" to "input",
-                "activity" to "activity activities", "display" to "display"
+                "activity" to "activity activities", "display" to "display",
+                // 输入层的 NOT_VISIBLE 需要合成层状态解释，窗口焦点快照不足以定位。
+                "surfaceflinger" to "SurfaceFlinger"
             )) {
                 try {
                     // 旧系统不支持 dumpsys -t；读取端限时，超时关闭管道并保留原始失败。

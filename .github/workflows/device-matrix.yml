@@ -49,22 +49,36 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Restore shared Gradle dependencies and Wrapper distributions
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+        with:
+          # PR/其他分支只读 main 缓存；三个工程继续使用各自 Wrapper。
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          # 不跨运行复用任务输出或密钥环；候选、报告与 APK 在本轮生成。
+          gradle-home-cache-excludes: |
+            caches/build-cache-*
+            caches/keyrings
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           # 旧 tools 包已下架；沿用 Action 的 cmdline-tools，只补齐 adb。
           packages: platform-tools
       - name: Provision runner SDK only
         run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;34.0.0' 'build-tools;30.0.3'
-      - name: Build and validate candidate
+      - name: Build candidate, unit tests, library Lint and tool regressions
+        run: bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
+      - name: Verify signing and Central publishing configuration without release
         run: |
-          bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
           python3 -B tools/verify_signing_configuration.py -- bash ./gradlew
           python3 -B tools/verify_central_publishing_configuration.py -- bash ./gradlew
           python3 -B tools/verify_central_service.py -- bash ./gradlew
-          bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
-          bash ./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
-          python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
-          python3 -B tools/run_device_matrix.py --prepare
+      - name: Build independent core consumer Debug and R8 Release
+        run: bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+      - name: Build independent lifecycle consumer Debug and R8 Release
+        run: bash ./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+      - name: Verify frozen Java and Kotlin bytecode consumers
+        run: python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
+      - name: Prepare matrix input with current commit and artifact hashes
+        run: python3 -B tools/run_device_matrix.py --prepare
       - name: Share identical APKs across API levels
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -102,7 +116,7 @@ jobs:
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 5
       matrix:
         include:
           - { api: 21, arch: x86, target: default }

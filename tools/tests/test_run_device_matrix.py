@@ -94,7 +94,8 @@ class DeviceMatrixTest(unittest.TestCase):
 
     def exercise_device(self, *, actual_api='21', instrumentation=PASS, install='Success',
                         diagnostic_failure=None, pull_files=True, instrumentation_timeout=False,
-                        selfcheck=False, selfcheck_files=True, boot='1', window=READY_WINDOW):
+                        selfcheck=False, missing_selfcheck_file=None,
+                        boot='1', window=READY_WINDOW):
         """模拟 adb 协议完成整条入口，验证结果写入和失败收尾；不伪造真实设备证据。"""
         commands = []
         log_reads = 0
@@ -125,7 +126,7 @@ class DeviceMatrixTest(unittest.TestCase):
             elif args[:2] == ['shell', 'dumpsys']:
                 if args[2] == diagnostic_failure and (args[2] != 'window' or window_reads > 0):
                     raise subprocess.TimeoutExpired(command, 15)
-                text = matrix.SNAPSHOT_MARKERS[args[2]] + ' fixture state'
+                text = matrix.SNAPSHOT_MARKERS[args[2].lower()] + ' fixture state'
                 if args[2] == 'window':
                     text = window
                     window_reads += 1
@@ -136,9 +137,9 @@ class DeviceMatrixTest(unittest.TestCase):
                     if args[4].count('/') == 2:
                         text = 'sample.Test#required' if pull_files else ''
                     elif pull_files:
-                        names = ('failure', 'window', 'input', 'activity', 'display') if (
-                            args[4].endswith('WindowFailureDiagnosticsTest#syntheticFailure') and selfcheck_files) else ('window',)
-                        text = ' '.join(name + '.txt' for name in names)
+                        names = ('failure', 'window', 'input', 'activity', 'display', 'surfaceflinger') if (
+                            args[4].endswith('WindowFailureDiagnosticsTest#syntheticFailure')) else ('window',)
+                        text = ' '.join(name + '.txt' for name in names if name != missing_selfcheck_file)
                 elif args[3] == 'cat':
                     name = Path(args[4]).stem
                     text = matrix.SNAPSHOT_MARKERS.get(name, 'failure') + ' fixture state'
@@ -238,12 +239,13 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertIn('实际设备 API', result['error'])
         self.assertFalse(any(command[0] == 'install' for command in commands))
 
-    def test_device_selfcheck_requires_host_export_of_five_nonempty_files(self):
+    def test_device_selfcheck_requires_host_export_of_six_nonempty_files(self):
         result, commands = self.exercise_device(selfcheck=True)
         self.assertTrue(result['success'])
-        self.assertEqual(5, len(result['diagnosticsSelfcheck']['files']))
+        self.assertEqual(6, len(result['diagnosticsSelfcheck']['files']))
         exports = [command for command in commands if command[:4] == ['exec-out', 'run-as', 'com.logan.ktoastapp', 'cat']]
-        self.assertEqual(5, len(exports))
+        self.assertEqual(6, len(exports))
+        self.assertTrue(any(command[4].endswith('/surfaceflinger.txt') for command in exports))
         self.assertTrue(all(command[4].startswith('files/window-failures/') for command in exports))
 
     def test_command_errors_and_empty_outputs_are_not_snapshots(self):
@@ -255,21 +257,24 @@ class DeviceMatrixTest(unittest.TestCase):
     def test_legacy_dumpsys_command_has_no_unsupported_timeout_flag(self):
         _, commands = self.exercise_device(instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'))
         dumps = [command for command in commands if command[:2] == ['shell', 'dumpsys']]
-        self.assertEqual(5, len(dumps))
+        self.assertEqual(6, len(dumps))
+        self.assertIn(['shell', 'dumpsys', 'SurfaceFlinger'], dumps)
         self.assertTrue(all('-t' not in command for command in dumps))
 
     def test_device_selfcheck_missing_file_blocks_consumers(self):
-        result, commands = self.exercise_device(selfcheck=True, selfcheck_files=False)
-        self.assertFalse(result['success'])
-        self.assertIn('采证设备自检缺失或为空', result['error'])
-        self.assertFalse(any(command[:3] == ['shell', 'am', 'start'] for command in commands))
+        for name in ('failure', *matrix.SNAPSHOT_MARKERS):
+            with self.subTest(name=name):
+                result, commands = self.exercise_device(selfcheck=True, missing_selfcheck_file=name)
+                self.assertFalse(result['success'])
+                self.assertIn('采证设备自检缺失或为空', result['error'])
+                self.assertFalse(any(command[:3] == ['shell', 'am', 'start'] for command in commands))
 
     def test_instrumentation_failure_prevents_consumer_launch(self):
         result, commands = self.exercise_device(instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'))
         self.assertFalse(result['success'])
         self.assertEqual(['sample.Test#required'], result['instrumentation']['failed'])
         self.assertFalse(any(command[:3] == ['shell', 'am', 'start'] for command in commands))
-        self.assertEqual({'window', 'input', 'activity', 'display'},
+        self.assertEqual({'window', 'input', 'activity', 'display', 'surfaceflinger'},
                          set(result['failureDiagnostics']['snapshots']))
         self.assertTrue(result['failureDiagnostics']['testFailures']['files'])
         command = next(command for command in commands if command[:3] == ['shell', 'am', 'instrument'])
@@ -280,12 +285,14 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertEqual('files/window-failures/' + run_id, listing[4])
 
     def test_diagnostic_timeout_preserves_original_failure_and_other_snapshots(self):
-        result, _ = self.exercise_device(
-            instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'), diagnostic_failure='window')
-        self.assertIn('设备回归未满足', result['error'])
-        self.assertIn('error', result['failureDiagnostics']['snapshots']['window'])
-        self.assertIn('file', result['failureDiagnostics']['snapshots']['input'])
-        self.assertTrue(result['failureDiagnostics']['testFailures']['files'])
+        for service in ('window', 'SurfaceFlinger'):
+            with self.subTest(service=service):
+                result, _ = self.exercise_device(
+                    instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'), diagnostic_failure=service)
+                self.assertIn('设备回归未满足', result['error'])
+                self.assertIn('error', result['failureDiagnostics']['snapshots'][service.lower()])
+                self.assertIn('file', result['failureDiagnostics']['snapshots']['input'])
+                self.assertTrue(result['failureDiagnostics']['testFailures']['files'])
 
     def test_missing_test_diagnostics_cannot_be_reported_as_collected(self):
         for options in ({'diagnostic_failure': 'pull'}, {'pull_files': False}):
