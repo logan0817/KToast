@@ -24,7 +24,7 @@ onShow 和诊断 SHOWN 表示渲染调用返回，系统 Toast 的完成仍按�
 
 本地生成的文档和签名包不代表对应版本已上传或发布；正式版本以 Maven Central 实际可解析坐标为准。
 
-## 1.2.0 可选运行策略（未发布）
+## 1.2.0 可选运行策略
 
 KToast.setRuntimePolicy(KToastRuntimePolicy) 必须在主线程、初始化后、首个请求或旧延时任务登记前调用。第一次登记原子冻结配置，之后配置抛 IllegalStateException；参数必须为 null 或正数。未设置时三个限制全部为 null，保留 1.1.0 默认行为。
 
@@ -36,6 +36,6 @@ ToastHandle.dropReason 是可跨线程读取的只读附加原因。容量拒绝
 
 限制约束库的登记数和历史条目数，不是进程内存字节上限；主线程阻塞时不能保证回调及时送达。首个登记后不提供动态策略切换。
 
-## 1.2.0 生命周期扩展（未发布）
+## 1.2.0 生命周期扩展
 
 KToastLifecycleScope 位于独立 ktoast-lifecycle 模块，通过每轮 STARTED 的核心作用域实现页面门禁。Fragment 应绑定 viewLifecycleOwner，停止后关闭旧代理，恢复只接受新请求；Owner/宿主结束或显式 close 永久关闭。核心不引入 Lifecycle 依赖。完整示例见 LIFECYCLE_SCOPE.md；扩展另有自己的 API 模块文档。

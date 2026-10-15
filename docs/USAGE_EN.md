@@ -1,6 +1,6 @@
 # Core usage and styling
 
-These core APIs are available in 1.1.0 and the current candidate. Start with [installation](../README_EN.md). For page-owned messages, see [Activity scopes](PAGE_SCOPE.md) or [LifecycleOwner scopes](LIFECYCLE_SCOPE.md) (Chinese).
+These core APIs have been available since 1.1.0 and remain supported in the current 1.2.0 release. Start with [installation](../README_EN.md). For page-owned messages, see [Activity scopes](PAGE_SCOPE.md) or [LifecycleOwner scopes](LIFECYCLE_SCOPE.md) (Chinese).
 
 [简体中文](USAGE.md) · [Documentation index](README.md)
 

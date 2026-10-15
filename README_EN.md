@@ -10,7 +10,7 @@ KToast is an Android toast library for Kotlin and Java. It provides custom foreg
 
 The core supports Android 5.0+ without Compose, Material, or coroutines. Global messages can fall back to a system Toast in the background. Page-scoped messages are canceled when their host stops. For messages that require an action, evaluate Snackbar; for important background information, use notifications.
 
-> The current published version is **1.1.0**. **1.2.0-SNAPSHOT** is implemented and is **not published on Maven Central**; verification results are tracked separately for each commit and workflow run. Runtime policies and LifecycleOwner scopes below require that candidate. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for results from each run, coverage and limits.
+> The current published version is **1.2.0**. The core and optional LifecycleOwner module are available on Maven Central. Repository files, signatures, and two independent consumers have been verified. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for CI results, device coverage, and limits.
 
 ## Installation
 
@@ -29,14 +29,14 @@ Add the published dependency to your app module:
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.1.0")
+    implementation("io.github.logan0817:ktoast:1.2.0")
 }
 ```
 
 Groovy:
 
 ```groovy
-implementation 'io.github.logan0817:ktoast:1.1.0'
+implementation 'io.github.logan0817:ktoast:1.2.0'
 ```
 
 AndroidX App Startup initializes the library automatically. No extra permission or overlay permission is required. If you disable KToast's initializer, call `KToast.init(this)` in `Application.onCreate`; see the [manual initialization instructions](docs/PAGE_SCOPE.md#接入与生命周期) (Chinese) for the Manifest configuration.
@@ -81,7 +81,7 @@ The default mode is `REPLACE`. See [core usage](docs/USAGE_EN.md) for styling, q
 | --- | --- | --- | --- |
 | Application-wide message | `KToast` / `toast` extensions | Keeps global control and system fallback behavior | 1.1.0 |
 | Message owned by an Activity | `KToastScope` | Cancels current requests; the scope can be reused after restart | 1.1.0 |
-| Message owned by a Fragment View or another Owner | `KToastLifecycleScope` | Closes the old session; restart accepts only new requests | 1.2.0 candidate |
+| Message owned by a Fragment View or another Owner | `KToastLifecycleScope` | Closes the old session; restart accepts only new requests | 1.2.0 |
 
 All entry points share one sequential presentation queue. Activity scope example:
 
@@ -107,9 +107,9 @@ class EditorActivity : Activity() {
 
 Create a new scope after Activity recreation. See [Activity scopes](docs/PAGE_SCOPE.md) (Chinese) for window constraints, IME avoidance, accessibility timing, themes, Java examples, and threading rules.
 
-## 1.2.0 candidate features
+## Optional features in 1.2.0
 
-These APIs require a locally built `1.2.0-SNAPSHOT` and are unavailable in the published `1.1.0` dependency above. The [contributing guide](CONTRIBUTING.md#构建本地候选与消费者) (Chinese) explains local candidate generation and consumption.
+These APIs are available in the published `1.2.0` release. Runtime policies belong to the core; LifecycleOwner scopes require the optional module at the same version. The [contributing guide](CONTRIBUTING.md#构建本地候选与消费者) (Chinese) covers source development and local candidate verification.
 
 ### Optional runtime policy
 
@@ -132,7 +132,13 @@ All limits default to `null`, preserving existing behavior. At capacity, accepte
 
 ### LifecycleOwner scopes
 
-The optional module is `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`. It depends on the same core version and `lifecycle-common:2.5.1`, without adding Fragment, Compose, or coroutines. Using the core alone does not add Lifecycle.
+The optional module is `io.github.logan0817:ktoast-lifecycle:1.2.0`. It depends on the same core version and `lifecycle-common:2.5.1`, without adding Fragment, Compose, or coroutines. Using the core alone does not add Lifecycle. Add the optional module at the same version:
+
+```kotlin
+implementation("io.github.logan0817:ktoast-lifecycle:1.2.0")
+```
+
+The module brings in the matching core transitively. Runtime policies alone only require the core.
 
 ```kotlin
 import com.logan.ktoast.lifecycle.KToastLifecycleScope
@@ -159,7 +165,7 @@ The old scope closes permanently when its View is destroyed; create another scop
 - [Sample Activity](app/src/main/java/com/logan/ktoastapp/MainActivity.kt) and [Lifecycle sample](app/src/main/java/com/logan/ktoastapp/LifecycleDemoActivity.kt): build current samples from source.
 - [Contributing](CONTRIBUTING.md), [release guide](docs/RELEASING.md), and [roadmap](docs/ROADMAP.md) (Chinese).
 
-This historical animation demonstrates basic styling, not verification of the current candidate:
+This historical animation demonstrates basic styling. See the verification record above for current device results:
 
 <img src="GIF.gif" width="350" alt="KToast basic styling demonstration" />
 
