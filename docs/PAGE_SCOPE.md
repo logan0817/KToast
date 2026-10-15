@@ -1,6 +1,6 @@
-# Activity 页面作用域（1.1.0）
+# Activity 页面作用域
 
-这些接口已随 1.1.0 发布到 Maven Central，正式安装坐标为 io.github.logan0817:ktoast:1.1.0。接入示例见 [README](../README.md)，验证证据与兼容限制见 [发布检查表](./RELEASING.md)。
+这些接口从 1.1.0 起可用；当前正式安装坐标为 `io.github.logan0817:ktoast:1.1.0`，1.2.0 候选保留其生命周期语义。接入示例见 [README](../README.md)，验证证据与兼容限制见 [1.1.0 发布记录](releases/1.1.0.md)和 [1.2.0 候选记录](releases/1.2.0.md)。
 
 ## 接入与生命周期
 
@@ -66,7 +66,7 @@ class EditorActivity : Activity() {
 - KToast.cancelGroup 按 groupKey 清理所有入口的匹配请求，包括尚未提交的作用域延时请求。
 - 新延时请求返回 ToastHandle，延时从调用时开始调度；页面变化不会转移宿主。旧 toastDelayed 仍返回 Runnable。
 
-队列和旧全局去重历史没有新增默认容量或过期上限。长期高频业务应主动取消请求，后续容量策略另行设计。
+队列和旧全局去重历史没有默认容量或等待过期上限。1.2.0 候选提供显式开启的[运行策略](RUNTIME_POLICY.md)，未启用时保持旧规则。
 
 ## 现代窗口与无障碍适配
 
@@ -150,4 +150,4 @@ val options = KToastScopeOptions(
 
 ## 1.2.0 可选扩展（未发布）
 
-Activity 作用域的停止/恢复语义保持不变。Fragment View 应使用独立 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)，绑定 viewLifecycleOwner；Owner 每次 STARTED 使用新代理，停止后旧请求不复活。所有入口共享显式设置的 KToastRuntimePolicy，容量拒绝和等待过期通过 ToastHandle.dropReason 表达，详见 [API 说明](API.md)。未设置策略保持旧默认行为。
+Activity 作用域的停止/恢复语义保持不变。Fragment View 应使用独立 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)，绑定 viewLifecycleOwner；Owner 每次 STARTED 使用新代理，停止后旧请求不复活。所有入口共享显式设置的 KToastRuntimePolicy，容量拒绝和等待过期通过 ToastHandle.dropReason 表达，详见[运行策略](RUNTIME_POLICY.md)。未设置策略保持旧默认行为。

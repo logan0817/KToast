@@ -1,8 +1,8 @@
-# LifecycleOwner 页面作用域（1.2.0 未发布）
+# LifecycleOwner 页面作用域
 
 `ktoast-lifecycle` 是独立可选模块，通过 `api` 暴露同版本核心和 `lifecycle-common:2.5.1`。该 Lifecycle 版本仅传递依赖 annotation，不为观察生命周期引入协程、Fragment 或 Compose。应用解析更高 Lifecycle 版本时，其传递依赖可能改变；核心单独接入仍只有 stdlib 1.9.23、Startup 1.1.1。
 
-正式坐标仍是核心 `io.github.logan0817:ktoast:1.1.0`。扩展尚未发布；本地候选仓库 `build/candidate-repository` 提供 `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`，不可直接从 Maven Central 安装。
+正式坐标仍是核心 `io.github.logan0817:ktoast:1.1.0`。扩展尚未发布；本地候选仓库 `build/candidate-repository` 提供 `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`，不可直接从 Maven Central 安装。本地仓库配置与构建见[贡献指南](../CONTRIBUTING.md#构建本地候选与消费者)。
 
 ## 选择入口
 
@@ -16,9 +16,12 @@
 
 ## Fragment View 接入
 
-在 `onViewCreated` 中创建并保存作用域，Owner 使用 `viewLifecycleOwner`。这条调用路径已纳入 Demo 编译和设备测试。
+在现有 Fragment 的 `onViewCreated` 中创建并保存作用域，Owner 使用 `viewLifecycleOwner`。这条调用路径已纳入 Demo 编译和设备测试。
 
 ```kotlin
+import android.os.Bundle
+import android.view.View
+import android.widget.Button
 import com.logan.ktoast.lifecycle.KToastLifecycleScope
 
 private lateinit var toastScope: KToastLifecycleScope
@@ -47,6 +50,10 @@ Fragment 自身生命周期可能长于 View，绑定 Fragment 会保留错误�
 Java 可使用静态创建及完整配置对象入口，无需 Kotlin DSL：
 
 ```java
+import com.logan.ktoast.config.KToastConfig;
+import com.logan.ktoast.lifecycle.KToastLifecycleScope;
+import com.logan.ktoast.runtime.ToastHandle;
+
 KToastLifecycleScope scope = KToastLifecycleScope.create(activity, owner);
 KToastConfig config = new KToastConfig();
 ToastHandle handle = scope.show("保存成功", config);
