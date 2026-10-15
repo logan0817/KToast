@@ -55,13 +55,13 @@ class KToastLifecycleOwnerTest {
                 scope = it.page.toastScope
                 delayed = scope.showDelayed("old round", 60_000L)
             }
-            scenario.moveToState(Lifecycle.State.CREATED)
-            assertTrue(delayed.isCanceled)
-            val stopped = scope.show("stopped")
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-            assertTrue(stopped.isCanceled)
-            assertFalse(scope.isClosed)
-            scenario.moveToState(Lifecycle.State.RESUMED)
+            scenario.whileActivityStopped {
+                assertTrue(delayed.isCanceled)
+                val stopped = scope.show("stopped")
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                assertTrue(stopped.isCanceled)
+                assertFalse(scope.isClosed)
+            }
             scenario.onActivity { assertEquals(ToastHandle.State.SHOWING, scope.show("new round").state) }
         }
     }
@@ -86,8 +86,7 @@ class KToastLifecycleOwnerTest {
             worker.start()
             try {
                 assertTrue(entered.await(5, TimeUnit.SECONDS))
-                scenario.moveToState(Lifecycle.State.CREATED)
-                scenario.moveToState(Lifecycle.State.RESUMED)
+                scenario.whileActivityStopped { }
             } finally {
                 release.countDown()
                 worker.join(5_000)
