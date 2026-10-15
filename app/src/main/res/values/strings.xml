@@ -130,4 +130,16 @@
     <string name="demo_toast_app_warning">Please check the network connection.</string>
     <string name="demo_toast_permission_granted">Permission granted. The background path is now available.</string>
     <string name="demo_toast_permission_denied">Permission denied. The background path may be unavailable.</string>
+    <string name="demo_lifecycle_entry">生命周期与容量策略示例</string>
+    <string name="lifecycle_policy_summary">示例策略：待处理 32 条，资格后等待 10 秒，历史 256 条。数值仅用于演示。</string>
+    <string name="lifecycle_switch">A / B 页面切换</string>
+    <string name="lifecycle_rebuild">重建当前页面 View</string>
+    <string name="lifecycle_result">%1$s / %2$s / dropReason=%3$s</string>
+    <string name="lifecycle_no_drop">无</string>
+    <string name="lifecycle_page_guide">页面 %1$s：先发延时提示再切页，旧提示应取消。返回或重建 View 后只接纳新请求。</string>
+    <string name="lifecycle_show">显示本页提示</string>
+    <string name="lifecycle_delayed">3 秒后显示，再切换页面</string>
+    <string name="lifecycle_capacity">容量拒绝：登记 40 条延时请求</string>
+    <string name="lifecycle_expiry">等待过期：串行登记 10 条长提示</string>
+    <string name="lifecycle_cancel">取消本页请求</string>
 </resources>

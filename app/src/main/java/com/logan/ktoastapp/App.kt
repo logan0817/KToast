@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.graphics.Color
 import android.view.Gravity
+import com.logan.ktoast.runtime.KToastRuntimePolicy
 import com.logan.ktoast.KToast
 
 class App : Application() {
@@ -11,6 +12,9 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+        // 示例数值用于演示，应用应按业务调整；首个请求后策略被冻结。
+        KToast.setRuntimePolicy(KToastRuntimePolicy(32, 10_000L, 256))
 
         //✅ 全局配置
         KToast.setDebugMode(isDebuggable).config {

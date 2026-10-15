@@ -14,7 +14,7 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 sys.dont_write_bytecode = True
-from check_public_api import BASELINE, dump_class
+from check_public_api import inspect_api, public_api, compare_api
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_DEPENDENCIES = {
@@ -29,33 +29,37 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def inspect_api_docs(javadoc):
+def inspect_api_docs(javadoc, artifact="ktoast"):
     """文档包必须包含真实首页和关键公开 API 页面，拒绝空包或占位包。"""
     with ZipFile(javadoc) as archive:
         names = archive.namelist()
         require(len(names) == len(set(names)), "API 文档包包含重复文件")
         require("index.html" in names and b"<html" in archive.read("index.html").lower(), "API 文档缺少 HTML 首页")
-        for suffix in (
+        pages = (
             "com.logan.ktoast/-k-toast/index.html",
             "com.logan.ktoast/-k-toast-scope/index.html",
             "com.logan.ktoast/-k-toast-scope-options/index.html",
             "com.logan.ktoast.config/-k-toast-config/index.html",
             "com.logan.ktoast.runtime/-toast-handle/index.html",
-        ):
+            "com.logan.ktoast.runtime/-k-toast-runtime-policy/index.html",
+            "com.logan.ktoast.runtime/-toast-drop-reason/index.html",
+        ) if artifact == "ktoast" else ("com.logan.ktoast.lifecycle/-k-toast-lifecycle-scope/index.html",)
+        for suffix in pages:
             matches = [name for name in names if name.endswith(suffix)]
             require(len(matches) == 1 and b"<html" in archive.read(matches[0]).lower(),
                     "API 文档缺少公开页面: " + suffix)
-        require(not any("-toast-dispatcher/" in name or "-toast-request/" in name for name in names),
+        require(not any("-toast-dispatcher/" in name or "-toast-request/" in name or "-lifecycle-session/" in name for name in names),
                 "API 文档暴露 internal 调度实现")
     return {"size": javadoc.stat().st_size, "sha256": hashlib.sha256(javadoc.read_bytes()).hexdigest()}
 
 
-def inspect_publication(aar, sources, publication, source_dir, javadoc, expected_version=None):
+def inspect_publication(aar, sources, publication, source_dir, javadoc, expected_version=None, artifact="ktoast"):
+    require(artifact in ("ktoast", "ktoast-lifecycle"), "未知模块")
     namespace = {"p": "http://maven.apache.org/POM/4.0.0"}
     pom = ET.parse(publication / "pom-default.xml").getroot()
     module = json.loads((publication / "module.json").read_text(encoding="utf-8"))
     component = module["component"]
-    require(component["group"] == "io.github.logan0817" and component["module"] == "ktoast", "候选发布坐标变化")
+    require(component["group"] == "io.github.logan0817" and component["module"] == artifact, "候选发布坐标变化")
     version = component["version"]
     require(version == expected_version if expected_version is not None else version.endswith("-SNAPSHOT"),
             "发布版本与预期不一致" if expected_version is not None else "候选版本必须为 SNAPSHOT")
@@ -64,6 +68,10 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
         require(pom.findtext("p:" + tag, namespaces=namespace) == expected, "POM/module 坐标或包装不一致: " + tag)
     pom_dependencies = pom.findall("p:dependencies/p:dependency", namespace)
     expected_pom = {(*STDLIB, "compile"), ("androidx.startup", "startup-runtime", "1.1.1", "runtime")}
+    dependencies = EXPECTED_DEPENDENCIES if artifact == "ktoast" else {STDLIB,
+        ("io.github.logan0817", "ktoast", version), ("androidx.lifecycle", "lifecycle-common", "2.5.1")}
+    if artifact == "ktoast-lifecycle":
+        expected_pom = {(*item, "compile") for item in dependencies}
     actual_pom = {
         tuple(node.findtext("p:" + key, namespaces=namespace) for key in ("groupId", "artifactId", "version", "scope"))
         for node in pom_dependencies
@@ -90,7 +98,7 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
     artifacts = {}
     for key, variant in selected.items():
         nodes = variant.get("dependencies", [])
-        expected = {STDLIB} if key == "api" else EXPECTED_DEPENDENCIES if key == "runtime" else set()
+        expected = ({STDLIB} if artifact == "ktoast" else dependencies) if key == "api" else dependencies if key == "runtime" else set()
         actual = {(node["group"], node["module"], node["version"]["requires"]) for node in nodes}
         require(actual == expected and len(nodes) == len(expected), "发布变体依赖变化: " + key)
         require(all(set(node) == {"group", "module", "version"} and set(node["version"]) == {"requires"}
@@ -101,10 +109,10 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
         files = variant.get("files", [])
         require(len(files) == 1, "发布变体缺少或包含额外产物: " + key)
         item = files[0]
-        artifact = sources if key == "sources" else aar
-        expected_name = "ktoast-" + version + ("-sources.jar" if key == "sources" else ".aar")
+        artifact_file = sources if key == "sources" else aar
+        expected_name = artifact + "-" + version + ("-sources.jar" if key == "sources" else ".aar")
         require(item["name"] == expected_name and item["url"] == expected_name, "发布产物名称或地址变化: " + key)
-        content = artifact.read_bytes()
+        content = artifact_file.read_bytes()
         digest = hashlib.sha256(content).hexdigest()
         require(item["size"] == len(content) and item["sha256"] == digest, "发布产物大小或 SHA256 不一致: " + key)
         for algorithm in ("sha512", "sha1", "md5"):
@@ -120,16 +128,16 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
         require(len(entries) == len(set(entries)), "源码包包含重复文件")
         actual_sources = {name: archive.read(name) for name in entries}
     require(actual_sources == expected_sources, "源码包缺失、过期或与当前源码不一致")
-    artifacts["javadoc"] = {"name": "ktoast-" + version + "-javadoc.jar", **inspect_api_docs(javadoc)}
-    return {"coordinate": component, "dependencies": sorted(EXPECTED_DEPENDENCIES),
+    artifacts["javadoc"] = {"name": artifact + "-" + version + "-javadoc.jar", **inspect_api_docs(javadoc, artifact)}
+    return {"coordinate": component, "dependencies": sorted(dependencies),
             "publicationArtifacts": artifacts, "sourceFiles": len(expected_sources)}
 
 
-def inspect(aar, publication, javap, sources, javadoc, expected_version=None):
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+def inspect(aar, publication, javap, sources, javadoc, expected_version=None, artifact="ktoast"):
     report = {"aar": aar.name, "sha256": hashlib.sha256(aar.read_bytes()).hexdigest(), "size": aar.stat().st_size}
-    report.update(inspect_publication(aar, sources, publication, ROOT / "library-android/src/main/java",
-                                      javadoc, expected_version))
+    module_name = "library-android" if artifact == "ktoast" else "library-lifecycle"
+    source_dir = ROOT / module_name / "src/main/java"
+    report.update(inspect_publication(aar, sources, publication, source_dir, javadoc, expected_version, artifact))
     with ZipFile(aar) as archive:
         classes = archive.read("classes.jar")
         manifest = ET.fromstring(archive.read("AndroidManifest.xml"))
@@ -155,27 +163,36 @@ def inspect(aar, publication, javap, sources, javadoc, expected_version=None):
     with tempfile.TemporaryDirectory(prefix="ktoast-api-") as folder:
         jar = Path(folder) / "classes.jar"
         jar.write_bytes(classes)
-        for name, expected in baseline["classes"].items():
-            require(dump_class(javap, jar, name) == expected, "旧公开 JVM API 变化: " + name)
-        for name in ("com.logan.ktoast.KToast", "com.logan.ktoast.KToastScope", "com.logan.ktoast.config.KToastConfig"):
+        if artifact == "ktoast":
+            report.update(inspect_api(javap, jar))
+            metadata_classes = ("com.logan.ktoast.KToast", "com.logan.ktoast.KToastScope", "com.logan.ktoast.config.KToastConfig")
+        else:
+            actual = public_api(javap, jar, source_dir)
+            expected = json.loads((ROOT / "docs/api/ktoast-lifecycle-1.2.0.json").read_text(encoding="utf-8"))["classes"]
+            require(not compare_api(actual, expected, {}), "生命周期公开 API 与审阅清单不符")
+            report["publicApi"] = actual
+            metadata_classes = ("com.logan.ktoast.lifecycle.KToastLifecycleScope",)
+        for name in metadata_classes:
             verbose = subprocess.run([javap, "-v", "-classpath", str(jar), name], check=True, capture_output=True, text=True).stdout
             require("mv=[1,9,0]" in verbose, "Kotlin metadata 版本变化: " + name)
-    report["legacyPublicClasses"] = len(baseline["classes"])
     report["kotlinMetadataVersion"] = [1, 9, 0]
     return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--artifact", choices=("ktoast", "ktoast-lifecycle"), default="ktoast")
     parser.add_argument("--aar", type=Path, default=ROOT / "library-android/build/outputs/aar/library-android-release.aar")
     parser.add_argument("--publication", type=Path, default=ROOT / "library-android/build/publications/release")
     parser.add_argument("--sources", type=Path, default=ROOT / "library-android/build/intermediates/source_jar/release/release-sources.jar")
-    parser.add_argument("--javadoc", type=Path, default=ROOT / "library-android/build/libs/library-android-1.1.0-SNAPSHOT-javadoc.jar")
+    parser.add_argument("--javadoc", type=Path, default=ROOT / "library-android/build/libs/library-android-1.2.0-SNAPSHOT-javadoc.jar")
     parser.add_argument("--javap", default="javap")
-    parser.add_argument("--report", type=Path, default=ROOT / "build/reports/compatibility/candidate.json")
+    parser.add_argument("--report", type=Path)
     args = parser.parse_args()
+    if args.report is None:
+        args.report = ROOT / ("build/reports/compatibility/" + args.artifact + "-candidate.json")
     try:
-        report = inspect(args.aar, args.publication, args.javap, args.sources, args.javadoc)
+        report = inspect(args.aar, args.publication, args.javap, args.sources, args.javadoc, artifact=args.artifact)
     except (ValueError, OSError, KeyError, TypeError, BadZipFile, ET.ParseError, subprocess.CalledProcessError) as error:
         raise SystemExit("候选验证失败: " + str(error))
     args.report.parent.mkdir(parents=True, exist_ok=True)

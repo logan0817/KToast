@@ -6,7 +6,8 @@ internal class ToastDispatcher(
     private val runtime: Runtime,
     private val scheduler: Scheduler,
     private val nowProvider: () -> Long,
-    private val onError: (Exception) -> Unit = {}
+    private val onError: (Exception) -> Unit = {},
+    private val policyProvider: () -> KToastRuntimePolicy = { KToastRuntimePolicy() }
 ) {
 
     fun interface Cancellable {
@@ -23,7 +24,11 @@ internal class ToastDispatcher(
     }
 
     private val queue = ArrayDeque<ToastRequest>()
-    private val acceptedAt = mutableMapOf<Triple<Long?, String, String>, Long>()
+    private val acceptedAt = LinkedHashMap<Triple<Long?, String, String>, Long>(16, 0.75f, true)
+    private val waitingRequests = mutableMapOf<Long, ToastRequest>()
+    private var expiryTask: Cancellable? = null
+    private var expiryDueAt: Long? = null
+    private var expiryGeneration = 0L
     private val operations = ArrayDeque<() -> Unit>()
     private val callbacks = ArrayDeque<() -> Unit>()
     private var draining = false
@@ -43,11 +48,7 @@ internal class ToastDispatcher(
     fun submit(request: ToastRequest): ToastHandle {
         prepare(request)
         dispatch {
-            if (request.handle.isFinished) return@dispatch
-            if (request.handle.isCancellationRequested || request.scope?.canShow() == false) {
-                finishRequest(request, ToastHandle.DismissReason.CANCELED)
-                return@dispatch
-            }
+            if (!acceptWaiting(request)) return@dispatch
             when (request.behavior.displayMode) {
                 KToastDisplayMode.REPLACE -> replaceWith(request)
                 KToastDisplayMode.QUEUE -> enqueueOrShow(request)
@@ -56,6 +57,9 @@ internal class ToastDispatcher(
                         finishRequest(request, ToastHandle.DismissReason.IGNORED)
                     } else {
                         acceptedAt[request.dedupeKey] = nowProvider()
+                        policyProvider().maxDedupeEntries?.let { limit ->
+                            while (acceptedAt.size > limit) acceptedAt.remove(acceptedAt.keys.first())
+                        }
                         enqueueOrShow(request)
                     }
                 }
@@ -63,6 +67,34 @@ internal class ToastDispatcher(
             }
         }
         return request.handle
+    }
+
+    /** 延时请求也登记在同一过期集合中，不等待入队才开始清理。 */
+    fun watch(request: ToastRequest) {
+        dispatch { acceptWaiting(request) }
+    }
+
+    fun reject(request: ToastRequest, reason: ToastDropReason) {
+        dispatch {
+            finishRequest(request, ToastHandle.DismissReason.CANCELED,
+                reason.takeUnless { request.handle.isCancellationRequested })
+        }
+    }
+
+    internal fun dedupeEntryCount(): Int = acceptedAt.size
+
+    private fun acceptWaiting(request: ToastRequest): Boolean {
+        if (request.handle.isFinished) return false
+        if (request.handle.isCancellationRequested || request.scope?.canShow() == false) {
+            finishRequest(request, ToastHandle.DismissReason.CANCELED)
+            return false
+        }
+        if (request.expiresAt?.let { nowProvider() >= it } == true) {
+            dropWaiting(request)
+            return false
+        }
+        waitingRequests[request.handle.id] = request
+        return true
     }
 
     fun onFallbackToSystem(handle: ToastHandle) {
@@ -93,7 +125,8 @@ internal class ToastDispatcher(
         dispatch {
             val active = activeRequest
             activeRequest = null
-            val pending = takeQueuedRequests() + pendingSubmissions
+            val pending = (takeQueuedRequests() + waitingRequests.values + pendingSubmissions)
+                .distinctBy { it.handle.id }
             if (active != null) {
                 cancelRuntime(ToastHandle.DismissReason.CANCELED)
                 finishRequest(active, ToastHandle.DismissReason.CANCELED)
@@ -105,7 +138,8 @@ internal class ToastDispatcher(
     fun cancelGroup(groupKey: String, pendingSubmissions: List<ToastRequest> = emptyList()): Boolean {
         var canceled = false
         dispatch {
-            val matches = queue.filter { it.behavior.groupKey == groupKey }
+            val matches = (queue + waitingRequests.values).filter { it.behavior.groupKey == groupKey }
+                .distinctBy { it.handle.id }
             matches.forEach { queue.remove(it) }
             matches.forEach { finishRequest(it, ToastHandle.DismissReason.CANCELED) }
             pendingSubmissions.filter { it.behavior.groupKey == groupKey }.forEach {
@@ -131,7 +165,8 @@ internal class ToastDispatcher(
 
     fun cancelScope(scopeId: Long, pendingSubmissions: List<ToastRequest> = emptyList()) {
         dispatch {
-            val matches = queue.filter { it.scope?.id == scopeId }
+            val matches = (queue + waitingRequests.values).filter { it.scope?.id == scopeId }
+                .distinctBy { it.handle.id }
             matches.forEach { queue.remove(it) }
             val debounced = debouncedRequests[scopeId]
             clearDebounce(scopeId)
@@ -214,6 +249,13 @@ internal class ToastDispatcher(
             dispatch { promoteNext() }
             return
         }
+        if (request.expiresAt?.let { nowProvider() >= it } == true) {
+            dropWaiting(request)
+            dispatch { promoteNext() }
+            return
+        }
+        waitingRequests.remove(request.handle.id)
+        cleanupRequest(request)
         activeRequest = request
         request.handle.markShowing()
         try {
@@ -238,6 +280,7 @@ internal class ToastDispatcher(
         val previous = debouncedRequests[scopeId]
         clearDebounce(scopeId)
         previous?.let { finishRequest(it, ToastHandle.DismissReason.DEBOUNCED) }
+        request.eligibleAt = ToastTime.add(nowProvider(), request.behavior.windowMillis)
         debouncedRequests[scopeId] = request
         try {
             debounceTasks[scopeId] = scheduler.schedule(request.behavior.windowMillis) {
@@ -287,8 +330,10 @@ internal class ToastDispatcher(
         }
     }
 
-    private fun finishRequest(request: ToastRequest, reason: ToastHandle.DismissReason) {
-        if (!request.handle.markDismissed(reason)) return
+    private fun finishRequest(request: ToastRequest, reason: ToastHandle.DismissReason, drop: ToastDropReason? = null) {
+        if (!request.handle.markDismissed(reason, drop)) return
+        waitingRequests.remove(request.handle.id)
+        cleanupRequest(request)
         if (reason == ToastHandle.DismissReason.CANCELED) {
             request.callbacks.onCancel?.let { callback ->
                 callbacks.addLast { callback(request.handle) }
@@ -298,6 +343,60 @@ internal class ToastDispatcher(
             callbacks.addLast { callback(request.handle, reason) }
         }
         diagnostic(request, KToastDiagnosticEvent.DISMISSED, reason.name)
+    }
+
+    private fun cleanupRequest(request: ToastRequest) {
+        try {
+            request.cleanup?.invoke()
+        } catch (error: Exception) {
+            reportError(error)
+        } finally {
+            request.admission?.release()
+        }
+    }
+
+    private fun dropWaiting(request: ToastRequest) {
+        if (debouncedRequests[request.scope?.id] === request) clearDebounce(request.scope?.id)
+        queue.remove(request)
+        finishRequest(request, ToastHandle.DismissReason.CANCELED, ToastDropReason.EXPIRED)
+    }
+
+    private fun refreshExpiry() {
+        val next = waitingRequests.values.mapNotNull { it.expiresAt }.minOrNull()
+        if (next == expiryDueAt) return
+        expiryGeneration++
+        val generation = expiryGeneration
+        try {
+            expiryTask?.cancel()
+        } catch (error: Exception) {
+            reportError(error)
+        }
+        expiryTask = null
+        expiryDueAt = next
+        if (next == null) return
+        try {
+            expiryTask = scheduler.schedule((next - nowProvider()).coerceAtLeast(0L)) {
+                dispatch {
+                    if (generation != expiryGeneration) return@dispatch
+                    expiryTask = null
+                    expiryDueAt = null
+                    val now = nowProvider()
+                    waitingRequests.values.filter { it.expiresAt?.let { deadline -> now >= deadline } == true }
+                        .toList().forEach { dropWaiting(it) }
+                    promoteNext()
+                }
+            }
+        } catch (error: Exception) {
+            reportError(error)
+            expiryDueAt = null
+            // 无法保证超时清理时终止这些等待项，不能让额度和队列无限滞留。
+            waitingRequests.values.filter { it.expiresAt != null }.toList().forEach {
+                if (debouncedRequests[it.scope?.id] === it) clearDebounce(it.scope?.id)
+                queue.remove(it)
+                diagnostic(it, KToastDiagnosticEvent.ERROR, error.javaClass.name)
+                finishRequest(it, ToastHandle.DismissReason.CANCELED)
+            }
+        }
     }
 
     private fun diagnostic(request: ToastRequest, event: KToastDiagnosticEvent, detail: String? = null) {
@@ -319,6 +418,7 @@ internal class ToastDispatcher(
         try {
             while (operations.isNotEmpty() || callbacks.isNotEmpty()) {
                 while (operations.isNotEmpty()) operations.removeFirst().invoke()
+                refreshExpiry()
                 if (callbacks.isNotEmpty()) {
                     try {
                         callbacks.removeFirst().invoke()

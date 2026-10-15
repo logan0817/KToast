@@ -1,55 +1,69 @@
-# 构建、兼容与排障
+# 排障指南
 
-## 保持现有工具链
+安装与最小示例见 [README](README.md)，开发环境和本地候选构建见 [贡献指南](CONTRIBUTING.md)，签名与上传见 [发布指南](docs/RELEASING.md)。本页集中解释失败现象与诊断方法，当前正式版为 1.1.0，1.2.0 仍是未发布候选。
 
-项目当前使用 AGP 8.6.0、Kotlin 1.9.23、Gradle 8.14.3。构建继续使用现有 JDK 17；库模块的 Java/Kotlin 字节码目标为 1.8，Demo 和 buildSrc 仍为 17。请在 Android Studio 的 Gradle JDK 设置中选择与命令行相同的 JDK。
+## 提示未显示或队列未推进
 
-构建 JDK 与发布字节码目标是两个独立设置。库使用 JavaVersion.VERSION_1_8 和 Kotlin JVM_1_8，减少旧 D8/R8 对高版本类文件的处理限制，并不要求贡献者安装 JDK 8，也不改变 minSdk 或 Kotlin 依赖。Android 最终运行 DEX；Java 标准库 API 是否可用仍由 Android API 版本和 desugaring 决定，不能仅凭字节码目标推断。Kotlin metadata 保持 1.9，旧 Kotlin 编译器或旧 AGP 内置 Lint 的解析限制也不会因此消失。
+先确认调用入口、页面状态和主线程是否正常工作。开启 `KToast.setDebugMode(true)` 查看窗口挂载、内容工厂、渲染和回调异常；日志与 Issue 不应包含业务消息正文或敏感信息。
 
-Gradle 8.14.3 不支持运行在 JDK 25 上；发现此问题时先检查 IDE 与命令行所选 JDK，不通过盲目升级 Gradle、AGP 或 Kotlin 来解决。[AGP 8.6 官方兼容说明](https://developer.android.com/build/releases/past-releases/agp-8-6-0-release-notes) 列出的最高 API 为 35，构建 JDK 为 17；仓库 compileSdk 36 超出其官方支持范围，现有压制提示不代表完整认证。工具链支持范围属于发布前评估项，调整须先评估消费者影响，状态见 [发布检查表](./docs/RELEASING.md)。
+| 现象 | 检查与处理 |
+| --- | --- |
+| 提示框架尚未初始化 | 默认 Startup 是否被移除；手动初始化须在 `Application.onCreate` 调用 `KToast.init(this)` |
+| 后台全局提示不可见 | 系统可能限流、拦截或受 ROM/通知状态影响；降级不是送达保证 |
+| Activity 页面提示取消 | 确认宿主已启动、没有停止/结束；页面作用域不转移到其他页面或系统 Toast |
+| 自定义内容失败 | 工厂在主线程执行，View 不能已有父容器；超大布局可能裁剪，需适应宿主窗口 |
+| 取消后看不到立即清理 | `ToastHandle.cancel()` 返回首次接受取消，工作线程调用的清理与回调在主线程执行；主线程阻塞会推迟完成 |
+| 配置结果不稳定 | 全局样式为可变配置，应在初始化或主线程统一设置，避免边改全局配置边并发提交 |
+
+局部样式 DSL 在调用线程执行，避免在其中操作 View；View 构建放在 `contentFactory`。回调异常被隔离，不能依赖回调抛错阻止后续提示。`onShow` / `SHOWN` 是渲染调用返回，系统 `COMPLETED` 是本地预计时间到达，都不证明实际送达。
+
+Java 使用 `KToast.setDebugMode(boolean)`。1.1.0 已消除旧属性 setter 的源码歧义并保留 JVM 签名；若仍遇到歧义，检查实际解析到的 AAR 是否还是 1.0.5。
+
+## 1.2.0 策略配置失败或消息丢弃
+
+- `IllegalArgumentException`：参数须为 `null` 或正数，零和负数无效。
+- `IllegalStateException`：检查主线程、初始化，以及是否已有有效请求或旧延时任务登记；首次登记后冻结，不能运行时重置。
+- `CAPACITY_EXCEEDED`：容量统计包括准备、队列、防抖与延时。满额时 `REPLACE` 也拒绝，不先取消已有提示。
+- `EXPIRED`：等待有效期从展示资格起算，延时从计划触发、防抖从窗口结束计算；主线程迟到不会重新计时。
+- 普通取消的 `dropReason` 为 `null`；两类丢弃仍使用原 `CANCELED` 状态和原因。
+
+若 1.1.0 找不到这些符号，说明误用了候选示例；先按[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)构建同版候选。完整规则见[运行策略](docs/RUNTIME_POLICY.md)。
+
+## LifecycleOwner 提示不显示
+
+确认同时满足宿主 Activity 有效、Owner 已达到 STARTED、当前作用域未关闭。Fragment 在 `onViewCreated` 中绑定 `viewLifecycleOwner`；View 重建后重新创建，不复用旧作用域。初始未 STARTED 的调用会取消，之后恢复不重放旧请求。
+
+hide/show 或自定义路由若不改变 Owner 的 STARTED 状态，库不会自动推断不可见；业务须显式 `cancel()` 或提供合适的 Owner。`close()` 永久关闭，不能用作临时暂停；应用升级 Lifecycle 后也要检查实际依赖解析图。详见 [LifecycleOwner 作用域](docs/LIFECYCLE_SCOPE.md)。
+
+## JDK、SDK 与依赖下载
+
+仓库使用 JDK 17；Gradle 8.14.3 不支持以 JDK 25 运行。Android Studio 与终端选同一 Gradle JDK，独立消费者也使用 JDK 17，但使用自己的 Gradle 7.4.2 Wrapper。库字节码 JVM 1.8 不要求构建环境安装 JDK 8，也不能据此推断 Android 标准库 API 可用。
+
+[AGP 8.6 官方说明](https://developer.android.com/build/releases/past-releases/agp-8-6-0-release-notes)最高支持 API 35，当前 compileSdk 36 超出范围。`android.suppressUnsupportedCompileSdk` 仅压制提示，不代表官方认证。实际版本、SDK 和命令见[开发环境](CONTRIBUTING.md#开发环境)。
+
+不要先执行 `clean`、删除共享缓存或盲目升级工具链；分析首个有效错误。依赖网络握手失败时，检查现有代理是否被 Gradle 使用。必要时为单次命令传入现有代理的 `-Dhttp.proxyHost`、`-Dhttp.proxyPort`、`-Dhttps.proxyHost`、`-Dhttps.proxyPort`，不要提交个人代理、关闭 TLS 验证或更换为不可信仓库。
+
+## 候选与消费者不一致
+
+生成双模块候选后运行两个独立消费者，命令见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。显式使用 `-PktoastVersion=1.2.0-SNAPSHOT`；`ktoastPublication` 仅接受 `candidate` 和 `staging`，两者都是仓库 `build/` 下的本地目录。
+
+消费者 preBuild 分别核对 Debug 与 Release 实际 AAR SHA，不能只检查文件存在。Staging 构建会覆盖 publication 元数据；测试 SNAPSHOT 前重新生成 Candidate，不混用正式版本和 SNAPSHOT 报告。扩展必须和核心同版。
+
+AGP 7.2.2 的旧 Lint 可能输出 Kotlin metadata 1.9 与分析器期望 1.6 的诊断；JVM 1.8 消除了原高字节码警告，不代表该分析器获得完整支持。仅记录实际构建、运行与限制。
+
+候选报告按模块命名为 `ktoast-candidate.json` 和 `ktoast-lifecycle-candidate.json`。不要使用旧单模块 `candidate.json` 或其他版本的报告代替。正式 API 扫描、冻结字节码、源码消费者、R8 与设备分别验证，单项不能替代整体。
+
+## 设备回归与专用场景
+
+在允许测试安装的专用设备上执行：
 
 ```bash
-java -version
-./gradlew :library-android:testDebugUnitTest :library-android:lintDebug :library-android:assembleRelease :app:assembleDebug :app:assembleDebugAndroidTest --console=plain
+./gradlew :app:connectedDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
 ```
 
-不需要先执行 clean，也不要删除共享 Gradle 缓存。具体失败先分析首个有效错误。Android Studio 共享环境脚本可用于本地运行同一组任务，避免创建独立缓存。
+测试会安装并启动 Demo，设备须解锁、允许前台 Activity 显示。构建通过不等于设备通过，结果应按 API、提交和产物分别记录。云端入口与报告核验见[设备矩阵](docs/RELEASING.md#云端设备矩阵)。普通矩阵不启用下述专用 fixture。
 
-若系统浏览器能下载依赖，而 Java 请求出现 Remote host terminated the handshake，检查系统已有代理是否被 Gradle 使用。可为单次命令传入 `-Dhttp.proxyHost`、`-Dhttp.proxyPort`、`-Dhttps.proxyHost` 和 `-Dhttps.proxyPort`，值必须来自本机现有代理；不要把个人代理写进仓库，也不要关闭 TLS 校验或换成不可信仓库。
-
-## 公开 API 检查
-
-基线来自 Maven Central 发布的 1.0.5 AAR。Release 构建完成后提取 classes.jar，在已有 Python 3.9+ 和 JDK 17 下检查：
-
-```bash
-python3 - <<'PY'
-from zipfile import ZipFile
-from pathlib import Path
-artifact = Path('library-android/build/outputs/aar/library-android-release.aar')
-output = artifact.parent / 'ktoast-api-check-classes.jar'
-output.write_bytes(ZipFile(artifact).read('classes.jar'))
-print(output)
-PY
-python3 tools/check_public_api.py --classes library-android/build/outputs/aar/ktoast-api-check-classes.jar
-```
-
-脚本比较公开类、构造及方法的 JVM 描述符和泛型声明，排除 Kotlin internal 和编译器访问桥接；检查通过仍需执行消费者源码、已编译调用、Kotlin metadata、R8 与设备验证。
-
-## 设备回归
-
-`KToastLifecycleTest` 覆盖入队前工作线程取消、全局取消保留终态、内容构建降级、Activity 重建、View 脱离、立即取消后的内容复用和回调中新请求。`KToastScopeTest` 覆盖页面停止和恢复、关闭、跨作用域隔离、工作线程准备期间的生命周期变化、窗口内容约束、主题和诊断异常。连接专用测试设备后执行：
-
-```bash
-./gradlew :app:connectedDebugAndroidTest --console=plain
-```
-
-测试会安装并启动 Demo，设备需解锁且允许前台 Activity 显示。构建成功不等于设备测试通过；各 API 的结果应单独记录。
-
-Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolbar 保留顶部安全区域。滚动视口止于导航栏上方，重复分发 Insets 不累加 padding。出现 Espresso 的 INJECT_EVENTS 异常时先检查日志中的实际点击目标；若为 NavigationBar，应检查视口与点击坐标，不给应用增加系统注入权限。Demo 点击回归同时检查视口安全边界并执行真实点击。
-
-缺少本地镜像时可使用 [GitHub 云端矩阵](./docs/RELEASING.md#云端设备矩阵)，覆盖 API 21、30、31、35、36。工作流只在托管 Runner 准备镜像，保持项目版本与消费者门槛不变；实际通过状态以发布检查表和对应提交的运行报告为准。普通矩阵不启用下述无障碍、缺口与自由窗口 fixture。
-
-`tools/run_device_matrix.py --prepare` 在候选发布校验与 Demo/测试/消费者 APK 构建后记录输入校验和。设备模式必须显式传入 --api 与 --serial，只接受专用 emulator 设备；会安装 Demo、测试 APK 和独立消费者，执行 Runner 并检查新进程 R8 PASS，不清空 logcat、不修改日常真机。结果写入 build/reports/device-matrix/api-版本/result.json，原始 Runner 与 logcat 一并保留。必需用例跳过或缺失不会通过；未报告项和显式跳过分开记录。工具的解析回归随 tools/tests 一起执行，无需 Android 镜像。
+`KToastLifecycleTest` 与 `KToastScopeTest` 覆盖取消、重入、页面停止恢复、清理和窗口行为；`KToastRuntimePolicyDeviceTest` 与 `KToastLifecycleOwnerTest` 覆盖本版容量、过期、延时转移、Owner 门禁和 View 重建。缺少 fixture 的明确跳过不计成功；SDK 过滤未报告与显式跳过分开记录。
 
 `KToastPlatformTest` 的输入法测试只在 API 30+ 执行，无障碍推荐时长测试只在 API 29+ 执行。后者需要专用测试模拟器把 accessibility_non_interactive_ui_timeout_ms 设为 10000，并给 AndroidJUnitRunner 传入 `-e accessibilityTimeoutFixture true`；缺少该参数时明确跳过，不能计为通过。不要修改使用者日常设备的无障碍设置。测试完成后移除专用模拟器设置或销毁该模拟器。
 
@@ -63,84 +77,18 @@ Demo 的 Insets 在根布局处理底部、侧边系统栏及缺口，在 Toolba
 
 专用模拟器可先记录 `settings get global enable_freeform_support` 与 `settings get global force_resizable_activities` 的原值，再分别用 settings put global 将两项设为 1。测试使用 am start 的 --windowingMode 5 与 am task resize，并在清理阶段恢复 --windowingMode 1；结束后还须恢复原开发者设置。原值为 null 时使用 settings delete global 删除对应项，原值非 null 时写回原值。不要在日常设备上强制改变窗口设置。不同平台可能不支持这些 shell 参数，必须以实际进入模式和改变尺寸的断言为准。
 
-## 提示未显示或队列未推进
+## 设备安装、失焦与采证
 
-开启 `KToast.setDebugMode(true)` 查看窗口挂载、内容工厂、渲染和业务回调异常。调度层隔离业务回调异常并保证内部收尾，日志只用于诊断，不应包含敏感业务消息。
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` 表示同名包签名不兼容，不直接卸载使用者已有应用。改用专用模拟器或独立测试包；若通过临时 init script 改包名，须同步 Runner/消费者预期并记录偏离标准矩阵的范围，不能直接当作标准矩阵证据。
 
-1.0.5 的 debugMode 属性 setter 与静态 setDebugMode(boolean) 在 JVM 中同名，Java 源码直接调用可能出现歧义。1.1.0 将属性 setter 标记为 JVM synthetic，保留原签名和 Kotlin 属性访问，Java 使用静态入口即可；独立 Java/R8 消费者同时验证开关的实际启用和关闭。
+connected 测试因额外平台组件下载受限时，可在 APK 编译后使用 adb 安装并运行对应 AndroidJUnitRunner。锁屏、USB 安装策略或系统确认未完成时，记录未验证，不把 APK 编译成功写成运行成功。
 
-系统降级只能尝试显示：后台限流、通知状态和 ROM 策略可能导致系统 Toast 不可见。当前 onShow 表示渲染调用返回，系统 COMPLETED 表示本地预计时间到达，不代表真实送达。需要用户操作的前台消息应评估 Snackbar，后台重要消息应使用应用自己的通知方案。
+Espresso 出现 `INJECT_EVENTS` 时检查实际点击目标；若命中系统导航栏，检查 Demo 视口和坐标，不给应用增加系统注入权限。Demo 根布局处理底部、侧边与缺口，Toolbar 处理顶部，重复 Insets 不应累加 padding。
 
-`ToastHandle.cancel()` 返回 true 表示接受首次取消请求；工作线程调用的实际清理与回调在主线程执行。终态后再取消返回 false。已显示的自定义提示随宿主停止、销毁或 View 脱离取消；全局未显示请求仍按原策略推进。页面独有消息可使用 [KToastScope](./docs/PAGE_SCOPE.md)，或由旧全局入口配合 groupKey/cancelGroup 清理。全局配置请在初始化或主线程统一设置，不支持一边跨线程修改可变配置、一边并发提交请求。
+`RootViewWithoutFocusException`、IME 未显示或 ActivityScenario 状态超时须保留首个有效错误、Runner 与窗口日志；不能默认归因于库或模拟器，也不能通过增加重试、放宽断言或跳过用例掩盖问题。真实窗口位置、焦点、Insets 与宿主生命周期应分别核对。
 
-后续功能路线见 [docs/ROADMAP.md](./docs/ROADMAP.md)，兼容验证矩阵与发布门槛见 [docs/RELEASING.md](./docs/RELEASING.md)。
+矩阵先检查 `sys.boot_completed`、当前焦点和锁屏标志；`startupPreflight.success=false` 时先检查 `preflight-window.txt` 与 `device-logcat.txt`。ANR 对话框或锁屏会阻止 Runner 启动，启动未完成或无焦点有 60 秒等待期限；单次命令另有超时。此检查不会关闭系统对话框，也不保证测试过程中不再失焦。并发准备测试由停止/恢复转场的驱动线程在 `finally` 中放行并回收工作线程，避免独立准备倒计时在慢设备上先结束；ActivityScenario 和 Runner 原有超时仍有效。
 
-## 已编译消费者样例
+矩阵的 `WindowFailureDiagnosticsTest` 验证真实规则与私有目录导出。诊断使用 `adb shell run-as` / `adb exec-out run-as` 读取当前运行文件；外部存储在旧系统可能未挂载或无权限。旧 `dumpsys` 不支持 `-t`，因此由读取端或主机命令设置超时。命令错误文本或空文件不能作为有效快照。
 
-`tools/compatibility/JavaConsumer.java` 与 `KotlinConsumer.kt` 用于检查旧构造、默认参数、copy、析构和静态入口。先使用发布版 1.0.5 编译这两个样例，然后保持样例字节码不变，把运行时库替换成候选 classes.jar 执行。需要既有 JDK/Kotlin 编译器、对应 stdlib 与 Android SDK 编译桩；不能在正常 JVM 中执行真正的窗口操作。
-
-该样例验证链接与部分纯配置行为，不等于消费者完整 APK 构建，也不涵盖混淆或 Kotlin metadata 的全部兼容性。
-
-## 本地候选发布与真实消费者
-
-使用 Gradle 内置 maven-publish 生成本地 SNAPSHOT，不需要额外发布插件：
-
-```bash
-./gradlew :library-android:publishReleasePublicationToCandidateRepository -PVERSION=1.1.0-SNAPSHOT --console=plain
-python3 tools/verify_candidate.py
-```
-
-Candidate 发布任务仅接受 SNAPSHOT，仓库位于 build/candidate-repository，默认不签名。正式 VERSION 和安装坐标为 1.1.0；1.0.5 仍用于旧 API 兼容基线。verify_candidate.py 检查 minSdk、AAR 元数据、全部类文件版本、旧公开 API、关键 Kotlin metadata、发布坐标与 aar 包装，以及 POM 依赖 scope。module 的 API、运行时与源码变体分别检查依赖、必需产物、文件名、大小和校验和，避免依赖合并掩盖运行时缺项；源码包中的 Kotlin 文件还须与当前源码逐文件一致。javadoc 包由 Dokka 1.9.20 生成，检查 HTML 首页与关键公开页面，拒绝空包和 internal 调度实现暴露。报告写入 build/reports/compatibility/candidate.json。PATH 中的 javap 需可用，也可用 --javap 指定现有 JDK 工具；--sources、--javadoc 可指定待检查源码和文档包。不同候选版本须显式指定对应 javadoc 文件。
-
-也可从项目根目录执行 ./gradlew verifyReleaseCandidate -PVERSION=1.1.0-SNAPSHOT --console=plain，集中运行 JVM 测试、库 Lint、工具回归与候选生成/校验；verifyCandidateArtifacts 自动选择实际版本的文档包及构建 JDK 的 javap。原库发布任务和 Python 命令保持可用。发布实现位于 gradle/release-publishing.gradle.kts，验证入口位于 gradle/release-verification.gradle.kts，公开 POM 字段位于 gradle.properties；消费者与设备运行仍需独立完成。
-
-单独生成文档可执行 :library-android:apiDocsJar，HTML 首页在 library-android/build/docs/api/index.html。Dokka 仅为构建插件，不增加库生产依赖。需要签名发布演练时使用独立本地 Staging 任务，签名方式、Central ZIP 生成和正式审核流程见 [发布检查表](./docs/RELEASING.md#签名与本地正式产物)。本地 Staging 构建会覆盖 build/publications/release 中的版本元数据；验证 SNAPSHOT 消费者前必须重新生成 Candidate，不能将两种版本报告混用。
-
-本机签名需同时传 -PsignPublication=true、-PsigningMode=gpg、--no-configuration-cache，并设置完整 KTOAST_SIGNING_FINGERPRINT。仅选择 gpg 模式不会开启签名。短指纹、与 signing.gnupg.keyName 冲突、配置 signing.gnupg.passphrase 或旧版 GPG 均被拒绝；不将口令写入 Gradle 配置。GPG 找不到私钥或 agent 无法解锁时检查维护者选择的 signing.gnupg.homeDir、signing.gnupg.executable 和本机 pinentry，不换默认密钥或退回内存签名。受控自动化的原内存签名命令及环境变量保持有效。
-
-签名配置回归使用真实 Gradle 配置和空临时密钥环，覆盖开关、模式、指纹、冲突配置与缓存拒绝；不执行签名，也不认证正式密钥可用。CI 自动执行，报告位于 build/reports/signing-modes/configuration.json。本地先选择 Android Studio 相同构建环境，再执行：
-
-```bash
-python3 -B tools/verify_signing_configuration.py -- ./gradlew
-```
-
-也可在 -- 后传入已有构建环境脚本及其固定参数；脚本按顺序执行验证，不创建独立 Gradle 缓存。配置回归成功仍须在隔离测试密钥环演练两种实际签名，正式发布时再核对维护者正式公钥与包签名。
-
-发布校验工具的回归测试使用临时目录中的正确及损坏样本，不改动实际候选。verify_central_deployment.py 使用指定的 Portal 状态快照和下载目录，核对批次 ID、项目名、坐标、正式 ZIP 字节及签名；错误状态、旧下载和缺项不能通过。它不读取上传凭据或查询网络，不能把样例测试写成真实上传验收。命令与报告格式见[发布检查表](./docs/RELEASING.md#maven-central-手工审核流程)。
-
-运行工具回归：
-
-```bash
-python3 -B -m unittest discover -s tools/tests -v
-```
-
-`tools/compatibility/android-consumer` 是独立消费者工程，使用 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、minSdk 21 和 JVM 1.8，仅依赖本地候选坐标。工程包含完整 Gradle Wrapper，按下方命令构建 Debug 与 R8 Release；共享环境脚本运行该独立工程时，应显式指定现有 JDK 17 与 Android SDK，避免默认选到不兼容的 IDE JBR。preBuild 校验消费者实际解析的 AAR 与当前候选 SHA 一致，防止测试到旧 SNAPSHOT。
-
-先完成上方本地候选生成。在同一个终端使用已选择的 JDK 17，并让 ANDROID_HOME 指向已有 Android SDK；从项目根目录执行：
-
-```bash
-(
-    cd tools/compatibility/android-consumer
-    ./gradlew assembleDebug assembleRelease --console=plain
-)
-```
-
-Windows 使用 gradlew.bat 执行同一组任务。Wrapper JAR 和脚本复用根项目已使用的官方启动器，消费者自己的 wrapper 配置固定选择 Gradle 7.4.2，不使用根项目的 Gradle 8.14.3。首次运行若共享缓存缺少该发行包，需要可用网络；不切换到任意系统 Gradle。
-
-默认解析 Candidate 的 1.1.0-SNAPSHOT；签名演练后，可在消费者目录执行下列命令解析本地 Staging 的 1.1.0：
-
-```bash
-./gradlew assembleDebug assembleRelease -PktoastPublication=staging -PktoastVersion=1.1.0 --console=plain
-```
-
-ktoastPublication 只接受 candidate 或 staging，均对应仓库内 build 的本地目录；ktoastVersion 指定明确版本。preBuild 分别核对 Debug 与 Release 实际解析 AAR 的 SHA，须与根项目当前 AAR 一致。正式演练包与 SNAPSHOT 版本不可混用，库重建后需重跑对应消费者构建。
-
-Release 开启 R8 并使用调试签名，仅供本地验证。安装后启动 com.logan.ktoast.compatibility/.ConsumerActivity，界面及 KToastConsumer 日志应出现 PASS，验证旧 Java 入口、新页面 Java/Kotlin、排队和延时取消。构建通过仍需设备冒烟；该工程不作为商店发布应用。
-
-AGP 7.2.2 的实际 R8 构建对原 JVM 17 库字节码发出不正式支持警告，库降为 JVM 1.8 后该警告消失。不过该 AGP 内置 Lint 仍输出 Kotlin metadata 1.9 与其分析器期望 1.6 不一致的诊断。即使构建最终成功，也只能记录该组合的实测构建与冒烟结果，不能承诺其完整 Lint 分析能力或任意旧 AGP 支持。
-
-## 设备上已有同名应用但签名不同
-
-若安装报 INSTALL_FAILED_UPDATE_INCOMPATIBLE，不要直接卸载使用方的已有 Demo。可通过临时 Gradle init script 设置独立 applicationId/testApplicationId 构建验证包，库 namespace 和业务代码保持原值；测试结束只清理本次创建的独立包。
-
-如果 connected 测试因额外测试平台组件下载受限，可在 APK 构建成功后，使用 adb 安装独立 Demo 与测试 APK，再运行对应测试包的 AndroidJUnitRunner。系统安装确认、设备锁屏或 USB 安装策略需要先处理，不能把“APK 编译成功”报告为“设备测试通过”。
+收尾快照与首次失败并非同一时刻，不能仅凭收尾焦点判断完整根因。采证错误只作为附加错误，保留原失败。各轮已确认事实与未解决限制见[验收记录](docs/releases/1.2.0.md)。

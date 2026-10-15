@@ -1,49 +1,49 @@
-# 🍞 KToast
+# KToast
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![Platform](https://img.shields.io/badge/platform-Android-green.svg)
-![Language](https://img.shields.io/badge/language-Kotlin%20%7C%20Java-orange.svg)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/ktoast.svg)](https://central.sonatype.com/artifact/io.github.logan0817/ktoast)
+[![Android](https://img.shields.io/badge/Android-5.0%2B-green.svg)](https://developer.android.com/about/versions/android-5.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-中文文档 [README.md](./README.md)
+[简体中文](README.md) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
-KToast is a modern Android Toast library with automatic initialization, custom foreground rendering, background system fallback, and flexible style configuration for production apps.
+KToast is an Android toast library for Kotlin and Java. It provides custom foreground styling, a shared sequential queue, duplicate filtering, cancelable requests, and scopes tied to a specific page.
 
-The sections below cover dependency setup, default behavior, and common integration paths.
+The core supports Android 5.0+ without Compose, Material, or coroutines. Global messages can fall back to a system Toast in the background. Page-scoped messages are canceled when their host stops. For messages that require an action, evaluate Snackbar; for important background information, use notifications.
 
-## 30-Second Setup
+> The current published version is **1.1.0**. **1.2.0-SNAPSHOT** is implemented and is **not published on Maven Central**; verification results are tracked separately for each commit and workflow run. Runtime policies and LifecycleOwner scopes below require that candidate. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for results from each run, coverage and limits.
 
-### 1. Add repositories
+## Installation
 
-`settings.gradle.kts` or root `build.gradle.kts`:
+Add Maven Central to your repositories in `settings.gradle.kts`:
 
 ```kotlin
 dependencyResolutionManagement {
     repositories {
+        google()
         mavenCentral()
     }
 }
 ```
 
-### 2. Add dependency
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.logan0817/ktoast.svg?label=Latest%20Release)](https://central.sonatype.com/artifact/io.github.logan0817/ktoast)
-
-Module `build.gradle.kts`:
+Add the published dependency to your app module:
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.1.0") // Replace with the latest version shown by the badge above
+    implementation("io.github.logan0817:ktoast:1.1.0")
 }
 ```
 
 Groovy:
 
-```gradle
-dependencies {
-    implementation 'io.github.logan0817:ktoast:1.1.0' // Replace with the latest version shown by the badge above
-}
+```groovy
+implementation 'io.github.logan0817:ktoast:1.1.0'
 ```
 
-### 3. Show your first Toast
+AndroidX App Startup initializes the library automatically. No extra permission or overlay permission is required. If you disable KToast's initializer, call `KToast.init(this)` in `Application.onCreate`; see the [manual initialization instructions](docs/PAGE_SCOPE.md#接入与生命周期) (Chinese) for the Manifest configuration.
+
+## Quick start
+
+Kotlin:
 
 ```kotlin
 import com.logan.ktoast.toast
@@ -51,406 +51,118 @@ import com.logan.ktoast.toast
 "Saved".toast()
 ```
 
-> Manual initialization is not required by default. KToast auto-initializes through Jetpack App Startup unless you explicitly disable it.
-
-## Default Behavior
-
-These are the 4 default rules most users care about first:
-
-1. Initialization: automatic by default. Only call `KToast.init(app)` if you disable App Startup.
-2. Display policy: default mode is `REPLACE`.
-3. Foreground vs background: the legacy global API prefers custom UI in the foreground and attempts system fallback in the background or without a valid Activity. The 1.1 Activity scope cancels when its host stops and never transfers to system Toast.
-4. Threading: window operations and callbacks run on the main thread. Per-call style DSL runs on the calling thread and should avoid View operations.
-
-## Quick Start
-
-### Minimal usage
-
-```kotlin
-import com.logan.ktoast.toast
-
-fun showSavedToast() {
-    "Saved".toast()
-}
-```
-
-### Global style
-
-```kotlin
-import android.app.Application
-import android.graphics.Color
-import android.view.Gravity
-import com.logan.ktoast.KToast
-
-class MyApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        KToast.setDebugMode(BuildConfig.DEBUG).config {
-            textColor = Color.WHITE
-            backgroundColor = Color.parseColor("#E6323232")
-            backgroundRadius = 24f
-            gravity = Gravity.CENTER
-            yOffset = 0
-            textSize = 14f
-        }
-    }
-}
-```
-
-### Per-call style override
-
-```kotlin
-import android.graphics.Color
-import com.logan.ktoast.toast
-
-"Uploaded".toast {
-    backgroundColor = Color.parseColor("#2E7D32")
-    textColor = Color.WHITE
-    icon = android.R.drawable.ic_dialog_info
-    backgroundRadius = 50f
-}
-```
-
-### Java usage
+Java:
 
 ```java
-import android.graphics.Color;
 import android.widget.Toast;
 import com.logan.ktoast.KToast;
-import kotlin.Unit;
 
-KToast.setDebugMode(BuildConfig.DEBUG);
-
-KToast.config(config -> {
-    config.setBackgroundColor(Color.RED);
-    return Unit.INSTANCE;
-});
-
-KToast.show("Hello from Java", Toast.LENGTH_SHORT);
-KToast.showDebug("Debug only");
-Runnable task = KToast.showDelayed("Show after 2 seconds", 2000L);
-KToast.cancelDelayed(task);
+KToast.show("Saved", Toast.LENGTH_SHORT);
 ```
 
-## Common Scenarios
-
-### 1. Delayed show and revoke
-
-```kotlin
-import com.logan.ktoast.KToast
-import com.logan.ktoast.toastDelayed
-
-val task = "Show after 2 seconds".toastDelayed(2000L)
-KToast.cancelDelayed(task)
-```
-
-### 2. Tap to dismiss
-
-```kotlin
-import com.logan.ktoast.toast
-
-"Tap me to dismiss".toast {
-    cancelOnTouch = true
-    animationDuration = 500L
-}
-```
-
-### 3. Queue mode
-
-```kotlin
-import com.logan.ktoast.toastHandle
-import com.logan.ktoast.runtime.KToastDisplayMode
-
-listOf("Upload 1", "Upload 2", "Upload 3").forEach { message ->
-    message.toastHandle(
-        behavior = {
-            displayMode = KToastDisplayMode.QUEUE
-            groupKey = "upload"
-        }
-    )
-}
-```
-
-### 4. Cancel by group
-
-```kotlin
-import com.logan.ktoast.KToast
-
-KToast.cancelGroup("upload")
-```
-
-### 5. Ignore duplicate messages within a window
-
-```kotlin
-import com.logan.ktoast.toastHandle
-import com.logan.ktoast.runtime.KToastDisplayMode
-
-"Saved".toastHandle(
-    behavior = {
-        displayMode = KToastDisplayMode.IGNORE_IF_SAME
-        windowMillis = 1500L
-    }
-)
-```
-
-### 6. Custom content View
-
-Build the view directly in code:
-
-```kotlin
-import android.widget.TextView
-import com.logan.ktoast.toastHandle
-import com.logan.ktoast.runtime.KToastContentFactory
-
-"Custom layout".toastHandle {
-    contentFactory = KToastContentFactory { context, message, config ->
-        TextView(context).apply {
-            text = ">>> $message"
-            setTextColor(config.textColor)
-            setPadding(32, 20, 32, 20)
-        }
-    }
-}
-```
-
-Reference an XML layout:
-
-`res/drawable/bg_toast_custom.xml`
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#E6323232" />
-    <corners android:radius="20dp" />
-</shape>
-```
-
-`res/layout/view_toast_custom.xml`
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:background="@drawable/bg_toast_custom"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:id="@+id/tvToastTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Upload status"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvToastMessage"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp" />
-</LinearLayout>
-```
-
-```kotlin
-import android.content.res.ColorStateList
-import android.view.LayoutInflater
-import android.widget.TextView
-import com.logan.ktoast.toastHandle
-import com.logan.ktoast.runtime.KToastContentFactory
-
-"Uploaded".toastHandle {
-    contentFactory = KToastContentFactory { context, message, config ->
-        LayoutInflater.from(context)
-            .inflate(R.layout.view_toast_custom, null, false)
-            .apply {
-                backgroundTintList = ColorStateList.valueOf(config.backgroundColor)
-                findViewById<TextView>(R.id.tvToastTitle).text = "Upload status"
-                findViewById<TextView>(R.id.tvToastMessage).apply {
-                    text = message
-                    textSize = config.textSize
-                    setTextColor(config.textColor)
-                }
-            }
-    }
-}
-```
-
-### 7. App-level wrapper
-
-You should keep business semantics inside your app layer instead of hard-coding them into every screen.
-
-See [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt):
+Per-call styling:
 
 ```kotlin
 import android.graphics.Color
-import com.logan.ktoast.config.KToastConfig
 import com.logan.ktoast.toast
 
-fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#4CAF50")
-        icon = android.R.drawable.ic_dialog_info
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
+"Upload complete".toast {
+    backgroundColor = Color.parseColor("#2E7D32")
+    textColor = Color.WHITE
+    animationDuration = 150L
 }
+```
 
-fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_dialog_alert
-        iconColor = Color.WHITE
-        block?.invoke(this)
+The default mode is `REPLACE`. See [core usage](docs/USAGE_EN.md) for styling, queueing, debouncing, duplicate filtering, group cancellation, delays, callbacks, and custom Views.
+
+## Choose an entry point
+
+| Use case | Entry point | When the page stops | Available in |
+| --- | --- | --- | --- |
+| Application-wide message | `KToast` / `toast` extensions | Keeps global control and system fallback behavior | 1.1.0 |
+| Message owned by an Activity | `KToastScope` | Cancels current requests; the scope can be reused after restart | 1.1.0 |
+| Message owned by a Fragment View or another Owner | `KToastLifecycleScope` | Closes the old session; restart accepts only new requests | 1.2.0 candidate |
+
+All entry points share one sequential presentation queue. Activity scope example:
+
+```kotlin
+import android.app.Activity
+import android.os.Bundle
+import com.logan.ktoast.KToastScope
+
+class EditorActivity : Activity() {
+    private lateinit var toastScope: KToastScope
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        toastScope = KToastScope.create(this)
     }
-}
 
-fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_alert
-        iconColor = Color.WHITE
-        block?.invoke(this)
+    // Call from a click or another event after the page starts.
+    fun onSaved() {
+        toastScope.show("Saved")
     }
 }
 ```
 
-The example uses built-in Android drawables so it compiles out of the box. Replace them with your own brand assets in a real app.
+Create a new scope after Activity recreation. See [Activity scopes](docs/PAGE_SCOPE.md) (Chinese) for window constraints, IME avoidance, accessibility timing, themes, Java examples, and threading rules.
 
-## Common Configs
+## 1.2.0 candidate features
 
-These are the high-frequency options most users tweak first:
+These APIs require a locally built `1.2.0-SNAPSHOT` and are unavailable in the published `1.1.0` dependency above. The [contributing guide](CONTRIBUTING.md#构建本地候选与消费者) (Chinese) explains local candidate generation and consumption.
 
-| Option | Type | Default | Description            |
-| :--- | :--- | :--- |:-----------------------|
-| `textColor` | Int | `White` | Text color             |
-| `backgroundColor` | Int | `#E6323232` | Background color       |
-| `backgroundRadius` | Float | `24f` | Corner radius          |
-| `gravity` | Int | `BOTTOM + CENTER_HORIZONTAL` | Position               |
-| `xOffset` | Int | `0` | Horizontal offset in px |
-| `yOffset` | Int | System value at initialization; 64dp fallback | Offset in px; raw config starts at 64px |
-| `animationDuration` | Long | `250` | Animation duration     |
-| `cancelOnTouch` | Boolean | `false` | Dismiss on tap         |
-| `icon` | Int? | `null` | Icon resource          |
-| `maxLines` | Int | `4` | Max text lines         |
-| `contentFactory` | `KToastContentFactory?` | `null` | Custom content factory |
+### Optional runtime policy
 
-For the full set, see [KToastConfig.kt](./library-android/src/main/java/com/logan/ktoast/config/KToastConfig.kt).
-
-## FAQ
-
-### 1. Why does it work without calling `init()`?
-
-Because App Startup is enabled by default. Only call this manually if you disable it:
+Configure on the main thread, after initialization and before registering the first request or delayed task:
 
 ```kotlin
 import com.logan.ktoast.KToast
+import com.logan.ktoast.runtime.KToastRuntimePolicy
 
-KToast.init(application)
-```
-
-### 2. Why is foreground custom but background system-native?
-
-That is the legacy global API's fallback policy: it prefers custom rendering in the foreground and attempts system Toast in the background or without a valid Activity. The 1.1 Activity scope cancels when its host stops or rendering fails, without transferring to another Activity or system Toast.
-
-### 3. Why is this needed on Android 11+?
-
-Because Android 11+ limits traditional custom Toast approaches. KToast uses a `WindowManager` path in the foreground to keep the experience stable.
-
-### 4. Why does the background demo sometimes not show?
-
-Background system Toasts are still affected by notification permission and OEM ROM policy. You can review permission state directly in the Demo page before trying the background path.
-
-### 5. Do I need extra ProGuard rules?
-
-Usually no. The library already ships with `consumer-rules.pro`.
-
-## Demo and Source Entry Points
-
-1. The sample app lives in the [`app`](./app) module.
-2. [MainActivity.kt](./app/src/main/java/com/logan/ktoastapp/MainActivity.kt) contains the current Demo page and its capability entry points.
-3. App-level wrapper examples live in [AppToastExt.kt](./app/src/main/java/com/logan/ktoastapp/AppToastExt.kt).
-4. The repository retains a [historical Demo APK](./app/apk/app-debug.apk). Build from source to try the current 1.1.0 features; the archived APK does not verify the new features.
-
-## Advanced Capabilities
-
-### 1. Lifecycle callbacks
-
-```kotlin
-import com.logan.ktoast.toastHandle
-import com.logan.ktoast.runtime.KToastCallbacks
-
-"Submitting".toastHandle(
-    callbacks = KToastCallbacks(
-        onShow = { println("shown: ${it.id}") },
-        onDismiss = { _, reason -> println("dismissed: $reason") }
+KToast.setRuntimePolicy(
+    KToastRuntimePolicy(
+        maxPendingRequests = 32,
+        maxQueueWaitMillis = 10_000L,
+        maxDedupeEntries = 256
     )
 )
 ```
 
-### 2. Debug-only toasts
+All limits default to `null`, preserving existing behavior. At capacity, accepted requests are retained and new ones are rejected, including `REPLACE`. Waiting expiry does not interrupt a displayed message. The numbers are examples, not recommended production settings. See [runtime policies](docs/RUNTIME_POLICY.md) (Chinese) for detailed rules and `dropReason`.
+
+### LifecycleOwner scopes
+
+The optional module is `io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT`. It depends on the same core version and `lifecycle-common:2.5.1`, without adding Fragment, Compose, or coroutines. Using the core alone does not add Lifecycle.
 
 ```kotlin
-import com.logan.ktoast.debugShow
+import com.logan.ktoast.lifecycle.KToastLifecycleScope
 
-"Shown only in debug mode".debugShow()
+// Create and retain in Fragment.onViewCreated.
+val toastScope = KToastLifecycleScope.create(requireActivity(), viewLifecycleOwner)
+// Register an event on this View; click after the page reaches STARTED.
+view.setOnClickListener { toastScope.show("Saved") }
 ```
 
-### 3. Internal call flow
+The old scope closes permanently when its View is destroyed; create another scope for the new View. See [LifecycleOwner scopes](docs/LIFECYCLE_SCOPE.md) (Chinese).
 
-Call-flow overview:
+## Compatibility and behavior
 
-![KToast call flow](./docs/images/toast-call-flow-en.svg)
+- Minimum runtime: API 21. Library bytecode: JVM 1.8. Kotlin metadata: 1.9. These do not guarantee support for every older compiler or AGP.
+- Core production dependencies: Kotlin stdlib 1.9.23 and AndroidX Startup 1.1.1. Tested consumer combinations and Android versions are recorded in the [verification record](docs/releases/1.2.0.md) (Chinese).
+- Window operations, content factories, and callbacks run on the main thread. Per-call configuration runs on the calling thread. Configure mutable global styles during initialization or centrally on the main thread.
+- `onShow` / `SHOWN` means the render call returned. System Toast completion uses a local timer. Neither guarantees that the user saw the message.
+- Extra ProGuard rules are usually unnecessary. See [troubleshooting](TROUBLESHOOTING.md) (Chinese) for integration, fallback, lifecycle, and toolchain issues.
 
-## 1.1.0: Activity scopes and stability
+## Documentation and sample
 
-Version 1.1.0 provides Activity scope, delayed handles, window constraints, optional IME avoidance, accessibility timeout, theme options, and diagnostics. See [Activity scopes (Chinese)](./docs/PAGE_SCOPE.md) for lifecycle rules, Java examples, and limitations. The stability fixes below are included in this release.
+- [Documentation index](docs/README.md): user guides, API, maintenance, and design records. Detailed guides are primarily in Chinese; this README and [core examples](docs/USAGE_EN.md) are available in English.
+- [Sample Activity](app/src/main/java/com/logan/ktoastapp/MainActivity.kt) and [Lifecycle sample](app/src/main/java/com/logan/ktoastapp/LifecycleDemoActivity.kt): build current samples from source.
+- [Contributing](CONTRIBUTING.md), [release guide](docs/RELEASING.md), and [roadmap](docs/ROADMAP.md) (Chinese).
 
-Version 1.1.0 was published to Maven Central on 2026-10-13. This release retains Android 5.0+, Kotlin 1.9.23, Startup 1.1.1, and the existing public API. Compose, Material, and coroutines are not added to the core dependency graph.
+This historical animation demonstrates basic styling, not verification of the current candidate:
 
-The library emits JVM 1.8 bytecode while this repository still builds with JDK 17, reducing class-file restrictions in older D8/R8 versions. Kotlin metadata and dependency requirements remain unchanged; see the release checklist for tested combinations and limitations. The Demo's basic and regular delayed actions use Activity scopes to demonstrate cancellation when the page stops.
-
-- Replacement and cancellation complete internal transitions before delivering callbacks, so callback reentry does not orphan old handles.
-- `ToastHandle.cancel()` accepts cancellation from a worker thread and before main-thread submission. `true` means the first cancellation request was accepted; cleanup and callbacks run on the main thread. Repeated or terminal cancellation returns `false`.
-- Callback exceptions are isolated and reported in Debug mode. Terminal callbacks run at most once.
-- The global API attempts system fallback if content creation or window attachment fails. Activity scopes cancel on failure and never transfer to another page or system Toast. Final rendering failure terminates with the existing `CANCELED` reason to retain enum compatibility.
-- A displayed custom toast is canceled when its host stops, is destroyed, or its content detaches. Tasks and listeners are released. The existing global queue continues independently; Activity scopes cancel all pending requests for their page.
-- Immediate cancellation removes a registered window even before the content attaches; the same custom View can be reused after cleanup.
-- `KToast.cancel()` cancels active, queued, debounced, pending main-thread submissions, and delayed tasks. New requests submitted from terminal callbacks survive.
-
-`onShow` retains its existing meaning: the rendering call returned. System completion still uses a local estimated timer. System queueing, throttling, or suppression can prevent display; fallback and completion do not guarantee delivery.
-
-See the [changelog (Chinese)](./CHANGELOG.md) for version changes, the [version roadmap (Chinese)](./docs/ROADMAP.md) for planned extensions, the [release checklist (Chinese)](./docs/RELEASING.md) for validation and release gates, and [build troubleshooting (Chinese)](./TROUBLESHOOTING.md) for contributor setup.
-
-## Compatibility Notes
-
-1. Platform: Android 5.0+. 
-2. The legacy global API prefers foreground custom rendering and attempts background system fallback; Activity scopes cancel when their host stops.
-3. Kotlin first, Java compatible. 
-4. This repo contains both the library module and the Demo app.
-5. Effect Demonstration <img src="GIF.gif" width="350" />
+<img src="GIF.gif" width="350" alt="KToast basic styling demonstration" />
 
 ## License
 
-```text
-MIT License
-
-Copyright (c) 2026 Logan Gan
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+[MIT License](LICENSE). Copyright © 2026 Logan Gan.

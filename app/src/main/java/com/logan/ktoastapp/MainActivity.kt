@@ -88,6 +88,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setListeners() {
+        binding.btnLifecycleDemo.setOnClickListener {
+            startActivity(Intent(this, LifecycleDemoActivity::class.java))
+        }
         binding.btnBasic.setOnClickListener {
             pageToastScope.show(getString(R.string.demo_toast_basic))
             recordAction(R.string.demo_basic_toast, R.string.demo_guide_try_style)

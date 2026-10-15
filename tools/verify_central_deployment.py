@@ -33,27 +33,35 @@ def verify(bundle, bundle_report, status_file, deployment_id, downloads, public_
     require(status.get("deploymentName") == identity["name"], "Portal 批次名称不一致")
     require(status.get("deploymentState") == "VALIDATED", "Portal 批次尚未 VALIDATED 或已进入其他状态")
     require(status.get("errors") == {}, "Portal 存在校验错误或缺少错误字段")
-    purl = "pkg:maven/io.github.logan0817/ktoast@" + version
+    modules = report.get("modules", {"ktoast": report})
+    require(set(modules) in ({"ktoast"}, {"ktoast", "ktoast-lifecycle"}), "远端模块集合不一致")
     purls = status.get("purls")
+    expected_purls = {"pkg:maven/io.github.logan0817/" + artifact + "@" + version for artifact in modules}
     require(isinstance(purls, list) and bool(purls) and len(purls) == len(set(purls)) and
-            set(purls) <= {purl, purl + "?type=aar"}, "Portal 包含其他坐标或缺少坐标")
-    names = ["ktoast-" + version + suffix for suffix in
+            {purl.removesuffix("?type=aar") for purl in purls} == expected_purls, "Portal 包含其他坐标或缺少坐标")
+    names = [artifact + "-" + version + suffix for artifact in modules for suffix in
              (".aar", "-sources.jar", "-javadoc.jar", ".pom", ".module")]
     required = set(names + [name + ".asc" for name in names])
     allowed = required | {name + "." + algorithm for name in names
                           for algorithm in ("md5", "sha1", "sha256", "sha512")}
-    relative = GROUP_PATH / version
+    paths = {name: (GROUP_PATH.parent / artifact / version / name).as_posix()
+             for artifact in modules for name in allowed if name.startswith(artifact + "-" + version)}
+    multi = "modules" in report
+    for artifact, module in modules.items():
+        require(all(module.get("coordinate", {}).get(key) == value for key, value in
+                    {"group": "io.github.logan0817", "module": artifact, "version": version}.items())
+                and module.get("source") == source and module.get("deployment") == identity, "模块坐标或源码与发布包不一致")
     with ZipFile(bundle) as archive:
         entries = archive.namelist()
-        expected = {(relative / name).as_posix() for name in allowed}
+        expected = set(paths.values())
         require(len(entries) == len(set(entries)) and set(entries) == expected,
                 "上传 ZIP 包含缺失、重复或非预期文件")
-        require(set(report.get("files", {})) == allowed, "本地报告缺少逐文件校验值")
+        require(set(report.get("files", {})) == (expected if multi else allowed), "本地报告缺少逐文件校验值")
         checked = {}
         for name in sorted(allowed):
-            content = archive.read((relative / name).as_posix())
+            content = archive.read(paths[name])
             item = {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
-            require(item == report["files"][name], "ZIP 与报告中的文件不一致: " + name)
+            require(item == report["files"][paths[name] if multi else name], "ZIP 与报告中的文件不一致: " + name)
             path = downloads / name
             # 下载目录由维护者按本次 ID 建立；必需十个制品/签名，校验文件如有也必须一致。
             if name in required or path.exists() or path.is_symlink():

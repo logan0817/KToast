@@ -23,3 +23,19 @@ KToastScope.create 必须在主线程调用。显示、句柄取消、作用域 
 onShow 和诊断 SHOWN 表示渲染调用返回，系统 Toast 的完成仍按本地时间估计，不保证用户实际看到提示。诊断 ERROR 的 detail 只包含异常类型，不包含消息正文。
 
 本地生成的文档和签名包不代表对应版本已上传或发布；正式版本以 Maven Central 实际可解析坐标为准。
+
+## 1.2.0 可选运行策略（未发布）
+
+KToast.setRuntimePolicy(KToastRuntimePolicy) 必须在主线程、初始化后、首个请求或旧延时任务登记前调用。第一次登记原子冻结配置，之后配置抛 IllegalStateException；参数必须为 null 或正数。未设置时三个限制全部为 null，保留 1.1.0 默认行为。
+
+- maxPendingRequests：全库有效待处理总数，含配置准备、待主线程接纳、队列、防抖和延时；展示中的请求不占额度。满额保留已接纳请求，拒绝新请求，不执行拒绝请求的 DSL。REPLACE 在满额时同样拒绝，不取消现有提示。
+- maxQueueWaitMillis：从具备展示资格起算等待有效期。普通请求从调用、延时从计划触发、防抖从窗口结束计算；迟到执行不重新计时。使用 uptime 单调时钟和饱和加法，向 Handler 提交绝对截止点避免平台相对延时加法溢出；一个最早截止任务清理所有到期等待项；展示开始后不受等待有效期约束。
+- maxDedupeEntries：访问顺序 LRU 条目上限。淘汰后相同消息可能再次接受；不按历史窗口清扫所有键，保留各请求可采用不同窗口的语义。
+
+ToastHandle.dropReason 是可跨线程读取的只读附加原因。容量拒绝为 CAPACITY_EXCEEDED，等待过期为 EXPIRED，两者仍以旧 State.CANCELED / DismissReason.CANCELED 结束；普通取消和正常完成为 null。主线程唯一终态先设置原因、清理任务再发送 onCancel/onDismiss，各最多一次；不发送 onShow。正在执行的 DSL 不强制中断，取消后退出准备才归还额度；DSL 抛错释放额度并继续传播异常。
+
+限制约束库的登记数和历史条目数，不是进程内存字节上限；主线程阻塞时不能保证回调及时送达。首个登记后不提供动态策略切换。
+
+## 1.2.0 生命周期扩展（未发布）
+
+KToastLifecycleScope 位于独立 ktoast-lifecycle 模块，通过每轮 STARTED 的核心作用域实现页面门禁。Fragment 应绑定 viewLifecycleOwner，停止后关闭旧代理，恢复只接受新请求；Owner/宿主结束或显式 close 永久关闭。核心不引入 Lifecycle 依赖。完整示例见 LIFECYCLE_SCOPE.md；扩展另有自己的 API 模块文档。

@@ -26,10 +26,11 @@ def deployment_identity(version):
             "coordinate": "io.github.logan0817:ktoast:" + version}
 
 
-def collect(repository, version):
+def collect(repository, version, artifact="ktoast"):
+    require(artifact in ("ktoast", "ktoast-lifecycle"), "未知模块")
     deployment_identity(version)
-    directory = repository / GROUP_PATH / version
-    prefix = "ktoast-" + version
+    directory = repository / GROUP_PATH.parent / artifact / version
+    prefix = artifact + "-" + version
     names = [prefix + suffix for suffix in (".aar", "-sources.jar", "-javadoc.jar", ".pom", ".module")]
     payload = {}
     for name in names:
@@ -89,20 +90,20 @@ def check_pom(pom):
         require(node is not None and bool((node.text or "").strip()), "POM 缺少发布信息: " + selector)
 
 
-def prepare(repository, version, public_key, fingerprint, output, javap, gpg):
-    names, payload = collect(repository, version)
+def prepare_one(repository, version, public_key, fingerprint, output, javap, gpg, artifact="ktoast"):
+    names, payload = collect(repository, version, artifact)
     with tempfile.TemporaryDirectory(prefix="ktoast-central-check-") as temporary:
         folder = Path(temporary)
         for name, content in payload.items():
             (folder / name).write_bytes(content)
-        prefix = "ktoast-" + version
+        prefix = artifact + "-" + version
         signatures = verify_signatures(folder, names, public_key, fingerprint, gpg)
         check_pom(folder / (prefix + ".pom"))
         shutil.copyfile(folder / (prefix + ".pom"), folder / "pom-default.xml")
         shutil.copyfile(folder / (prefix + ".module"), folder / "module.json")
         # 使用实际 staging 内容做完整兼容检查，不依赖可能被其他构建覆盖的 publications 目录。
         report = inspect(folder / (prefix + ".aar"), folder, javap, folder / (prefix + "-sources.jar"),
-                         folder / (prefix + "-javadoc.jar"), expected_version=version)
+                         folder / (prefix + "-javadoc.jar"), expected_version=version, artifact=artifact)
         report["signatures"] = signatures
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=output.parent, suffix=".zip", delete=False) as temporary:
@@ -110,7 +111,7 @@ def prepare(repository, version, public_key, fingerprint, output, javap, gpg):
     try:
         with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
             for name, content in sorted(payload.items()):
-                archive.writestr((GROUP_PATH / version / name).as_posix(), content)
+                archive.writestr((GROUP_PATH.parent / artifact / version / name).as_posix(), content)
         archive_path.replace(output)
     finally:
         archive_path.unlink(missing_ok=True)
@@ -129,8 +130,40 @@ def prepare(repository, version, public_key, fingerprint, output, javap, gpg):
     return report
 
 
+def prepare(repository, version, public_key, fingerprint, output, javap, gpg, artifacts=("ktoast",)):
+    require(tuple(artifacts) in (("ktoast",), ("ktoast", "ktoast-lifecycle")), "必须验收核心或完整双模块")
+    if len(artifacts) == 1:
+        return prepare_one(repository, version, public_key, fingerprint, output, javap, gpg)
+    modules = {}
+    payload = {}
+    with tempfile.TemporaryDirectory(prefix="ktoast-modules-") as temporary:
+        for artifact in artifacts:
+            child = Path(temporary) / (artifact + ".zip")
+            modules[artifact] = prepare_one(repository, version, public_key, fingerprint, child, javap, gpg, artifact)
+            with ZipFile(child) as archive:
+                payload.update({name: archive.read(name) for name in archive.namelist()})
+        require(modules["ktoast"]["source"] == modules["ktoast-lifecycle"]["source"], "两模块源码状态发生变化")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=output.parent, suffix=".zip", delete=False) as handle:
+            merged = Path(handle.name)
+        try:
+            with ZipFile(merged, "w", ZIP_DEFLATED) as archive:
+                for name, content in sorted(payload.items()):
+                    archive.writestr(name, content)
+            merged.replace(output)
+        finally:
+            merged.unlink(missing_ok=True)
+    return {"modules": modules, "source": modules["ktoast"]["source"],
+            "coordinate": modules["ktoast"]["coordinate"], "deployment": deployment_identity(version),
+            "files": {name: {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                      for name, content in sorted(payload.items())},
+            "bundle": {"file": output.name, "files": len(payload), "sha256": hashlib.sha256(output.read_bytes()).hexdigest()},
+            "remoteValidation": "未执行 Central Portal 上传或服务端校验"}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--artifacts", nargs="+", choices=("ktoast", "ktoast-lifecycle"), default=["ktoast"])
     parser.add_argument("--repository", type=Path, default=ROOT / "build/staging-repository")
     parser.add_argument("--version", required=True)
     parser.add_argument("--public-key", type=Path, required=True)
@@ -143,7 +176,7 @@ def main():
     if args.rehearsal and not args.output.name.endswith("-TEST-KEY.zip"):
         parser.error("测试演练包必须使用 -TEST-KEY.zip 文件名")
     try:
-        report = prepare(args.repository, args.version, args.public_key, args.fingerprint, args.output, args.javap, args.gpg)
+        report = prepare(args.repository, args.version, args.public_key, args.fingerprint, args.output, args.javap, args.gpg, tuple(args.artifacts))
     except (ValueError, OSError, KeyError, TypeError, BadZipFile, ET.ParseError, subprocess.CalledProcessError) as error:
         raise SystemExit("发布包生成失败: " + str(error))
     report["rehearsal"] = args.rehearsal

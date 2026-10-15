@@ -18,15 +18,17 @@ def verify(launcher):
     root_task = ":publishToMavenCentral"
     model_task = ":verifyCentralDeploymentName"
     cases = [
-        ("snapshot-model", [model_task, "-PVERSION=1.1.0-SNAPSHOT"], False, None, None),
+        ("snapshot-model", [model_task, "-PVERSION=1.2.0-SNAPSHOT"], False, None, None),
         ("signed-upload-plan", [root_task, "--dry-run"], True, None, None),
         ("unsigned-upload", [root_task, "--dry-run"], False, None, "signed non-SNAPSHOT"),
-        ("snapshot-upload", [root_task, "--dry-run", "-PVERSION=1.1.0-SNAPSHOT"], True, None, "signed non-SNAPSHOT"),
+        ("snapshot-upload", [root_task, "--dry-run", "-PVERSION=1.2.0-SNAPSHOT"], True, None, "signed non-SNAPSHOT"),
         ("direct-leaf", [":library-android:publishReleasePublicationToMavenCentralRepository", "--dry-run"], True,
          None, "root :publishToMavenCentral"),
         ("direct-module-entry", [":library-android:publishToMavenCentral", "--dry-run"], True,
          None, "root :publishToMavenCentral"),
         ("direct-create", [":library-android:createStagingRepository", "--dry-run"], True,
+         None, "root :publishToMavenCentral"),
+        ("direct-lifecycle-leaf", [":library-lifecycle:publishReleasePublicationToMavenCentralRepository", "--dry-run"], True,
          None, "root :publishToMavenCentral"),
         ("generic-publish", [":library-android:publish", "--dry-run"], True, None, "forbids clean, generic publish"),
         ("automatic-entry", [":library-android:publishAndReleaseToMavenCentral", "--dry-run"], True,
@@ -44,6 +46,7 @@ def verify(launcher):
         ("continue-after-failure", [root_task, "--dry-run", "--continue"], True, None, "forbids --continue"),
         ("wrong-deployment-name", [model_task], False, "name", "deployment identity"),
         ("wrong-publication-coordinate", [model_task], False, "coordinate", "coordinates changed"),
+        ("wrong-lifecycle-coordinate", [model_task], False, "lifecycle-coordinate", "coordinates changed"),
         ("automatic-model", [model_task], False, "automatic", "automaticRelease=false"),
         ("wrong-central-host", [model_task], False, "host", "CENTRAL_PORTAL"),
     ]
@@ -57,6 +60,7 @@ def verify(launcher):
     if (!fixture) return
     def module = gradle.rootProject.project(':library-android')
     if (fixture == 'name') module.tasks.getByName('createStagingRepository').artifactId.set('wrong')
+    if (fixture == 'lifecycle-coordinate') gradle.rootProject.project(':library-lifecycle').extensions.getByName('publishing').publications.getByName('release').artifactId = 'wrong'
     if (fixture == 'coordinate') module.extensions.getByName('publishing').publications.getByName('release').artifactId = 'wrong'
     def parameters = gradle.sharedServices.registrations.getByName('sonatype-repository-build-service').parameters
     if (fixture == 'automatic') parameters.automaticRelease.set(true)
@@ -67,7 +71,7 @@ def verify(launcher):
 }
 ''', encoding="utf-8")
         for name, arguments, signed, mutation, expected_error in cases:
-            command = launcher + ["--offline", "--console=plain", "--no-configuration-cache", "-PVERSION=1.1.0",
+            command = launcher + ["--offline", "--console=plain", "--no-configuration-cache", "-PVERSION=1.2.0",
                                   "-PsignPublication=" + str(signed).lower(), "-PsigningMode=gpg",
                                   "-Psigning.gnupg.keyName=" + "A" * 40,
                                   "-Psigning.gnupg.homeDir=" + temporary,
@@ -91,6 +95,12 @@ def verify(launcher):
                 positions = [output.find(task) for task in order]
                 if any(position < 0 for position in positions) or positions != sorted(positions):
                     raise ValueError("Central 上传前验收任务排序不符合预期")
+                for phase in ("signReleasePublication", "publishReleasePublicationToStagingRepository", "createStagingRepository", "publishReleasePublicationToMavenCentralRepository"):
+                    position = output.find(":library-lifecycle:" + phase + " SKIPPED")
+                    before = output.find(":verifyCentralUploadEnvironment SKIPPED")
+                    after = output.find(":prepareCentralBundle SKIPPED") if phase in ("signReleasePublication", "publishReleasePublicationToStagingRepository") else output.find(":verifyCentralStaging SKIPPED")
+                    if position < before or position >= after:
+                        raise ValueError("Lifecycle 上传前任务排序不符合预期")
             checked.append({"case": name, "passed": True, "expectedRejection": expected_error is not None})
             print("PASS:", name, flush=True)
     return {"cases": checked, "remoteUploadExecuted": False, "signingExecuted": False, "personalKeyringAccessed": False}

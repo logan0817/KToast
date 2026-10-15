@@ -17,9 +17,31 @@ FILES = {
     'tests': 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',
     'r8Consumer': 'tools/compatibility/android-consumer/build/outputs/apk/release/ktoast-android-consumer-release.apk',
     'aar': 'library-android/build/outputs/aar/library-android-release.aar',
+    'lifecycleR8Consumer': 'tools/compatibility/lifecycle-consumer/build/outputs/apk/release/ktoast-lifecycle-consumer-release.apk',
+    'lifecycleAar': 'library-lifecycle/build/outputs/aar/library-lifecycle-release.aar',
 }
 TEST_PACKAGE = 'com.logan.ktoastapp.app.'
 CONSUMER = 'com.logan.ktoast.compatibility'
+SNAPSHOT_MARKERS = {'window': 'WINDOW MANAGER', 'input': 'INPUT MANAGER',
+                    'activity': 'ACTIVITY MANAGER', 'display': 'DISPLAY MANAGER'}
+
+
+def validate_snapshot(name, content):
+    if not content.strip() or (name in SNAPSHOT_MARKERS and SNAPSHOT_MARKERS[name] not in content):
+        raise ValueError('诊断输出为空或不是系统快照：' + name)
+
+
+def startup_window_state(content):
+    validate_snapshot('window', content)
+    # 多显示器可能同时报告 null 和有效焦点，只读取当前焦点，不匹配历史窗口列表。
+    focused = re.findall(r'\bmCurrentFocus=(Window\{[^\r\n]+)', content)
+    return {
+        'focusedWindows': focused,
+        'anrFocused': any('Application Not Responding' in window for window in focused),
+        'keyguardShowing': bool(re.search(
+            r'\b(?:mShowingLockscreen|mDreamingLockscreen|isStatusBarKeyguard|isKeyguardShowing)=true\b',
+            content)),
+    }
 
 
 def save_json(path, data):
@@ -34,16 +56,19 @@ def artifacts(root=ROOT):
         if not path.is_file() or path.stat().st_size == 0:
             raise ValueError('缺失或空产物：' + relative)
         result[name] = {'path': relative, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
-    candidate = json.loads((root / 'build/reports/compatibility/candidate.json').read_text(encoding='utf-8'))
+    candidate = json.loads((root / 'build/reports/compatibility/ktoast-candidate.json').read_text(encoding='utf-8'))
     if candidate['sha256'] != result['aar']['sha256']:
         raise ValueError('AAR 与候选报告 SHA-256 不一致')
+    lifecycle = json.loads((root / 'build/reports/compatibility/ktoast-lifecycle-candidate.json').read_text(encoding='utf-8'))
+    if lifecycle['sha256'] != result['lifecycleAar']['sha256']:
+        raise ValueError('Lifecycle AAR 与报告 SHA-256 不一致')
     return result
 
 
 def required_tests(api, root=ROOT):
     required = set()
     source = root / 'app/src/androidTest/java/com/logan/ktoastapp/app'
-    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest'):
+    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest', 'WindowFailureDiagnosticsTest'):
         text = (source / (name + '.kt')).read_text(encoding='utf-8')
         methods = re.findall(r'@Test\b(?:(?!\bfun\b).)*\bfun\s+(\w+)', text, re.S)
         if not methods:
@@ -123,6 +148,19 @@ def run_device(api, serial):
             raise ValueError('adb 失败：' + process.stdout)
         return process.stdout
 
+    def export_diagnostics(remote, destination):
+        # Debug 宿主的 run-as 可访问私有目录，避免依赖外部存储或 root。
+        names = adb('shell', 'run-as', 'com.logan.ktoastapp', 'ls', remote).split()
+        if not names or any(name not in ('failure.txt', 'window.txt', 'input.txt', 'activity.txt', 'display.txt')
+                            for name in names):
+            raise ValueError('失败诊断文件列表缺失或不合法')
+        destination.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            content = adb('exec-out', 'run-as', 'com.logan.ktoastapp', 'cat', remote + '/' + name)
+            validate_snapshot(name.removesuffix('.txt'), content)
+            (destination / name).write_text(content, encoding='utf-8')
+        return set(names)
+
     try:
         # 此入口只用于临时模拟器，禁止对日常真机执行安装和生命周期操作。
         if not serial.startswith('emulator-') or adb('shell', 'getprop', 'ro.kernel.qemu').strip() != '1':
@@ -141,11 +179,27 @@ def run_device(api, serial):
         report['buildCommit'] = expected['commit']
         if report['commit'] and report['commit'] != report['buildCommit']:
             raise ValueError('构建与运行提交不一致')
-        for name in ('demo', 'tests', 'r8Consumer'):
+        for name in ('demo', 'tests', 'r8Consumer', 'lifecycleR8Consumer'):
             result = adb('install', '-r', str(ROOT / FILES[name]), timeout=120)
             (output / (name + '-install.txt')).write_text(result, encoding='utf-8')
             if 'Success' not in result:
                 raise ValueError('安装失败：' + name)
+        deadline = time.monotonic() + 60
+        report['startupPreflight'] = {'success': False, 'windowFile': 'preflight-window.txt'}
+        while True:
+            boot = adb('shell', 'getprop', 'sys.boot_completed').strip()
+            window = adb('shell', 'dumpsys', 'window', timeout=15)
+            (output / 'preflight-window.txt').write_text(window, encoding='utf-8')
+            state = startup_window_state(window)
+            report['startupPreflight'].update(bootCompleted=boot, **state)
+            if state['anrFocused'] or state['keyguardShowing']:
+                raise ValueError('模拟器启动检查失败：当前 ANR 对话框或锁屏阻挡窗口')
+            if boot == '1' and state['focusedWindows']:
+                report['startupPreflight']['success'] = True
+                break
+            if time.monotonic() >= deadline:
+                raise ValueError('模拟器启动检查超时：启动未完成或没有有效窗口焦点')
+            time.sleep(1)
         instrumentation_started = True
         raw = adb('shell', 'am', 'instrument', '-w', '-r',
                   '-e', 'windowFailureDiagnostics', 'true', '-e', 'windowFailureRunId', diagnostic_run,
@@ -155,29 +209,41 @@ def run_device(api, serial):
         reported = set().union(*(report['instrumentation'][key] for key in ('passed', 'skipped', 'failed')))
         # SDK 过滤可能没有逐项状态；未报告项单列，不能算作成功或猜测为跳过。
         report['instrumentation']['notReported'] = sorted(all_tests() - reported)
+        selfcheck = TEST_PACKAGE + 'WindowFailureDiagnosticsTest#failurePreservesOriginalAndWritesShellReadableSnapshots'
+        if report['instrumentation']['success'] and selfcheck in report['instrumentation']['passed']:
+            destination = output / 'diagnostics-selfcheck'
+            names = export_diagnostics('files/window-failures/' + diagnostic_run + '/' +
+                TEST_PACKAGE + 'WindowFailureDiagnosticsTest#syntheticFailure', destination)
+            for name in ('failure', 'window', 'input', 'activity', 'display'):
+                file = destination / (name + '.txt')
+                if file.name not in names or not file.is_file() or not file.stat().st_size:
+                    raise ValueError('采证设备自检缺失或为空：' + name)
+            report['diagnosticsSelfcheck'] = {'runId': diagnostic_run,
+                'files': sorted(str(path.relative_to(output)) for path in destination.iterdir() if path.is_file())}
         if not report['instrumentation']['success']:
             raise ValueError('设备回归未满足必需用例或 Runner 未正常完成')
-        adb('shell', 'am', 'force-stop', CONSUMER)
-        baseline = set(adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S').splitlines())
-        launch = adb('shell', 'am', 'start', '-W', '-n', CONSUMER + '/.ConsumerActivity')
-        (output / 'r8-launch.txt').write_text(launch, encoding='utf-8')
-        deadline = time.monotonic() + 30
-        while time.monotonic() < deadline:
-            # API 21 没有通用 pidof/logcat --pid，使用 ps 与 threadtime 的 PID 列。
-            processes = adb('shell', 'ps')
-            pid = next((line.split()[1] for line in processes.splitlines()
-                        if line.split() and line.split()[-1] == CONSUMER), None)
-            logs = adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S')
-            (output / 'r8-logcat.txt').write_text(logs, encoding='utf-8')
-            if pid:
-                line = consumer_line(logs, pid, baseline)
-                if line:
-                    report['r8Consumer'] = {'pid': pid, 'passLine': line}
-                    report['success'] = True
-                    break
-            time.sleep(0.5)
-        if not report['success']:
-            raise ValueError('R8 消费者新进程未输出 PASS')
+        for key, consumer in (('r8Consumer', CONSUMER), ('lifecycleR8Consumer', 'com.logan.ktoast.lifecycleconsumer')):
+            adb('shell', 'am', 'force-stop', consumer)
+            baseline = set(adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S').splitlines())
+            launch = adb('shell', 'am', 'start', '-W', '-n', consumer + '/.ConsumerActivity')
+            (output / (key + '-launch.txt')).write_text(launch, encoding='utf-8')
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                # API 21 没有通用 pidof/logcat --pid，使用 ps 与 threadtime 的 PID 列。
+                processes = adb('shell', 'ps')
+                pid = next((line.split()[1] for line in processes.splitlines()
+                            if line.split() and line.split()[-1] == consumer), None)
+                logs = adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S')
+                (output / (key + '-logcat.txt')).write_text(logs, encoding='utf-8')
+                if pid:
+                    line = consumer_line(logs, pid, baseline)
+                    if line:
+                        report[key] = {'pid': pid, 'passLine': line}
+                        break
+                time.sleep(0.5)
+            if key not in report:
+                raise ValueError('R8 消费者新进程未输出 PASS')
+        report['success'] = True
     except (ValueError, OSError, subprocess.TimeoutExpired) as error:
         report['error'] = str(error)
         if isinstance(error, subprocess.TimeoutExpired) and error.stdout:
@@ -197,8 +263,9 @@ def run_device(api, serial):
                 ):
                     try:
                         filename = 'after-run-' + name + '.txt'
-                        (output / filename).write_text(
-                            adb('shell', 'dumpsys', '-t', '5', *service, timeout=15), encoding='utf-8')
+                        content = adb('shell', 'dumpsys', *service, timeout=15)
+                        (output / filename).write_text(content, encoding='utf-8')
+                        validate_snapshot(name, content)
                         diagnostics['snapshots'][name] = {'file': filename}
                     except (ValueError, OSError, subprocess.TimeoutExpired) as error:
                         diagnostics['snapshots'][name] = {'error': str(error)}
@@ -206,8 +273,12 @@ def run_device(api, serial):
                     try:
                         test_output = output / 'window-failures' / diagnostic_run
                         test_output.parent.mkdir(parents=True, exist_ok=True)
-                        adb('pull', '/sdcard/Android/data/com.logan.ktoastapp.test/files/window-failures/' +
-                            diagnostic_run, str(test_output), timeout=60)
+                        remote = 'files/window-failures/' + diagnostic_run
+                        tests = adb('shell', 'run-as', 'com.logan.ktoastapp', 'ls', remote).split()
+                        if not tests or any(not re.fullmatch(r'[A-Za-z0-9_.#-]+', test) for test in tests):
+                            raise ValueError('失败诊断用例目录缺失或不合法')
+                        for test in tests:
+                            export_diagnostics(remote + '/' + test, test_output / test)
                         files = sorted(str(path.relative_to(output)) for path in
                                        test_output.rglob('*') if path.is_file())
                         if not files:

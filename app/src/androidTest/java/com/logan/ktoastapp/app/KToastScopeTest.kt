@@ -4,7 +4,6 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.FrameLayout
-import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.rules.activityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.espresso.Espresso.onView
@@ -65,14 +64,14 @@ class KToastScopeTest {
             delayed = scope.showDelayed("delayed", 60_000L, callbacks = callbacks)
             assertEquals(ToastHandle.State.SHOWING, active.state)
         }
-        rule.scenario.moveToState(Lifecycle.State.CREATED)
-        assertTrue(listOf(active, queued, delayed).all { it.isCanceled })
-        assertEquals(3, terminalCount)
-        assertFalse(scope.isClosed)
-        val stopped = scope.show("stopped", callbacks = callbacks)
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-        assertTrue(stopped.isCanceled)
-        rule.scenario.moveToState(Lifecycle.State.RESUMED)
+        rule.scenario.whileActivityStopped {
+            assertTrue(listOf(active, queued, delayed).all { it.isCanceled })
+            assertEquals(3, terminalCount)
+            assertFalse(scope.isClosed)
+            val stopped = scope.show("stopped", callbacks = callbacks)
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            assertTrue(stopped.isCanceled)
+        }
         rule.scenario.onActivity {
             val next = scope.show("resumed")
             assertEquals(ToastHandle.State.SHOWING, next.state)
@@ -99,11 +98,12 @@ class KToastScopeTest {
 
     @Test fun workerPreparationCannotCrossStopOrReviveStoppedSubmission() {
         val scope = scope()
-        for (initiallyStopped in listOf(false, true)) {
-            if (initiallyStopped) rule.scenario.moveToState(Lifecycle.State.CREATED)
+        assertPreparationCanceled(scope) {
+            rule.scenario.whileActivityStopped { }
+        }
+        rule.scenario.whileActivityStopped { resume ->
             assertPreparationCanceled(scope) {
-                if (!initiallyStopped) rule.scenario.moveToState(Lifecycle.State.CREATED)
-                rule.scenario.moveToState(Lifecycle.State.RESUMED)
+                resume()
             }
         }
     }
@@ -139,7 +139,8 @@ class KToastScopeTest {
                     onDismiss = { _, _ -> dismissed++ }
                 )) {
                     preparing.countDown()
-                    check(release.await(10L, TimeUnit.SECONDS))
+                    // 与转场驱动线程同步，不让独立倒计时提前结束准备阶段。
+                    release.await()
                 }
             } catch (error: Throwable) {
                 failure = error
@@ -153,7 +154,9 @@ class KToastScopeTest {
             whilePreparing()
         } finally {
             release.countDown()
+            worker.join(5_000)
         }
+        assertFalse(worker.isAlive)
         assertTrue(returned.await(5L, TimeUnit.SECONDS))
         failure?.let { throw AssertionError("Worker submission failed", it) }
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()

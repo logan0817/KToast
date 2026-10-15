@@ -1,0 +1,127 @@
+{
+  "description": "1.2.0 未发布生命周期扩展精确公开 API 清单",
+  "classes": {
+    "com.logan.ktoast.lifecycle.KToastLifecycleScope$Companion": [
+      {
+        "declaration": "public com.logan.ktoast.lifecycle.KToastLifecycleScope$Companion(kotlin.jvm.internal.DefaultConstructorMarker);",
+        "descriptor": "(Lkotlin/jvm/internal/DefaultConstructorMarker;)V"
+      },
+      {
+        "declaration": "public final class com.logan.ktoast.lifecycle.KToastLifecycleScope$Companion {"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.lifecycle.KToastLifecycleScope create(android.app.Activity, androidx.lifecycle.LifecycleOwner);",
+        "descriptor": "(Landroid/app/Activity;Landroidx/lifecycle/LifecycleOwner;)Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.lifecycle.KToastLifecycleScope create(android.app.Activity, androidx.lifecycle.LifecycleOwner, com.logan.ktoast.KToastScopeOptions);",
+        "descriptor": "(Landroid/app/Activity;Landroidx/lifecycle/LifecycleOwner;Lcom/logan/ktoast/KToastScopeOptions;)Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.lifecycle.KToastLifecycleScope create$default(com.logan.ktoast.lifecycle.KToastLifecycleScope$Companion, android.app.Activity, androidx.lifecycle.LifecycleOwner, com.logan.ktoast.KToastScopeOptions, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/lifecycle/KToastLifecycleScope$Companion;Landroid/app/Activity;Landroidx/lifecycle/LifecycleOwner;Lcom/logan/ktoast/KToastScopeOptions;ILjava/lang/Object;)Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;"
+      }
+    ],
+    "com.logan.ktoast.lifecycle.KToastLifecycleScope": [
+      {
+        "declaration": "public com.logan.ktoast.lifecycle.KToastLifecycleScope(android.app.Activity, androidx.lifecycle.LifecycleOwner, com.logan.ktoast.KToastScopeOptions, kotlin.jvm.internal.DefaultConstructorMarker);",
+        "descriptor": "(Landroid/app/Activity;Landroidx/lifecycle/LifecycleOwner;Lcom/logan/ktoast/KToastScopeOptions;Lkotlin/jvm/internal/DefaultConstructorMarker;)V"
+      },
+      {
+        "declaration": "public final boolean isClosed();",
+        "descriptor": "()Z"
+      },
+      {
+        "declaration": "public final class com.logan.ktoast.lifecycle.KToastLifecycleScope implements java.lang.AutoCloseable {"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence);",
+        "descriptor": "(Ljava/lang/CharSequence;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, com.logan.ktoast.config.KToastConfig);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastConfig;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, com.logan.ktoast.config.KToastConfig, int);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastConfig;I)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, com.logan.ktoast.config.KToastConfig, int, com.logan.ktoast.runtime.KToastBehavior);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastConfig;ILcom/logan/ktoast/runtime/KToastBehavior;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, com.logan.ktoast.config.KToastConfig, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastConfig;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, int);",
+        "descriptor": "(Ljava/lang/CharSequence;I)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior);",
+        "descriptor": "(Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks);",
+        "descriptor": "(Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showDelayed(java.lang.CharSequence, long);",
+        "descriptor": "(Ljava/lang/CharSequence;J)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showDelayed(java.lang.CharSequence, long, int);",
+        "descriptor": "(Ljava/lang/CharSequence;JI)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showDelayed(java.lang.CharSequence, long, int, com.logan.ktoast.runtime.KToastBehavior);",
+        "descriptor": "(Ljava/lang/CharSequence;JILcom/logan/ktoast/runtime/KToastBehavior;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showDelayed(java.lang.CharSequence, long, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks);",
+        "descriptor": "(Ljava/lang/CharSequence;JILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showDelayed(java.lang.CharSequence, long, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;JILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final void cancel();",
+        "descriptor": "()V"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle show$default(com.logan.ktoast.lifecycle.KToastLifecycleScope, java.lang.CharSequence, com.logan.ktoast.config.KToastConfig, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastConfig;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle show$default(com.logan.ktoast.lifecycle.KToastLifecycleScope, java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle showDelayed$default(com.logan.ktoast.lifecycle.KToastLifecycleScope, java.lang.CharSequence, long, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;Ljava/lang/CharSequence;JILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.lifecycle.KToastLifecycleScope create(android.app.Activity, androidx.lifecycle.LifecycleOwner);",
+        "descriptor": "(Landroid/app/Activity;Landroidx/lifecycle/LifecycleOwner;)Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.lifecycle.KToastLifecycleScope create(android.app.Activity, androidx.lifecycle.LifecycleOwner, com.logan.ktoast.KToastScopeOptions);",
+        "descriptor": "(Landroid/app/Activity;Landroidx/lifecycle/LifecycleOwner;Lcom/logan/ktoast/KToastScopeOptions;)Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.lifecycle.KToastLifecycleScope$Companion Companion;",
+        "descriptor": "Lcom/logan/ktoast/lifecycle/KToastLifecycleScope$Companion;"
+      },
+      {
+        "declaration": "public void close();",
+        "descriptor": "()V"
+      }
+    ]
+  }
+}
