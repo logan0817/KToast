@@ -10,7 +10,7 @@ KToast is an Android toast library for Kotlin and Java. It provides custom foreg
 
 The core supports Android 5.0+ without Compose, Material, or coroutines. Global messages can fall back to a system Toast in the background. Page-scoped messages are canceled when their host stops. For messages that require an action, evaluate Snackbar; for important background information, use notifications.
 
-> The current published version is **1.1.0**. **1.2.0-SNAPSHOT** has passed its P0 candidate acceptance checks and is **not published on Maven Central**. Runtime policies and LifecycleOwner scopes below require that candidate. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for coverage and limits.
+> The current published version is **1.1.0**. **1.2.0-SNAPSHOT** is **not published on Maven Central**. The round 24 P0 candidate matrix passed; the subsequent PR matrix failed, and acceptance of the test fixes is pending. Runtime policies and LifecycleOwner scopes below require that candidate. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for coverage and limits.
 
 ## Installation
 

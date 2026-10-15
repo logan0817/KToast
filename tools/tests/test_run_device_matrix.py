@@ -22,6 +22,7 @@ INSTRUMENTATION_STATUS: test=required
 INSTRUMENTATION_STATUS_CODE: 0
 INSTRUMENTATION_CODE: -1
 '''
+READY_WINDOW = 'WINDOW MANAGER\nmCurrentFocus=Window{42 u0 com.android.launcher/.Launcher}\nisKeyguardShowing=false'
 SKIP = '''INSTRUMENTATION_STATUS: class=sample.Test
 INSTRUMENTATION_STATUS: test=optional
 INSTRUMENTATION_STATUS_CODE: -4
@@ -93,21 +94,23 @@ class DeviceMatrixTest(unittest.TestCase):
 
     def exercise_device(self, *, actual_api='21', instrumentation=PASS, install='Success',
                         diagnostic_failure=None, pull_files=True, instrumentation_timeout=False,
-                        selfcheck=False, selfcheck_files=True):
+                        selfcheck=False, selfcheck_files=True, boot='1', window=READY_WINDOW):
         """模拟 adb 协议完成整条入口，验证结果写入和失败收尾；不伪造真实设备证据。"""
         commands = []
         log_reads = 0
         generation = 0
         active_package = ""
+        window_reads = 0
 
         def fake_adb(command, **kwargs):
-            nonlocal log_reads, generation, active_package
+            nonlocal log_reads, generation, active_package, window_reads
             args = command[3:]
             commands.append(args)
             text = ''
             if args[:2] == ['shell', 'getprop']:
                 text = {'ro.kernel.qemu': '1', 'ro.build.version.sdk': actual_api,
-                        'ro.build.fingerprint': 'fixture', 'ro.product.cpu.abi': 'x86'}[args[2]]
+                        'ro.build.fingerprint': 'fixture', 'ro.product.cpu.abi': 'x86',
+                        'sys.boot_completed': boot}[args[2]]
             elif args[0] == 'install':
                 text = install
             elif args[:3] == ['shell', 'am', 'instrument']:
@@ -120,9 +123,12 @@ class DeviceMatrixTest(unittest.TestCase):
                         'INSTRUMENTATION_STATUS: test=failurePreservesOriginalAndWritesShellReadableSnapshots\n'
                         'INSTRUMENTATION_STATUS_CODE: 0\nINSTRUMENTATION_CODE:')
             elif args[:2] == ['shell', 'dumpsys']:
-                if args[2] == diagnostic_failure:
+                if args[2] == diagnostic_failure and (args[2] != 'window' or window_reads > 0):
                     raise subprocess.TimeoutExpired(command, 15)
                 text = matrix.SNAPSHOT_MARKERS[args[2]] + ' fixture state'
+                if args[2] == 'window':
+                    text = window
+                    window_reads += 1
             elif len(args) > 2 and args[1:3] == ['run-as', 'com.logan.ktoastapp']:
                 if diagnostic_failure == 'pull':
                     return subprocess.CompletedProcess(command, 1, 'private directory does not exist')
@@ -165,7 +171,11 @@ class DeviceMatrixTest(unittest.TestCase):
                         matrix.run_device(21, 'emulator-5554')
                     except ValueError:
                         pass
-            return json.loads((output / 'api-21/result.json').read_text(encoding='utf-8')), commands
+            result = json.loads((output / 'api-21/result.json').read_text(encoding='utf-8'))
+            if 'startupPreflight' in result:
+                self.assertEqual(window, (output / 'api-21/preflight-window.txt').read_text(encoding='utf-8'))
+                self.assertTrue((output / 'api-21/device-logcat.txt').is_file())
+            return result, commands
 
     def test_device_entry_writes_success_and_unreported_separately(self):
         result, commands = self.exercise_device()
@@ -174,8 +184,53 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertEqual(['sample.Test#filtered'], result['instrumentation']['notReported'])
         self.assertEqual(4, sum(command[0] == 'install' for command in commands))
         self.assertNotIn('failureDiagnostics', result)
-        self.assertFalse(any(command[0] == 'pull' or command[:2] == ['shell', 'dumpsys']
-                             for command in commands))
+        self.assertTrue(result['startupPreflight']['success'])
+        self.assertEqual([['shell', 'dumpsys', 'window']],
+                         [command for command in commands if command[:2] == ['shell', 'dumpsys']])
+        self.assertFalse(any(command[0] == 'pull' for command in commands))
+
+    def test_startup_anr_or_keyguard_blocks_runner_and_preserves_evidence(self):
+        for window in (READY_WINDOW.replace('com.android.launcher/.Launcher',
+                                            'Application Not Responding: com.android.launcher'),
+                       READY_WINDOW.replace('isKeyguardShowing=false', 'isKeyguardShowing=true')):
+            with self.subTest(window=window):
+                result, commands = self.exercise_device(window=window)
+                self.assertFalse(result['startupPreflight']['success'])
+                self.assertIn('ANR 对话框或锁屏', result['error'])
+                self.assertNotIn('testFailures', result['failureDiagnostics'])
+                self.assertFalse(any(command[:3] == ['shell', 'am', 'instrument'] for command in commands))
+                self.assertFalse(any(len(command) > 1 and command[1] == 'run-as' for command in commands))
+
+    def test_startup_wait_is_bounded_for_incomplete_boot_or_absent_focus(self):
+        for options in ({'boot': '0'}, {'window': 'WINDOW MANAGER\nmCurrentFocus=null'}):
+            with self.subTest(options=options), patch.object(matrix.time, 'monotonic', side_effect=[0, 61]):
+                result, commands = self.exercise_device(**options)
+                self.assertIn('启动检查超时', result['error'])
+                self.assertFalse(any(command[:3] == ['shell', 'am', 'instrument'] for command in commands))
+
+    def test_startup_wait_can_recover_when_focus_becomes_ready(self):
+        with patch.object(matrix, 'startup_window_state', side_effect=[
+                {'focusedWindows': [], 'anrFocused': False, 'keyguardShowing': False},
+                matrix.startup_window_state(READY_WINDOW)]), patch.object(matrix.time, 'sleep') as sleep:
+            result, commands = self.exercise_device()
+        self.assertTrue(result['success'])
+        sleep.assert_called_once_with(1)
+        self.assertEqual(2, commands.count(['shell', 'dumpsys', 'window']))
+
+    def test_invalid_preflight_snapshot_cannot_start_runner(self):
+        result, commands = self.exercise_device(window="Can't find service: window")
+        self.assertIn('不是系统快照', result['error'])
+        self.assertFalse(result['startupPreflight']['success'])
+        self.assertFalse(any(command[:3] == ['shell', 'am', 'instrument'] for command in commands))
+
+    def test_window_state_supports_legacy_keyguard_and_multiple_displays(self):
+        for field in ('mShowingLockscreen', 'mDreamingLockscreen', 'isStatusBarKeyguard', 'isKeyguardShowing'):
+            with self.subTest(field=field):
+                self.assertTrue(matrix.startup_window_state(READY_WINDOW + '\n' + field + '=true')['keyguardShowing'])
+                self.assertFalse(matrix.startup_window_state(READY_WINDOW + '\n' + field + '=false')['keyguardShowing'])
+        state = matrix.startup_window_state(READY_WINDOW + '\nmCurrentFocus=null\nWindow #8 Application Not Responding')
+        self.assertTrue(state['focusedWindows'])
+        self.assertFalse(state['anrFocused'])
 
     def test_wrong_api_fails_before_install_and_preserves_report(self):
         result, commands = self.exercise_device(actual_api='30')
@@ -200,7 +255,7 @@ class DeviceMatrixTest(unittest.TestCase):
     def test_legacy_dumpsys_command_has_no_unsupported_timeout_flag(self):
         _, commands = self.exercise_device(instrumentation=PASS.replace('STATUS_CODE: 0', 'STATUS_CODE: -2'))
         dumps = [command for command in commands if command[:2] == ['shell', 'dumpsys']]
-        self.assertEqual(4, len(dumps))
+        self.assertEqual(5, len(dumps))
         self.assertTrue(all('-t' not in command for command in dumps))
 
     def test_device_selfcheck_missing_file_blocks_consumers(self):

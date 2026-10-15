@@ -31,6 +31,19 @@ def validate_snapshot(name, content):
         raise ValueError('诊断输出为空或不是系统快照：' + name)
 
 
+def startup_window_state(content):
+    validate_snapshot('window', content)
+    # 多显示器可能同时报告 null 和有效焦点，只读取当前焦点，不匹配历史窗口列表。
+    focused = re.findall(r'\bmCurrentFocus=(Window\{[^\r\n]+)', content)
+    return {
+        'focusedWindows': focused,
+        'anrFocused': any('Application Not Responding' in window for window in focused),
+        'keyguardShowing': bool(re.search(
+            r'\b(?:mShowingLockscreen|mDreamingLockscreen|isStatusBarKeyguard|isKeyguardShowing)=true\b',
+            content)),
+    }
+
+
 def save_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -171,6 +184,22 @@ def run_device(api, serial):
             (output / (name + '-install.txt')).write_text(result, encoding='utf-8')
             if 'Success' not in result:
                 raise ValueError('安装失败：' + name)
+        deadline = time.monotonic() + 60
+        report['startupPreflight'] = {'success': False, 'windowFile': 'preflight-window.txt'}
+        while True:
+            boot = adb('shell', 'getprop', 'sys.boot_completed').strip()
+            window = adb('shell', 'dumpsys', 'window', timeout=15)
+            (output / 'preflight-window.txt').write_text(window, encoding='utf-8')
+            state = startup_window_state(window)
+            report['startupPreflight'].update(bootCompleted=boot, **state)
+            if state['anrFocused'] or state['keyguardShowing']:
+                raise ValueError('模拟器启动检查失败：当前 ANR 对话框或锁屏阻挡窗口')
+            if boot == '1' and state['focusedWindows']:
+                report['startupPreflight']['success'] = True
+                break
+            if time.monotonic() >= deadline:
+                raise ValueError('模拟器启动检查超时：启动未完成或没有有效窗口焦点')
+            time.sleep(1)
         instrumentation_started = True
         raw = adb('shell', 'am', 'instrument', '-w', '-r',
                   '-e', 'windowFailureDiagnostics', 'true', '-e', 'windowFailureRunId', diagnostic_run,

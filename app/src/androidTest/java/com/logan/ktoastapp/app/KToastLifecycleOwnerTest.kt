@@ -78,7 +78,8 @@ class KToastLifecycleOwnerTest {
                 try {
                     handle = scope.show("old preparation") {
                         entered.countDown()
-                        check(release.await(10, TimeUnit.SECONDS))
+                        // 由转场驱动线程放行，避免设备变慢时独立倒计时提前结束准备阶段。
+                        release.await()
                     }
                 } catch (error: Throwable) { failure = error }
             }
@@ -87,8 +88,10 @@ class KToastLifecycleOwnerTest {
                 assertTrue(entered.await(5, TimeUnit.SECONDS))
                 scenario.moveToState(Lifecycle.State.CREATED)
                 scenario.moveToState(Lifecycle.State.RESUMED)
-            } finally { release.countDown() }
-            worker.join(5_000)
+            } finally {
+                release.countDown()
+                worker.join(5_000)
+            }
             assertFalse(worker.isAlive)
             failure?.let { throw AssertionError(it) }
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()

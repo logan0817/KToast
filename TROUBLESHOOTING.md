@@ -87,6 +87,8 @@ Espresso 出现 `INJECT_EVENTS` 时检查实际点击目标；若命中系统导
 
 `RootViewWithoutFocusException`、IME 未显示或 ActivityScenario 状态超时须保留首个有效错误、Runner 与窗口日志；不能默认归因于库或模拟器，也不能通过增加重试、放宽断言或跳过用例掩盖问题。真实窗口位置、焦点、Insets 与宿主生命周期应分别核对。
 
+矩阵先检查 `sys.boot_completed`、当前焦点和锁屏标志；`startupPreflight.success=false` 时先检查 `preflight-window.txt` 与 `device-logcat.txt`。ANR 对话框或锁屏会阻止 Runner 启动，启动未完成或无焦点有 60 秒等待期限；单次命令另有超时。此检查不会关闭系统对话框，也不保证测试过程中不再失焦。并发准备测试由停止/恢复转场的驱动线程在 `finally` 中放行并回收工作线程，避免独立准备倒计时在慢设备上先结束；ActivityScenario 和 Runner 原有超时仍有效。
+
 矩阵的 `WindowFailureDiagnosticsTest` 验证真实规则与私有目录导出。诊断使用 `adb shell run-as` / `adb exec-out run-as` 读取当前运行文件；外部存储在旧系统可能未挂载或无权限。旧 `dumpsys` 不支持 `-t`，因此由读取端或主机命令设置超时。命令错误文本或空文件不能作为有效快照。
 
 收尾快照与首次失败并非同一时刻，不能仅凭收尾焦点判断完整根因。采证错误只作为附加错误，保留原失败。各轮已确认事实与未解决限制见[验收记录](docs/releases/1.2.0.md)。
