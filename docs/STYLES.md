@@ -1,6 +1,6 @@
 # 语义样式与品牌主题
 
-> 本文描述 **1.3.0-SNAPSHOT 源码候选，尚未发布**。公开安装版本仍为 **1.2.0**，不包含本文新增 API。源码与本地候选的构建方式见[贡献指南](../CONTRIBUTING.md)；不要把 SNAPSHOT 当作已公开的 Maven Central 坐标。
+> 本文描述 **1.3.0 正式候选，尚未发布**。公开安装版本仍为 **1.2.0**，不包含本文新增 API。源码与本地 SNAPSHOT 候选的构建方式见[贡献指南](../CONTRIBUTING.md)；不要把本地候选当作已公开的 Maven Central 坐标。
 
 `KToastStyle` 为现有请求选择语义和品牌视觉，不改变队列、去重、取消或生命周期规则。普通 `show`、`showHandle`、`toast` 及现有配置默认值保持不变；只有显式调用 `showStyled` 才使用新样式。
 

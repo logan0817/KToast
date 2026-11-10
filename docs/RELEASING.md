@@ -1,6 +1,6 @@
 # 发布指南
 
-本页维护开发中 **1.3.0** 的三模块发布步骤，当前源码为未发布 `1.3.0-SNAPSHOT`。当前正式版本仍为 **1.2.0**；已发布坐标不能覆盖，不要重复上传或发布同一版本。以下正式命令仅是后续经批准发布时的示例，不表示本版已经验收或获得发布授权。逐次结果与摘要见 [1.2.0 验收记录](releases/1.2.0.md)，历史发布见 [1.1.0 归档](releases/1.1.0.md)。
+本页维护 **1.3.0** 的三模块发布步骤，当前源码为未发布 `1.3.0` 正式候选；本地和 CI 候选验证继续显式使用 `1.3.0-SNAPSHOT`。当前正式版本仍为 **1.2.0**；已发布坐标不能覆盖，不要重复上传或发布同一版本。以下正式命令仅是后续经批准发布时的示例，不表示本版已发布或获得上传授权。当前准备见 [1.3.0 记录](releases/1.3.0.md)，历史发布见 [1.2.0 验收记录](releases/1.2.0.md)和 [1.1.0 归档](releases/1.1.0.md)。
 
 1.3.0 计划同批发布 `io.github.logan0817:ktoast`、`ktoast-lifecycle` 与 `ktoast-compose`。扩展传递依赖同版下层模块，不允许混用不匹配版本。操作前先确认本次具体目标；提交、推送、PR、合并、Central 上传、正式发布、标签和 GitHub Release 分别按授权执行。
 
@@ -162,7 +162,7 @@ python3 -B tools/verify_central_deployment.py \
 
 ## 1.3.0 开发版的三模块入口
 
-当前源码为未发布 `1.3.0-SNAPSHOT`；正式仓库与历史发布证据仍为 1.2.0，不直接把历史命令替换为新发布操作。本地候选统一使用 `verifyReleaseCandidate`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
+当前源码为未发布 `1.3.0` 正式候选；正式仓库与历史发布证据仍为 1.2.0，不直接把历史命令替换为新发布操作。本地候选统一使用 `verifyReleaseCandidate -PVERSION=1.3.0-SNAPSHOT`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
 
 Compose 需要真实 sources/Dokka、AAR、POM/Gradle metadata、精确公开 API 和直接依赖检查，发布包不得漏掉任一模块。包验证按版本保留历史单/双模块规则；>=1.3 必须三模块。根上传入口与人工发布模式保持，候选生成与配置 dry-run 不触发上传。
 
