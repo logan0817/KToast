@@ -10,7 +10,7 @@ import sys
 from zipfile import BadZipFile, ZipFile
 
 sys.dont_write_bytecode = True
-from prepare_central_bundle import GROUP_PATH, deployment_identity, verify_signatures
+from prepare_central_bundle import GROUP_PATH, deployment_identity, release_artifacts, verify_signatures
 from verify_candidate import require
 
 
@@ -34,7 +34,7 @@ def verify(bundle, bundle_report, status_file, deployment_id, downloads, public_
     require(status.get("deploymentState") == "VALIDATED", "Portal 批次尚未 VALIDATED 或已进入其他状态")
     require(status.get("errors") == {}, "Portal 存在校验错误或缺少错误字段")
     modules = report.get("modules", {"ktoast": report})
-    require(set(modules) in ({"ktoast"}, {"ktoast", "ktoast-lifecycle"}), "远端模块集合不一致")
+    require(set(modules) == set(release_artifacts(version)), "远端模块集合不一致")
     purls = status.get("purls")
     expected_purls = {"pkg:maven/io.github.logan0817/" + artifact + "@" + version for artifact in modules}
     require(isinstance(purls, list) and bool(purls) and len(purls) == len(set(purls)) and
@@ -63,7 +63,7 @@ def verify(bundle, bundle_report, status_file, deployment_id, downloads, public_
             item = {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
             require(item == report["files"][paths[name] if multi else name], "ZIP 与报告中的文件不一致: " + name)
             path = downloads / name
-            # 下载目录由维护者按本次 ID 建立；必需十个制品/签名，校验文件如有也必须一致。
+            # 下载目录由维护者按本次 ID 建立；必需各模块的制品/签名，校验文件如有也必须一致。
             if name in required or path.exists() or path.is_symlink():
                 require(path.is_file() and not path.is_symlink(), "远端文件缺失或为符号链接: " + name)
                 require(path.read_bytes() == content, "远端文件与上传包不一致: " + name)
@@ -89,7 +89,7 @@ def main():
     parser.add_argument("--status", type=Path, required=True)
     parser.add_argument("--deployment-id", required=True)
     parser.add_argument("--downloads", type=Path, required=True,
-                        help="本次 ID 对应的十个制品/签名文件所在目录，文件名保持 Maven 原名")
+                        help="本次 ID 对应的全部制品/签名文件所在目录，文件名保持 Maven 原名")
     parser.add_argument("--public-key", type=Path, required=True)
     parser.add_argument("--fingerprint", required=True)
     parser.add_argument("--gpg", default="gpg")

@@ -1,14 +1,14 @@
 # 发布指南
 
-本页维护当前双模块发布步骤。当前正式版本为 **1.2.0**；核心与扩展已完成干净源码签名包、最终 PR/main 五版本矩阵、Central 正式发布、正式仓库及两个独立消费者验收。以下命令用于说明本版流程，已发布坐标不能覆盖，不要重复上传或发布同一版本。逐次结果与摘要见 [1.2.0 验收记录](releases/1.2.0.md)，历史发布见 [1.1.0 归档](releases/1.1.0.md)。
+本页维护开发中 **1.3.0** 的三模块发布步骤，当前源码为未发布 `1.3.0-SNAPSHOT`。当前正式版本仍为 **1.2.0**；已发布坐标不能覆盖，不要重复上传或发布同一版本。以下正式命令仅是后续经批准发布时的示例，不表示本版已经验收或获得发布授权。逐次结果与摘要见 [1.2.0 验收记录](releases/1.2.0.md)，历史发布见 [1.1.0 归档](releases/1.1.0.md)。
 
-1.2.0 同批发布 `io.github.logan0817:ktoast` 与 `io.github.logan0817:ktoast-lifecycle`。扩展依赖同版核心，两者不能独立选择不匹配的版本。操作前先确认本次具体目标；提交、推送、PR、合并、Central 上传、正式发布、标签和 GitHub Release 分别按授权执行。
+1.3.0 计划同批发布 `io.github.logan0817:ktoast`、`ktoast-lifecycle` 与 `ktoast-compose`。扩展传递依赖同版下层模块，不允许混用不匹配版本。操作前先确认本次具体目标；提交、推送、PR、合并、Central 上传、正式发布、标签和 GitHub Release 分别按授权执行。
 
 ## 发布门槛
 
 - 候选代码完成审查，公共 API、默认行为、依赖与兼容边界明确。
 - 最终合并后的 main CI 通过；候选分支 CI 不能直接写成合并后 CI。合并改变实现或制品输入时重新验证。
-- 双模块 JVM、Lint、候选产物、冻结 Java/Kotlin 字节码、独立源码消费者及 R8 通过；设备结果与同批输入 SHA 对应。
+- 核心/生命周期 JVM、三库 Lint、三模块候选产物、冻结 Java/Kotlin 字节码、独立源码消费者及 R8 通过；设备结果与同批输入 SHA 对应。
 - README 中英文、使用文档、CHANGELOG、版本号和 Demo 状态一致，明确未覆盖场景。
 - 正式产物使用明确选定的发布密钥，签名、公钥、POM、metadata、源码、API 文档和校验和全部验收；正式报告绑定干净提交。
 - Central 上传返回的唯一 deployment ID、远端状态和实际下载字节核对完成，再执行独立的正式发布步骤。
@@ -20,15 +20,16 @@
 使用 [贡献指南](../CONTRIBUTING.md#开发环境)约定的已有 JDK、SDK、Wrapper 和缓存，不需要 `clean`：
 
 ```bash
-./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
-./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
-./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.3.0-SNAPSHOT --console=plain
+./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
 python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
 ```
 
-`verifyReleaseCandidate` 聚合两个模块的 JVM、库 Lint、Python 工具、候选产物及 Central 批次模型检查。消费者构建、冻结字节码和设备运行仍需独立执行。候选仓库为 `build/candidate-repository`，默认不签名且只接受 SNAPSHOT。
+`verifyReleaseCandidate` 聚合核心/生命周期 JVM、三库 Lint、Python 工具和三模块候选产物。消费者构建、冻结字节码和设备运行仍需独立执行。候选仓库为 `build/candidate-repository`，默认不签名且只接受 SNAPSHOT。
 
-报告使用 `build/reports/compatibility/ktoast-candidate.json` 与 `ktoast-lifecycle-candidate.json`，不使用历史单模块 `candidate.json` 认证当前候选。验证包含 AAR、POM、Gradle metadata、sources、真实 Dokka HTML，以及正式 1.0.5/1.1.0 API 基线和精确新增清单。
+报告使用 `build/reports/compatibility/ktoast-candidate.json` 与 `ktoast-lifecycle-candidate.json`、`ktoast-compose-candidate.json`，不使用历史单模块 `candidate.json` 认证当前候选。验证包含 AAR、POM、Gradle metadata、sources、真实 Dokka HTML，以及正式 1.0.5/1.1.0/1.2.0 API 基线和精确新增清单。
 
 发布工具或签名配置变化时，另行运行真实 Gradle 回归，不在外层 Gradle 任务内嵌套启动：
 
@@ -42,19 +43,23 @@ python3 -B tools/verify_central_service.py -- ./gradlew
 
 ## 云端设备矩阵
 
-[Candidate device matrix](https://github.com/logan0817/KToast/actions/workflows/device-matrix.yml) 在构建任务生成同一批 Demo、测试、核心/扩展 R8 APK 和两份 AAR，再由 API 21、30、31、35、36 的设备任务消费。手动触发时明确选择待验收分支，并核对实际运行提交。
+[Candidate device matrix](https://github.com/logan0817/KToast/actions/workflows/device-matrix.yml) 在构建任务生成同一批 Demo、测试、三个 R8 消费者 APK 和三份 AAR，再由 API 21、30、31、35、36 的设备任务消费。手动触发时明确选择待验收分支，并核对实际运行提交。
+
+构建任务同时检查 Demo 和三个库的 Lint。专用云端设备关闭窗口和 Activity 转场（`window_animation_scale=0`、`transition_animation_scale=0`），避免 API 35 的残留系统转场层让页面 Surface 透明、输入层拒绝焦点；保留 `animator_duration_scale=1`，逐帧回弹边界用例必须观察真实 Animator 帧。矩阵入口在专用模拟器身份核验后写入并回读这三项配置，不一致即失败；不应用到日常真机。本机仅真机调试的约束不影响已授权的云端专用设备矩阵。
+
+构建任务用临时 SDK 视图仅暴露既定平台 31/36，其余构建工具通过符号链接复用 hosted 镜像已有安装。这样镜像额外预装的平台不会改变 `OldTargetApi` 检查阈值；保持项目 SDK 基线和 Lint 规则，不删除镜像 SDK。设备任务仍独立运行完整五档矩阵。
 
 设备矩阵的 `max-parallel: 5` 允许五个 API 任务在构建完成后同时运行，每个任务使用独立 runner。实际并发仍受账号配额、其他任务和 runner 可用性限制；该设置减少矩阵内部排队，不缩短构建或单个设备任务，也不修复设备失焦。
 
-构建任务使用固定提交的官方 [`gradle/actions/setup-gradle`](https://github.com/gradle/actions/tree/v5.0.2/setup-gradle) v5.0.2 管理跨运行 Gradle User Home 缓存；主工程仍用 Wrapper 8.14.3，两个消费者仍用各自 Wrapper 7.4.2，共用 JDK 17。不叠加 `setup-java` 的 Gradle 缓存或 `actions/cache`。仅 `main` 写入缓存，PR 和其他分支只读可访问的缓存；缓存缺失时按原命令下载依赖和构建，不跳过任何验证步骤。
+构建任务使用固定提交的官方 [`gradle/actions/setup-gradle`](https://github.com/gradle/actions/tree/v5.0.2/setup-gradle) v5.0.2 管理跨运行 Gradle User Home 缓存；主工程仍用 Wrapper 8.14.3，核心/生命周期消费者仍用各自 Wrapper 7.4.2，Compose 消费者使用 Wrapper 8.14.3，共用 JDK 17。不叠加 `setup-java` 的 Gradle 缓存或 `actions/cache`。仅 `main` 写入缓存，PR 和其他分支只读可访问的缓存；缓存缺失时按原命令下载依赖和构建，不跳过任何验证步骤。
 
-缓存复用依赖、Wrapper 分发包、编译脚本和依赖转换结果，排除 `caches/build-cache-*` 与 `caches/keyrings`；不缓存项目构建目录（含候选仓库、受测 APK/AAR 与报告）、用户 `gradle.properties`、签名资料或其他本机配置。不开启配置缓存、Build Scan 发布或依赖图上传。依赖缓存可能包含此前解析的 SNAPSHOT，消费者保持 `cacheChangingModulesFor 0`，每次重新解析，并核对 Debug/Release 实际解析 AAR 与本轮双模块 AAR 的 SHA-256。缓存命中不能作为候选或设备验收证据。
+缓存复用依赖、Wrapper 分发包、编译脚本和依赖转换结果，排除 `caches/build-cache-*` 与 `caches/keyrings`；不缓存项目构建目录（含候选仓库、受测 APK/AAR 与报告）、用户 `gradle.properties`、签名资料或其他本机配置。不开启配置缓存、Build Scan 发布或依赖图上传。依赖缓存可能包含此前解析的 SNAPSHOT，消费者保持 `cacheChangingModulesFor 0`，每次重新解析，并核对 Debug/Release 实际解析 AAR 与本轮三模块 AAR 的 SHA-256。缓存命中不能作为候选或设备验收证据。
 
-构建任务按依赖顺序展示候选/JVM/Lint/工具回归、签名与 Central 配置回归、核心消费者、生命周期消费者、旧 Java/Kotlin 字节码检查、矩阵输入准备六个步骤；原命令及失败即停止行为保留。它们仍属于一个构建任务，共享工作区与 Gradle 缓存，设备任务只消费同批输入，不重复构建。签名和 Central 回归只检查配置及本地隔离服务，不执行正式签名或真实上传。
+构建任务按依赖顺序展示候选/JVM/Lint/工具回归、签名与 Central 配置回归、核心消费者、生命周期消费者、Compose 消费者、旧 Java/Kotlin 字节码检查、矩阵输入准备七个步骤；原命令及失败即停止行为保留。它们仍属于一个构建任务，共享工作区与 Gradle 缓存，设备任务只消费同批输入，不重复构建。签名和 Central 回归只检查配置及本地隔离服务，不执行正式签名或真实上传。
 
 第 30/31 轮验证冷缓存与 main 保存路径，第 32 轮 PR 和合并后第 33 轮 main 又独立验证了缓存命中路径，详见 [1.2.0 验收记录](releases/1.2.0.md#正式版本提交与缓存命中验收第-3233-轮)。第 32/33 轮各恢复九个条目、约 1.28 GB 压缩数据，恢复步骤分别为 14/11 秒；PR 只读，main 收尾保存步骤 10 秒并成功保存四个新增条目。两轮五个设备在构建结束后 2～3 秒启动，JVM、Lint 和本轮产物检查实际执行，历史报告未替代本轮结果。
 
-第 28/29 轮日志中的大块构建步骤分别为 6 分 8 秒、4 分 46 秒，无法可靠拆出其中各命令耗时。后续正常运行继续分别记录冷缓存/缓存命中、恢复与保存耗时和大小、六个构建步骤耗时、各设备从构建结束到开始的等待时间、单设备耗时、整轮墙钟时间及所有任务耗时之和（不等同于计费分钟）。同时核验原始 Runner、报告与同批摘要；已有测量不能将所有差异归因于缓存或并发设置，也不能据此声称节省了特定费用。
+第 28/29 轮日志中的大块构建步骤分别为 6 分 8 秒、4 分 46 秒，无法可靠拆出其中各命令耗时。后续正常运行继续分别记录冷缓存/缓存命中、恢复与保存耗时和大小、各构建步骤耗时、各设备从构建结束到开始的等待时间、单设备耗时、整轮墙钟时间及所有任务耗时之和（不等同于计费分钟）。同时核验原始 Runner、报告与同批摘要；已有测量不能将所有差异归因于缓存或并发设置，也不能据此声称节省了特定费用。
 
 本地等价工具入口（先完成上面的所有构建）：
 
@@ -63,23 +68,23 @@ python3 -B tools/run_device_matrix.py --prepare
 python3 -B tools/run_device_matrix.py --api 35 --serial emulator-5554
 ```
 
-设备入口仅接受显式指定的专用模拟器，会安装并运行 Demo、测试 APK 和两个消费者。必需用例未通过、空运行、Runner 中断、版本或摘要不一致、新进程未出现 PASS 均失败。原始输出与 `result.json` 在 `build/reports/device-matrix/api-35`；专用 fixture 配置见[设备排障](../TROUBLESHOOTING.md#设备回归与专用场景)。
+设备入口仅接受显式指定的专用模拟器，会安装并运行 Demo、测试 APK 和三个消费者。必需用例未通过、空运行、Runner 中断、版本或摘要不一致、新进程未出现 PASS 均失败。原始输出与 `result.json` 在 `build/reports/device-matrix/api-35`；专用 fixture 配置见[设备排障](../TROUBLESHOOTING.md#设备回归与专用场景)。
 
 安装后、启动 Runner 前执行启动检查：轮询启动完成与有效窗口焦点，等待期限为 60 秒，单次 adb 命令另有超时。当前焦点为 ANR 对话框或系统报告锁屏时立即失败，保存 `preflight-window.txt`、`startupPreflight` 结果及收尾诊断，不自动关闭对话框或重跑。检查通过只说明当时满足启动条件，不能保证测试期间不会出现 ANR。
 
 矩阵启用采证自检，用真实 JUnit 规则触发可控异常，检查原异常保留、宿主销毁前生成快照，并由主机 `run-as` 导出本次私有目录中的六个文件：`failure.txt`、`window.txt`、`input.txt`、`activity.txt`、`display.txt`、`surfaceflinger.txt`。设备与主机验证系统服务标识；SurfaceFlinger 输出检查 `Build configuration:`，供定位输入层 `NOT_VISIBLE` 与合成层可见性是否一致。旧系统使用兼容的 `dumpsys` 命令，用例读取端五秒超时，主机收尾命令十五秒超时；采证错误保留原始失败，不重试业务断言。
 
-停止/恢复用例使用 Debug 专用的同进程不透明 Activity 遮挡宿主，等待真实生命周期事件并核对 ActivityScenario 状态；恢复后在 finally 中移除观察器。该夹具不进入 Demo Release 或两个库，不修改、跳过或重试业务断言。
+停止/恢复用例使用 Debug 专用的同进程不透明 Activity 遮挡宿主，等待真实生命周期事件并核对 ActivityScenario 状态；恢复后在 finally 中移除观察器。该夹具不进入 Demo Release 或三个库，不修改、跳过或重试业务断言。
 
 普通失败另有宿主清理后、Runner 结束后的收尾快照，也包含 SurfaceFlinger；这些串行采集的快照并非同一时刻，不能直接证明失焦首次发生时的原因。成功的采证自检也不证明所有偶发窗口故障已经消除。
 
-Actions 的输入、构建报告及逐 API 报告保留 **14 天**。验收时下载七份原始 ZIP，核对 GitHub 官方 digest、提交、同批六产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与两个 R8 新进程 PID，并保存运行 URL。不同轮次的部分成功不能拼成最终矩阵。
+Actions 的输入、构建报告及逐 API 报告保留 **14 天**。验收时下载七份原始 ZIP，核对 GitHub 官方 digest、提交、同批八产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与三个 R8 新进程 PID，并保存运行 URL。不同轮次的部分成功不能拼成最终矩阵。
 
 ## 正式版本与本地签名
 
 批准本次发布范围后，核对 `gradle.properties` 的 `VERSION`、`APP_VERSION_NAME`、`APP_VERSION_CODE`，同步 CHANGELOG；正式仓库确认上线前，README 不提前宣称新坐标已可安装。兼容基线独立于版本配置，不能随版本号自动覆盖。
 
-下面命令中的 `1.2.0` 是本版流程示例；该版本已发布，后续发布须替换为经批准的新版本。执行本地准备不等于授权上传或正式发布。签名默认关闭；两种模式均要求 `--no-configuration-cache`，不使用公开 build scan 或调试日志保存签名环境。
+下面命令中的 `1.3.0` 是未发布的未来正式版本示例，仅在版本准备及具体发布操作获得授权后执行；不得向已发布 1.2.0 坐标重复上传。执行本地准备不等于授权上传或正式发布。签名默认关闭；两种模式均要求 `--no-configuration-cache`，不使用公开 build scan 或调试日志保存签名环境。
 
 ### 本机 GPG 模式
 
@@ -94,10 +99,10 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 公钥文件必须来自已确认的发布密钥，并独立核对指纹，不从待验签名推导“期望指纹”。设置 `KTOAST_PUBLIC_KEY_FILE` 为本机公钥文件路径，再执行本地准备：
 
 ```bash
-./gradlew prepareCentralBundle -PVERSION=1.2.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
+./gradlew prepareCentralBundle -PVERSION=1.3.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
 ```
 
-根任务同时生成两个模块的 Staging publication，再校验 `build/central/ktoast-1.2.0.zip` 与相邻 `.report.json`。两模块共 **10 类制品、10 份签名、60 个 ZIP 文件**：AAR、sources、javadoc、POM、module 各自有签名及四种制品校验和。ZIP 不含密钥、公钥、报告或 `maven-metadata.xml`。
+根任务同时生成三个模块的 Staging publication，再校验 `build/central/ktoast-1.3.0.zip` 与相邻 `.report.json`。三模块共 **15 类制品、15 份签名、90 个 ZIP 文件**：AAR、sources、javadoc、POM、module 各自有签名及四种制品校验和。ZIP 不含密钥、公钥、报告或 `maven-metadata.xml`。
 
 ### 受控内存签名
 
@@ -105,11 +110,11 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 
 ### 核对正式包
 
-验收工具验证两个模块的当前源码、API、依赖、真实文档、签名指纹与校验和。报告必须 `rehearsal=false`、`source.dirty=false`，且提交、版本和逐文件摘要与本次包一致；源码编辑期间的预验报告不能用于上传。
+验收工具验证三个模块的当前源码、API、依赖、真实文档、签名指纹与校验和。报告必须 `rehearsal=false`、`source.dirty=false`，且提交、版本和逐文件摘要与本次包一致；源码编辑期间的预验报告不能用于上传。
 
-用同版 Staging 运行两个消费者，分别在前述构建命令中传入 `-PktoastPublication=staging -PktoastVersion=1.2.0`。核对两变体解析的 AAR 与已验收候选关系，完成相应 R8 设备验证。SNAPSHOT 与正式版本的文档标签、POM 和 metadata 可能不同，需解释差异，不能仅凭版本号认定相同。
+用同版 Staging 运行三个消费者，分别在前述构建命令中传入 `-PktoastPublication=staging -PktoastVersion=1.3.0`。核对两变体解析的 AAR 与已验收候选关系，完成相应 R8 设备验证。SNAPSHOT 与正式版本的文档标签、POM 和 metadata 可能不同，需解释差异，不能仅凭版本号认定相同。
 
-隔离测试密钥演练使用 `tools/prepare_central_bundle.py --artifacts ktoast ktoast-lifecycle`、`--rehearsal` 及 `-TEST-KEY.zip` 名称；测试包禁止上传。演练后恢复 SNAPSHOT Candidate，再验证候选消费者，避免 Staging 覆盖的 publication 元数据被混用。
+隔离测试密钥演练使用 `tools/prepare_central_bundle.py --artifacts ktoast ktoast-lifecycle ktoast-compose`、`--rehearsal` 及 `-TEST-KEY.zip` 名称；测试包禁止上传。演练后恢复 SNAPSHOT Candidate，再验证候选消费者，避免 Staging 覆盖的 publication 元数据被混用。
 
 ## Maven Central 上传与人工审核
 
@@ -118,25 +123,25 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 唯一上传入口是根任务：
 
 ```bash
-./gradlew :publishToMavenCentral -PVERSION=1.2.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
+./gradlew :publishToMavenCentral -PVERSION=1.3.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
 ```
 
-本命令会执行外部上传，仅在授权后运行。批次名为 `io.github.logan0817-KToast-1.2.0`，包含两个模块，固定 **USER_MANAGED**，不会自动正式发布。
+本命令会执行外部上传，仅在授权后运行。批次名为 `io.github.logan0817-KToast-1.3.0`，包含三个模块，固定 **USER_MANAGED**，不会自动正式发布。
 
-根入口先检查环境，再生成、验收签名 ZIP，校对插件本地 staging 与冻结包的全部 60 文件并再次验签。插件为签名派生的 40 份校验和只有在全部验证后才从插件临时目录规范化移除，实际传输集合与冻结包一致。缺项、未知文件、字节差异、演练包和脏源码均拒绝。
+根入口先检查环境，再生成、验收签名 ZIP，校对插件本地 staging 与冻结包的全部 90 文件并再次验签。插件为签名派生的 60 份校验和只有在全部验证后才从插件临时目录规范化移除，实际传输集合与冻结包一致。缺项、未知文件、字节差异、演练包和脏源码均拒绝。
 
 禁止直接模块上传、通用 `publish`、自动 release/drop、跳过任务、`--continue`、上传时 `clean` 或 configuration cache。离线查看任务图同时使用 `--dry-run`；仅 `--offline` 不保证第三方插件不联网。
 
-上传发生于 build service 收尾，等待整个进程结束。随后从官方 API/Portal 按名称、时间与两个内部坐标定位唯一 deployment ID，保存实时状态、errors 与 purls。**VALIDATED 表示服务端校验通过，不代表已发布。** 网络错误或响应丢失后先核对是否已创建批次，不直接重复上传。
+上传发生于 build service 收尾，等待整个进程结束。随后从官方 API/Portal 按名称、时间与三个内部坐标定位唯一 deployment ID，保存实时状态、errors 与 purls。**VALIDATED 表示服务端校验通过，不代表已发布。** 网络错误或响应丢失后先核对是否已创建批次，不直接重复上传。
 
 ## 远端验收与正式发布
 
-按本次 deployment ID 建立目录，保存官方 `status.json`，将两个模块共 **20 个制品及签名文件**下载至 `artifacts/`，保留 Maven 文件名。校验和文件如下载也必须一致。设置 `KTOAST_DEPLOYMENT_ID` 和已核对的 `KTOAST_SIGNING_FINGERPRINT` 后：
+按本次 deployment ID 建立目录，保存官方 `status.json`，将三个模块共 **30 个制品及签名文件**下载至 `artifacts/`，保留 Maven 文件名。校验和文件如下载也必须一致。设置 `KTOAST_DEPLOYMENT_ID` 和已核对的 `KTOAST_SIGNING_FINGERPRINT` 后：
 
 ```bash
 python3 -B tools/verify_central_deployment.py \
-  --bundle build/central/ktoast-1.2.0.zip \
-  --bundle-report build/central/ktoast-1.2.0.report.json \
+  --bundle build/central/ktoast-1.3.0.zip \
+  --bundle-report build/central/ktoast-1.3.0.report.json \
   --deployment-id "$KTOAST_DEPLOYMENT_ID" \
   --status "build/central/$KTOAST_DEPLOYMENT_ID/status.json" \
   --downloads "build/central/$KTOAST_DEPLOYMENT_ID/artifacts" \
@@ -149,8 +154,20 @@ python3 -B tools/verify_central_deployment.py \
 
 远端验收通过后，再取得并执行正式发布授权。发布前重新查询同一 ID 的状态，核对坐标与验收包；不要按模糊名称操作其他批次。若组件查询报 `Deployment components info not found`，保留该诊断，通过状态与实际文件核对，不据此重复上传。
 
-发布后确认 PUBLISHED、实际正式仓库可解析，并下载双模块的制品、签名与校验和核验。使用只从正式仓库解析的新消费者验证 Debug/R8，避免本地 Candidate 或 Staging 遮蔽正式坐标。然后同步 README 中英文、CHANGELOG、Demo 版本和逐版本记录；标签与 GitHub Release 在相应授权下创建并核对提交及资源。
+发布后确认 PUBLISHED、实际正式仓库可解析，并下载三模块的制品、签名与校验和核验。使用只从正式仓库解析的新消费者验证 Debug/R8，避免本地 Candidate 或 Staging 遮蔽正式坐标。然后同步 README 中英文、CHANGELOG、Demo 版本和逐版本记录；标签与 GitHub Release 在相应授权下创建并核对提交及资源。
 
 ## 维护入口
 
-发布元数据集中于 `gradle.properties`；签名与 Publication 在 `gradle/release-publishing.gradle.kts`，验收在 `gradle/release-verification.gradle.kts`，Central 上传与门禁在 `gradle/central-publishing.gradle.kts`。修改插件版本、批次模型或文件集合时，先更新对应回归并重新验证双模块流程。
+发布元数据集中于 `gradle.properties`；签名与 Publication 在 `gradle/release-publishing.gradle.kts`，验收在 `gradle/release-verification.gradle.kts`，Central 上传与门禁在 `gradle/central-publishing.gradle.kts`。修改插件版本、批次模型或文件集合时，先更新对应回归并重新验证三模块流程。
+
+## 1.3.0 开发版的三模块入口
+
+当前源码为未发布 `1.3.0-SNAPSHOT`；正式仓库与历史发布证据仍为 1.2.0，不直接把历史命令替换为新发布操作。本地候选统一使用 `verifyReleaseCandidate`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
+
+Compose 需要真实 sources/Dokka、AAR、POM/Gradle metadata、精确公开 API 和直接依赖检查，发布包不得漏掉任一模块。包验证按版本保留历史单/双模块规则；>=1.3 必须三模块。根上传入口与人工发布模式保持，候选生成与配置 dry-run 不触发上传。
+
+独立消费者包括 `tools/compatibility/compose-consumer`，执行 `assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT` 并比对三个实际解析 AAR。Compose 消费者使用现代工具链；旧核心/生命周期消费者保留 AGP 7.2.2 的验证意义，不要求它们编译 Compose。
+
+矩阵输入新增 Compose AAR 和 R8 APK，共八份受测产物；三个 R8 消费者分别核对本次新进程 PASS。当前工作流保留五个 API/必需检查、原始证据及缓存权限，增加新模块路径与同批产物。本地成功不代替另行授权后的 PR/main 云端验收，专用 fixture 与厂商真机分别记录。
+
+开发工具链为 AGP 8.13.0、Gradle 8.14.3、JDK 17、Kotlin 1.9.23，SDK 36/Build Tools 35.0.0；不再使用 unsupportedCompileSdk 压制。旧 1.2.0 运行中的 AGP 8.6 限制属于历史事实。

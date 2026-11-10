@@ -51,3 +51,11 @@ HTML 分别位于 `library-android/build/docs/api/index.html` 和 `library-lifec
 - 保留现有 `README_EN.md`、`docs/API.md` 等已被引用或参与构建的名称；不为格式统一改变公开接口或发布坐标。
 - 文件使用可辨识的功能名称；设计与验收记录按版本归档。旧 `NEXT_VERSION_PLAN.md` 保留导航，后续版本不会覆盖旧设计。
 - 发布前检查相对链接、代码块、示例符号和版本状态；构建缓存、日志、签名材料、个人环境及临时报告不提交。
+
+## 1.3.0 源码候选（未发布）
+
+- [语义与品牌样式](STYLES.md)：showStyled、XML、values-night、覆盖优先级与快照。
+- [Compose 页面与内容](COMPOSE.md)：可选模块、生命周期、Preview、自定义内容及异常边界。
+- [版本设计](design/1.3.0.md)：范围、兼容、工具链和验收门槛。
+
+正式安装仍使用 README 的 1.2.0，源码候选使用贡献指南命令。

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_samples_badge">SAMPLES</string>
+    <string name="demo_samples_title">More examples</string>
+    <string name="demo_samples_description">After exploring the basics above, try semantic and brand styles, Compose integration, or page and request management.</string>
+    <string name="demo_style_hero_badge">STYLE &amp; THEME</string>
+    <string name="demo_style_semantic_badge">SEMANTIC</string>
+    <string name="demo_style_semantic_title">Express the result</string>
+    <string name="demo_style_semantic_description">Compare the colors and icons of normal, success, error, warning, and information notifications.</string>
+    <string name="demo_style_brand_badge">BRAND</string>
+    <string name="demo_style_brand_title">Reuse a consistent brand style</string>
+    <string name="demo_style_brand_description">Reuse one brand palette. A local override changes only the current notification corner radius.</string>
+</resources>

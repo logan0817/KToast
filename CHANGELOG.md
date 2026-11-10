@@ -1,5 +1,19 @@
 # 版本变更
 
+## 1.3.0（开发中，未发布）
+
+- 新增 KToastType 与不可变 KToastStyle，提供 Normal/Success/Error/Warning/Info 语义、明暗配色、自有矢量图标及可复用 XML 品牌样式；全局、Activity、LifecycleOwner 新增返回 ToastHandle 的 showStyled。
+- 样式按基础、可选宿主主题、语义、品牌 XML、单次配置依次覆盖，提交形成快照，拒绝请求不解析样式或执行 DSL；旧普通入口保持原规则。
+- 新增独立 ktoast-compose，提供 Composition 页面作用域、默认可预览内容及自定义 Composable 内容，复用现有队列/句柄/运行策略并管理子 Composition 与真实 Owner 清理；核心及生命周期单独接入不增加 Compose 依赖。
+- 构建使用 AGP 8.13.0，与 compileSdk 36 处于官方支持组合；保留 Gradle 8.14.3、JDK 17、Kotlin 1.9.23 和核心 minSdk 21/JVM 1.8。
+- 补齐正式 1.2.0 核心 API 基线、双模块冻结消费者；候选、发布包校验、设备产物身份和独立 R8 消费者扩展至三模块，增加样式与 Compose Demo 和行为回归。
+- Demo 首页和三个示例页统一系统栏、Toolbar、卡片与按钮资源；修复 Compose 内容首次挂载后尺寸变化造成的窗口偏移。
+- 保留原有缩放回弹，为前台 Toast 窗口预留动画和阴影边距，修复放大峰值时圆角、边框被窗口裁剪的问题；覆盖全局与页面作用域入口。
+- 新增 `KToastAnimation`，支持分别配置入场、退场插值器及最大缩放边界；通过 `KToastConfig.animation` 全局或单次设置，`snapshot()` 完整复制配置并保留既有构造与 copy 二进制接口。
+- 修正最大回弹倍率配合长文本时的测量不稳定；自定义插值器抛出 Exception 或返回非有限值时报告错误、取消当前提示并继续队列。
+
+当前为 `1.3.0-SNAPSHOT` 源码候选，尚未发布。方案与兼容边界见 [1.3.0 设计](docs/design/1.3.0.md)，使用见[样式](docs/STYLES.md)与 [Compose](docs/COMPOSE.md)。实际完成状态以本次验证记录为准。
+
 ## 1.2.0（2026-10-15）
 
 - 新增可选 KToastRuntimePolicy，统一限制准备、队列、防抖与延时请求的待处理容量；展示开始归还额度，拒绝请求不执行局部配置。

@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +15,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -23,10 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
+import androidx.core.graphics.toColorInt
 import com.logan.ktoast.KToast
 import com.logan.ktoast.KToastScope
 import com.logan.ktoast.debugShow
@@ -57,7 +54,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         pageToastScope = KToastScope.create(this)
         _binding = ActivityMainBinding.inflate(layoutInflater)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(binding.root)
         binding.switchDebug.isChecked = KToast.debugMode
         setupInsets()
@@ -71,23 +67,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupInsets() {
-        val initialPadding = Rect(binding.root.paddingLeft, binding.root.paddingTop,
-            binding.root.paddingRight, binding.root.paddingBottom)
-        val toolbarTop = binding.toolbar.paddingTop
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            // 滚动视口必须止于导航栏上方，不能仅给内容加 padding 后仍允许点击进入 SystemUI。
-            view.updatePadding(left = initialPadding.left + insets.left,
-                right = initialPadding.right + insets.right, bottom = initialPadding.bottom + insets.bottom)
-            binding.toolbar.updatePadding(top = toolbarTop + insets.top)
-            windowInsets
-        }
-        ViewCompat.requestApplyInsets(binding.root)
+        DemoPage.configureWindow(this, binding.root, binding.toolbar)
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = getString(R.string.demo_toolbar_title)
     }
 
     private fun setListeners() {
+        binding.btnStyleDemo.setOnClickListener {
+            startActivity(Intent(this, StyleDemoActivity::class.java))
+        }
+        binding.btnComposeDemo.setOnClickListener {
+            startActivity(Intent(this, ComposeToastActivity::class.java))
+        }
         binding.btnLifecycleDemo.setOnClickListener {
             startActivity(Intent(this, LifecycleDemoActivity::class.java))
         }
@@ -103,7 +94,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnColor.setOnClickListener {
             getString(R.string.demo_toast_color).toast {
-                backgroundColor = Color.parseColor("#2196F3")
+                backgroundColor = "#2196F3".toColorInt()
                 textColor = Color.WHITE
                 backgroundRadius = 50f
             }
@@ -148,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.demo_toast_offset).toast {
                 gravity = Gravity.CENTER_VERTICAL or Gravity.START
                 xOffset = 100
-                backgroundColor = Color.parseColor("#673AB7")
+                backgroundColor = "#673AB7".toColorInt()
             }
             recordAction(R.string.demo_offset_toast, R.string.demo_guide_try_behavior)
         }
@@ -350,7 +341,7 @@ class MainActivity : AppCompatActivity() {
                     addView(TextView(context).apply {
                         text = context.getString(R.string.demo_toast_custom_factory_code_title)
                         textSize = 12f
-                        setTextColor(Color.parseColor("#FFE082"))
+                        setTextColor("#FFE082".toColorInt())
                     })
                     addView(TextView(context).apply {
                         text = message
@@ -372,7 +363,7 @@ class MainActivity : AppCompatActivity() {
             contentDescription = getString(R.string.demo_toast_custom_factory_xml_desc)
             contentFactory = KToastContentFactory { context, message, config ->
                 LayoutInflater.from(context)
-                    .inflate(R.layout.view_demo_toast_content, null, false)
+                    .inflate(R.layout.view_demo_toast_content, FrameLayout(context), false)
                     .apply {
                         backgroundTintList = ColorStateList.valueOf(config.backgroundColor)
                         findViewById<TextView>(R.id.tvToastTitle).apply {
@@ -483,28 +474,28 @@ class MainActivity : AppCompatActivity() {
         lastActionRes: Int,
         guideRes: Int
     ) {
-        binding.tvStatusPermission.text = getString(
+        binding.homeHero.tvStatusPermission.text = getString(
             R.string.demo_status_permission_template,
             getString(if (permissionEnabled) R.string.demo_status_permission_on else R.string.demo_status_permission_off)
         )
-        binding.tvStatusDebug.text = getString(
+        binding.homeHero.tvStatusDebug.text = getString(
             R.string.demo_status_debug_template,
             getString(if (debugEnabled) R.string.demo_status_debug_on else R.string.demo_status_debug_off)
         )
-        binding.tvLastAction.text = getString(
+        binding.homeHero.tvLastAction.text = getString(
             R.string.demo_status_action_template,
             getString(lastActionRes)
         )
-        binding.tvStatusGuide.text = getString(
+        binding.homeHero.tvStatusGuide.text = getString(
             R.string.demo_status_guide_template,
             getString(guideRes)
         )
         tintStatusChip(
-            binding.tvStatusPermission,
+            binding.homeHero.tvStatusPermission,
             if (permissionEnabled) R.color.demo_success else R.color.demo_warning
         )
         tintStatusChip(
-            binding.tvStatusDebug,
+            binding.homeHero.tvStatusDebug,
             if (debugEnabled) R.color.demo_primary_action else R.color.demo_status_neutral
         )
     }

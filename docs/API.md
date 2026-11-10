@@ -39,3 +39,15 @@ ToastHandle.dropReason 是可跨线程读取的只读附加原因。容量拒绝
 ## 1.2.0 生命周期扩展
 
 KToastLifecycleScope 位于独立 ktoast-lifecycle 模块，通过每轮 STARTED 的核心作用域实现页面门禁。Fragment 应绑定 viewLifecycleOwner，停止后关闭旧代理，恢复只接受新请求；Owner/宿主结束或显式 close 永久关闭。核心不引入 Lifecycle 依赖。完整示例见 LIFECYCLE_SCOPE.md；扩展另有自己的 API 模块文档。
+
+## 1.3.0 源码候选：语义与品牌样式
+
+当前源码候选未发布。KToastType 为 NORMAL/SUCCESS/ERROR/WARNING/INFO；KToastStyle(type, styleRes) 为不持有 Context 的不可变描述。resolve(context, baseConfig) 返回独立配置副本；showStyled 在获得准入额度后按基础、可选宿主主题、语义、品牌 XML、单次 DSL 依次覆盖并提交快照。容量拒绝不解析资源，不执行 DSL。
+
+全局、Activity 与 LifecycleOwner 均提供 showStyled 并返回原 ToastHandle，资源/主题及 DSL 在调用线程准备，渲染与回调在主线程；调用期间不应并发更换主题。旧普通 API 与公开 data class 构造/copy 保持。完整样式及可选 Compose 接入见使用指南。
+
+## 1.3.0 源码候选：动画插值器
+
+KToastConfig.animation 使用不可变 KToastAnimation，分别指定 enterInterpolator、exitInterpolator；null 选择原有默认回弹。animationDuration 仍决定时长。maxScale 默认为 1.05，必须为有限的 1～2；窗口预留相应透明边距和阴影空间，实际缩放按此上限约束，避免自定义回弹超出窗口而裁剪圆角。系统 Toast 不读取这些配置。
+
+全局配置、单次 DSL、语义样式、Lifecycle 和 Compose 共用此配置。插值器在主线程执行，必须返回有限数值，提交后不能修改其内部状态。如果插值器抛出 Exception 或返回非有限值，库报告 ERROR 诊断并取消当前请求，随后继续队列。animation 为类体属性以保留已发布的构造、默认参数及 copy ABI；snapshot() 返回包含动画的完整副本，Kotlin 生成的 copy/equals/hashCode 保留原有主构造属性语义。库的配置继承、样式解析和请求登记使用完整快照，局部覆盖不改变其他请求。

@@ -63,7 +63,7 @@ def verify(launcher):
                          "ORG_GRADLE_PROJECT_mavenCentralUsername", "ORG_GRADLE_PROJECT_mavenCentralPassword"):
                 environment.pop(name, None)
             environment["GNUPGHOME"] = str(keyring)
-            (folder / "settings.gradle.kts").write_text('rootProject.name = "Fixture"' + chr(10) + 'include(":core", ":lifecycle")' + chr(10))
+            (folder / "settings.gradle.kts").write_text('rootProject.name = "Fixture"' + chr(10) + 'include(":core", ":lifecycle", ":compose")' + chr(10))
             (folder / "payload.txt").write_text("public fixture content")
             # 显式替换该临时工程的 service 地址和 token，不读取或修改用户正式配置。
             script = '''import org.gradle.api.provider.Property
@@ -81,7 +81,7 @@ version = "1.0.0"
 configure<MavenPublishBaseExtension> { publishToMavenCentral(false) }
 configure<PublishingExtension> {
     publications {
-        create<MavenPublication>("release") { artifact(rootProject.file("payload.txt")); artifactId = if (project.name == "core") "fixture" else "fixture-lifecycle" }
+        create<MavenPublication>("release") { artifact(rootProject.file("payload.txt")); artifactId = if (project.name == "core") "fixture" else "fixture-" + project.name }
     }
 }
 tasks.named("createStagingRepository") {
@@ -99,7 +99,7 @@ fixtureParameter("SonatypeHost").set(constructor.newInstance("FIXTURE_URL", true
 fixtureParameter("RepositoryUsername").set("fixture-user")
 fixtureParameter("RepositoryPassword").set("fixture-password")
 tasks.register("verifyBeforeClose") {
-    dependsOn(":core:publishReleasePublicationToMavenCentralRepository", ":lifecycle:publishReleasePublicationToMavenCentralRepository")
+    dependsOn(":core:publishReleasePublicationToMavenCentralRepository", ":lifecycle:publishReleasePublicationToMavenCentralRepository", ":compose:publishReleasePublicationToMavenCentralRepository")
     doLast {
         if (providers.gradleProperty("fixtureFail").get() == "true") throw GradleException("Fixture verification failure")
     }
@@ -124,6 +124,7 @@ tasks.register("verifyBeforeClose") {
                             "name": ["test.fixture-Fixture-1.0.0"], "publishingType": ["USER_MANAGED"]} and
                             request["files"].get("test/fixture/fixture/1.0.0/fixture-1.0.0.txt") == "public fixture content" and
                             request["files"].get("test/fixture/fixture-lifecycle/1.0.0/fixture-lifecycle-1.0.0.txt") == "public fixture content" and
+                            request["files"].get("test/fixture/fixture-compose/1.0.0/fixture-compose-1.0.0.txt") == "public fixture content" and
                             all("maven-metadata" not in path for path in request["files"]))
                     name = "successful-build-uploads-once-user-managed"
                 if not passed:

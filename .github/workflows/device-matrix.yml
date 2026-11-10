@@ -13,6 +13,7 @@ on:
       - 'buildSrc/**'
       - 'library-android/**'
       - 'library-lifecycle/**'
+      - 'library-compose/**'
       - 'app/**'
       - 'tools/**'
       - 'docs/API.md'
@@ -27,6 +28,7 @@ on:
       - 'buildSrc/**'
       - 'library-android/**'
       - 'library-lifecycle/**'
+      - 'library-compose/**'
       - 'app/**'
       - 'tools/**'
       - 'docs/API.md'
@@ -52,7 +54,7 @@ jobs:
       - name: Restore shared Gradle dependencies and Wrapper distributions
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
         with:
-          # PR/其他分支只读 main 缓存；三个工程继续使用各自 Wrapper。
+          # PR/其他分支只读 main 缓存；各工程继续使用各自 Wrapper。
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           # 不跨运行复用任务输出或密钥环；候选、报告与 APK 在本轮生成。
           gradle-home-cache-excludes: |
@@ -63,18 +65,35 @@ jobs:
           # 旧 tools 包已下架；沿用 Action 的 cmdline-tools，只补齐 adb。
           packages: platform-tools
       - name: Provision runner SDK only
-        run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;34.0.0' 'build-tools;30.0.3'
-      - name: Build candidate, unit tests, library Lint and tool regressions
-        run: bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
+        run: sdkmanager 'platforms;android-36' 'platforms;android-31' 'build-tools;35.0.0' 'build-tools;34.0.0' 'build-tools;30.0.3'
+      - name: Select declared SDK platforms for reproducible builds
+        run: |
+          # hosted 镜像预装的平台会改变 OldTargetApi 检查，构建只暴露项目声明的 31/36。
+          build_sdk="$RUNNER_TEMP/ktoast-build-sdk"
+          mkdir -p "$build_sdk/platforms"
+          for component in build-tools cmdline-tools licenses platform-tools; do
+            test -d "$ANDROID_HOME/$component"
+            ln -s "$ANDROID_HOME/$component" "$build_sdk/$component"
+          done
+          for api in 31 36; do
+            test -d "$ANDROID_HOME/platforms/android-$api"
+            ln -s "$ANDROID_HOME/platforms/android-$api" "$build_sdk/platforms/android-$api"
+          done
+          echo "ANDROID_HOME=$build_sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$build_sdk" >> "$GITHUB_ENV"
+      - name: Build candidate, unit tests, Demo and library Lint and tool regressions
+        run: bash ./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug -PVERSION=1.3.0-SNAPSHOT --console=plain
       - name: Verify signing and Central publishing configuration without release
         run: |
           python3 -B tools/verify_signing_configuration.py -- bash ./gradlew
           python3 -B tools/verify_central_publishing_configuration.py -- bash ./gradlew
           python3 -B tools/verify_central_service.py -- bash ./gradlew
       - name: Build independent core consumer Debug and R8 Release
-        run: bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+        run: bash ./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
       - name: Build independent lifecycle consumer Debug and R8 Release
-        run: bash ./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+        run: bash ./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+      - name: Build independent Compose consumer Debug and R8 Release
+        run: bash ./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
       - name: Verify frozen Java and Kotlin bytecode consumers
         run: python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
       - name: Prepare matrix input with current commit and artifact hashes
@@ -88,6 +107,8 @@ jobs:
             app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             tools/compatibility/android-consumer/build/outputs/apk/release/ktoast-android-consumer-release.apk
             tools/compatibility/lifecycle-consumer/build/outputs/apk/release/ktoast-lifecycle-consumer-release.apk
+            tools/compatibility/compose-consumer/build/outputs/apk/release/ktoast-compose-consumer-release.apk
+            library-compose/build/outputs/aar/library-compose-release.aar
             library-android/build/outputs/aar/library-android-release.aar
             build/reports/compatibility/*candidate.json
             library-lifecycle/build/outputs/aar/library-lifecycle-release.aar
@@ -104,6 +125,8 @@ jobs:
             library-android/build/reports/**
             library-lifecycle/build/test-results/**
             library-lifecycle/build/reports/**
+            library-compose/build/reports/**
+            app/build/reports/lint-results-debug.*
             build/reports/compatibility/**
             build/reports/signing-modes/configuration.json
             build/reports/central-publishing/**
@@ -143,7 +166,8 @@ jobs:
           target: ${{ matrix.target }}
           profile: Nexus 6
           avd-name: ktoast-api-${{ matrix.api }}
-          disable-animations: true
+          # 矩阵入口单独关闭系统转场，保留 Animator=1，验证真实回弹帧。
+          disable-animations: false
           enable-hw-keyboard: false
           script: python3 -B tools/run_device_matrix.py --api ${{ matrix.api }} --serial emulator-5554
       - name: Preserve device evidence even on failure

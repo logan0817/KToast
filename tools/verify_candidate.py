@@ -14,7 +14,7 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 sys.dont_write_bytecode = True
-from check_public_api import inspect_api, public_api, compare_api
+from check_public_api import inspect_api, inspect_module_api
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_DEPENDENCIES = {
@@ -22,6 +22,7 @@ EXPECTED_DEPENDENCIES = {
     ("androidx.startup", "startup-runtime", "1.1.1"),
 }
 STDLIB = ("org.jetbrains.kotlin", "kotlin-stdlib", "1.9.23")
+MODULES = {"ktoast": "library-android", "ktoast-lifecycle": "library-lifecycle", "ktoast-compose": "library-compose"}
 
 
 def require(condition, message):
@@ -40,10 +41,16 @@ def inspect_api_docs(javadoc, artifact="ktoast"):
             "com.logan.ktoast/-k-toast-scope/index.html",
             "com.logan.ktoast/-k-toast-scope-options/index.html",
             "com.logan.ktoast.config/-k-toast-config/index.html",
+            "com.logan.ktoast.config/-k-toast-style/index.html",
+            "com.logan.ktoast.config/-k-toast-type/index.html",
             "com.logan.ktoast.runtime/-toast-handle/index.html",
             "com.logan.ktoast.runtime/-k-toast-runtime-policy/index.html",
             "com.logan.ktoast.runtime/-toast-drop-reason/index.html",
-        ) if artifact == "ktoast" else ("com.logan.ktoast.lifecycle/-k-toast-lifecycle-scope/index.html",)
+        ) if artifact == "ktoast" else ("com.logan.ktoast.lifecycle/-k-toast-lifecycle-scope/index.html",) if artifact == "ktoast-lifecycle" else (
+            "com.logan.ktoast.compose/-k-toast-compose-scope/index.html",
+            "com.logan.ktoast.compose/remember-k-toast-scope.html",
+            "com.logan.ktoast.compose/-k-toast-content.html",
+        )
         for suffix in pages:
             matches = [name for name in names if name.endswith(suffix)]
             require(len(matches) == 1 and b"<html" in archive.read(matches[0]).lower(),
@@ -54,7 +61,7 @@ def inspect_api_docs(javadoc, artifact="ktoast"):
 
 
 def inspect_publication(aar, sources, publication, source_dir, javadoc, expected_version=None, artifact="ktoast"):
-    require(artifact in ("ktoast", "ktoast-lifecycle"), "未知模块")
+    require(artifact in MODULES, "未知模块")
     namespace = {"p": "http://maven.apache.org/POM/4.0.0"}
     pom = ET.parse(publication / "pom-default.xml").getroot()
     module = json.loads((publication / "module.json").read_text(encoding="utf-8"))
@@ -67,11 +74,25 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
                           ("version", version), ("packaging", "aar")):
         require(pom.findtext("p:" + tag, namespaces=namespace) == expected, "POM/module 坐标或包装不一致: " + tag)
     pom_dependencies = pom.findall("p:dependencies/p:dependency", namespace)
-    expected_pom = {(*STDLIB, "compile"), ("androidx.startup", "startup-runtime", "1.1.1", "runtime")}
-    dependencies = EXPECTED_DEPENDENCIES if artifact == "ktoast" else {STDLIB,
-        ("io.github.logan0817", "ktoast", version), ("androidx.lifecycle", "lifecycle-common", "2.5.1")}
+    api_dependencies = {STDLIB}
+    runtime_dependencies = EXPECTED_DEPENDENCIES
     if artifact == "ktoast-lifecycle":
-        expected_pom = {(*item, "compile") for item in dependencies}
+        api_dependencies = {STDLIB, ("io.github.logan0817", "ktoast", version),
+                            ("androidx.lifecycle", "lifecycle-common", "2.5.1")}
+        runtime_dependencies = api_dependencies
+    elif artifact == "ktoast-compose":
+        api_dependencies = {STDLIB, ("io.github.logan0817", "ktoast-lifecycle", version),
+                            ("androidx.compose.runtime", "runtime", "1.7.8"),
+                            ("androidx.compose.ui", "ui", "1.7.8")}
+        runtime_dependencies = api_dependencies | {
+            ("androidx.compose.foundation", "foundation", "1.7.8"),
+            ("androidx.lifecycle", "lifecycle-runtime-compose", "2.8.3"),
+            ("androidx.savedstate", "savedstate", "1.2.1"),
+            ("androidx.activity", "activity", "1.9.2"),
+        }
+    dependencies = runtime_dependencies
+    expected_pom = {(*item, "compile") for item in api_dependencies} | {
+        (*item, "runtime") for item in runtime_dependencies - api_dependencies}
     actual_pom = {
         tuple(node.findtext("p:" + key, namespaces=namespace) for key in ("groupId", "artifactId", "version", "scope"))
         for node in pom_dependencies
@@ -98,7 +119,7 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
     artifacts = {}
     for key, variant in selected.items():
         nodes = variant.get("dependencies", [])
-        expected = ({STDLIB} if artifact == "ktoast" else dependencies) if key == "api" else dependencies if key == "runtime" else set()
+        expected = api_dependencies if key == "api" else runtime_dependencies if key == "runtime" else set()
         actual = {(node["group"], node["module"], node["version"]["requires"]) for node in nodes}
         require(actual == expected and len(nodes) == len(expected), "发布变体依赖变化: " + key)
         require(all(set(node) == {"group", "module", "version"} and set(node["version"]) == {"requires"}
@@ -135,7 +156,7 @@ def inspect_publication(aar, sources, publication, source_dir, javadoc, expected
 
 def inspect(aar, publication, javap, sources, javadoc, expected_version=None, artifact="ktoast"):
     report = {"aar": aar.name, "sha256": hashlib.sha256(aar.read_bytes()).hexdigest(), "size": aar.stat().st_size}
-    module_name = "library-android" if artifact == "ktoast" else "library-lifecycle"
+    module_name = MODULES[artifact]
     source_dir = ROOT / module_name / "src/main/java"
     report.update(inspect_publication(aar, sources, publication, source_dir, javadoc, expected_version, artifact))
     with ZipFile(aar) as archive:
@@ -167,11 +188,10 @@ def inspect(aar, publication, javap, sources, javadoc, expected_version=None, ar
             report.update(inspect_api(javap, jar))
             metadata_classes = ("com.logan.ktoast.KToast", "com.logan.ktoast.KToastScope", "com.logan.ktoast.config.KToastConfig")
         else:
-            actual = public_api(javap, jar, source_dir)
-            expected = json.loads((ROOT / "docs/api/ktoast-lifecycle-1.2.0.json").read_text(encoding="utf-8"))["classes"]
-            require(not compare_api(actual, expected, {}), "生命周期公开 API 与审阅清单不符")
-            report["publicApi"] = actual
-            metadata_classes = ("com.logan.ktoast.lifecycle.KToastLifecycleScope",)
+            report.update(inspect_module_api(javap, jar, source_dir, artifact))
+            metadata_classes = ("com.logan.ktoast.lifecycle.KToastLifecycleScope",) if artifact == "ktoast-lifecycle" else (
+                "com.logan.ktoast.compose.KToastComposeScope",)
+
         for name in metadata_classes:
             verbose = subprocess.run([javap, "-v", "-classpath", str(jar), name], check=True, capture_output=True, text=True).stdout
             require("mv=[1,9,0]" in verbose, "Kotlin metadata 版本变化: " + name)
@@ -181,11 +201,11 @@ def inspect(aar, publication, javap, sources, javadoc, expected_version=None, ar
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--artifact", choices=("ktoast", "ktoast-lifecycle"), default="ktoast")
+    parser.add_argument("--artifact", choices=tuple(MODULES), default="ktoast")
     parser.add_argument("--aar", type=Path, default=ROOT / "library-android/build/outputs/aar/library-android-release.aar")
     parser.add_argument("--publication", type=Path, default=ROOT / "library-android/build/publications/release")
     parser.add_argument("--sources", type=Path, default=ROOT / "library-android/build/intermediates/source_jar/release/release-sources.jar")
-    parser.add_argument("--javadoc", type=Path, default=ROOT / "library-android/build/libs/library-android-1.2.0-SNAPSHOT-javadoc.jar")
+    parser.add_argument("--javadoc", type=Path, default=ROOT / "library-android/build/libs/library-android-1.3.0-SNAPSHOT-javadoc.jar")
     parser.add_argument("--javap", default="javap")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()

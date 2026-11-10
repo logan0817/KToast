@@ -1,6 +1,7 @@
 """矩阵工具必须拒绝空运行、必需用例跳过、中断及旧进程 PASS。"""
 
 import json
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -31,8 +32,16 @@ INSTRUMENTATION_STATUS_CODE: -4
 
 class DeviceMatrixTest(unittest.TestCase):
     def test_real_required_source_count_and_modern_subset(self):
-        self.assertEqual(38, len(required_tests(21)))
-        self.assertEqual(41, len(required_tests(30)))
+        additional = {name for name in required_tests(21)
+                      if 'KToastStyleTest#' in name or 'KToastComposeTest#' in name}
+        self.assertTrue(any('KToastStyleTest#' in name for name in additional))
+        self.assertTrue(any('KToastComposeTest#' in name for name in additional))
+        self.assertEqual(40 + len(additional), len(required_tests(21)))
+        self.assertEqual(43 + len(additional), len(required_tests(30)))
+        self.assertIn(matrix.TEST_PACKAGE + 'KToastLifecycleTest#roundedContentBounceStaysInsideWindowForGlobalAndScopedRequests',
+                      required_tests(21))
+        self.assertIn(matrix.TEST_PACKAGE + 'KToastLifecycleTest#invalidAnimationCancelsOnceReportsErrorAndPromotesQueue',
+                      required_tests(21))
         self.assertEqual(required_tests(30), required_tests(36))
         self.assertFalse(any('cutout' in name.lower() for name in required_tests(36)))
 
@@ -70,6 +79,13 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertIsNone(consumer_line(line, '10634', set()))
         self.assertIsNone(consumer_line(line, '10633', {line}))
 
+    def test_compose_consumer_tag_is_distinct_and_verified(self):
+        line = '10-10 15:01:21.041 10633 10633 I KToastComposeConsumer: PASS: compose'
+        self.assertIsNone(consumer_line(line, '10633', set()))
+        self.assertEqual(line, consumer_line(line, '10633', set(), 'KToastComposeConsumer'))
+        with self.assertRaisesRegex(ValueError, '消费者报告失败'):
+            consumer_line(line.replace(' I ', ' E '), '10633', set(), 'KToastComposeConsumer')
+
     def test_consumer_error_is_failure(self):
         with self.assertRaisesRegex(ValueError, '消费者报告失败'):
             consumer_line('10-10 15:01:21.041 10633 10633 E KToastConsumer: Consumer verification failed', '10633', set())
@@ -87,6 +103,33 @@ class DeviceMatrixTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'SHA-256'):
                 artifacts(root)
 
+    def test_compose_artifact_requires_own_digest_and_matching_version(self):
+        with tempfile.TemporaryDirectory(prefix='ktoast-matrix-version-test-') as folder:
+            root = Path(folder)
+            for relative in FILES.values():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'fixture')
+            reports = root / 'build/reports/compatibility'
+            reports.mkdir(parents=True)
+            for artifact in ('ktoast', 'ktoast-lifecycle', 'ktoast-compose'):
+                (reports / (artifact + '-candidate.json')).write_text(json.dumps({
+                    'sha256': hashlib.sha256(b'fixture').hexdigest(),
+                    'coordinate': {'group': 'io.github.logan0817', 'module': artifact, 'version': '1.3.0-SNAPSHOT'},
+                }))
+            self.assertEqual(8, len(artifacts(root)))
+            compose = reports / 'ktoast-compose-candidate.json'
+            candidate = json.loads(compose.read_text())
+            candidate['coordinate']['version'] = '1.2.0'
+            compose.write_text(json.dumps(candidate))
+            with self.assertRaisesRegex(ValueError, '版本不一致'):
+                artifacts(root)
+            candidate['coordinate']['version'] = '1.3.0-SNAPSHOT'
+            candidate['sha256'] = 'wrong'
+            compose.write_text(json.dumps(candidate))
+            with self.assertRaisesRegex(ValueError, 'SHA-256'):
+                artifacts(root)
+
     def test_empty_artifacts_cannot_pass(self):
         with tempfile.TemporaryDirectory(prefix='ktoast-matrix-test-') as folder:
             with self.assertRaisesRegex(ValueError, '缺失或空产物'):
@@ -95,13 +138,15 @@ class DeviceMatrixTest(unittest.TestCase):
     def exercise_device(self, *, actual_api='21', instrumentation=PASS, install='Success',
                         diagnostic_failure=None, pull_files=True, instrumentation_timeout=False,
                         selfcheck=False, missing_selfcheck_file=None,
-                        boot='1', window=READY_WINDOW):
+                        boot='1', window=READY_WINDOW, animation_override=None,
+                        serial='emulator-5554', qemu='1'):
         """模拟 adb 协议完成整条入口，验证结果写入和失败收尾；不伪造真实设备证据。"""
         commands = []
         log_reads = 0
         generation = 0
         active_package = ""
         window_reads = 0
+        animation_scales = {}
 
         def fake_adb(command, **kwargs):
             nonlocal log_reads, generation, active_package, window_reads
@@ -109,9 +154,15 @@ class DeviceMatrixTest(unittest.TestCase):
             commands.append(args)
             text = ''
             if args[:2] == ['shell', 'getprop']:
-                text = {'ro.kernel.qemu': '1', 'ro.build.version.sdk': actual_api,
+                text = {'ro.kernel.qemu': qemu, 'ro.build.version.sdk': actual_api,
                         'ro.build.fingerprint': 'fixture', 'ro.product.cpu.abi': 'x86',
                         'sys.boot_completed': boot}[args[2]]
+            elif args[:2] == ['shell', 'settings']:
+                if args[2] == 'put':
+                    animation_scales[args[4]] = args[5]
+                else:
+                    text = str(animation_override.get(args[4], animation_scales[args[4]])
+                               if animation_override else animation_scales[args[4]])
             elif args[0] == 'install':
                 text = install
             elif args[:3] == ['shell', 'am', 'instrument']:
@@ -152,7 +203,8 @@ class DeviceMatrixTest(unittest.TestCase):
             elif args[0] == 'logcat':
                 log_reads += 1
                 if log_reads > 1:
-                    text = '10-10 15:01:21.041 10633 10633 I KToastConsumer: PASS: fixture ' + str(generation)
+                    tag = 'KToastComposeConsumer' if active_package.endswith('composeconsumer') else 'KToastConsumer'
+                    text = '10-10 15:01:21.041 10633 10633 I ' + tag + ': PASS: fixture ' + str(generation)
             return subprocess.CompletedProcess(command, 0, text)
 
         with tempfile.TemporaryDirectory(prefix='ktoast-matrix-flow-test-') as folder:
@@ -164,12 +216,12 @@ class DeviceMatrixTest(unittest.TestCase):
                     patch.dict(matrix.os.environ, {'GITHUB_SHA': ''}), patch.object(matrix.subprocess, 'run', side_effect=fake_adb):
                 if instrumentation_timeout:
                     with self.assertRaises(subprocess.TimeoutExpired):
-                        matrix.run_device(21, 'emulator-5554')
+                        matrix.run_device(21, serial)
                     self.assertEqual('Runner partial output',
                                      (output / 'api-21/timeout-output.txt').read_text(encoding='utf-8'))
                 else:
                     try:
-                        matrix.run_device(21, 'emulator-5554')
+                        matrix.run_device(21, serial)
                     except ValueError:
                         pass
             result = json.loads((output / 'api-21/result.json').read_text(encoding='utf-8'))
@@ -183,12 +235,37 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertTrue(result['success'])
         self.assertEqual('10633', result['r8Consumer']['pid'])
         self.assertEqual(['sample.Test#filtered'], result['instrumentation']['notReported'])
-        self.assertEqual(4, sum(command[0] == 'install' for command in commands))
+        self.assertEqual(5, sum(command[0] == 'install' for command in commands))
+        self.assertEqual('10633', result['composeR8Consumer']['pid'])
         self.assertNotIn('failureDiagnostics', result)
         self.assertTrue(result['startupPreflight']['success'])
         self.assertEqual([['shell', 'dumpsys', 'window']],
                          [command for command in commands if command[:2] == ['shell', 'dumpsys']])
         self.assertFalse(any(command[0] == 'pull' for command in commands))
+
+    def test_dedicated_emulator_disables_system_transitions_but_keeps_toast_animator(self):
+        result, commands = self.exercise_device()
+        self.assertTrue(result['success'])
+        self.assertEqual({'window_animation_scale': 0, 'transition_animation_scale': 0,
+                          'animator_duration_scale': 1}, result['animationScales'])
+        last_setting = max(i for i, command in enumerate(commands) if command[:2] == ['shell', 'settings'])
+        self.assertLess(last_setting, next(i for i, command in enumerate(commands) if command[0] == 'install'))
+
+    def test_animation_configuration_failure_cannot_start_tests(self):
+        for setting, value in (('animator_duration_scale', 0), ('transition_animation_scale', 1)):
+            with self.subTest(setting=setting):
+                result, commands = self.exercise_device(animation_override={setting: value})
+                self.assertFalse(result['success'])
+                self.assertIn('动画配置未生效', result['error'])
+                self.assertFalse(any(command[:3] == ['shell', 'am', 'instrument'] for command in commands))
+
+    def test_non_emulator_is_rejected_before_changing_animation_settings(self):
+        for options in ({'serial': 'physical-device'}, {'qemu': '0'}):
+            with self.subTest(options=options):
+                result, commands = self.exercise_device(**options)
+                self.assertFalse(result['success'])
+                self.assertIn('仅允许显式指定的专用模拟器', result['error'])
+                self.assertFalse(any(command[:2] == ['shell', 'settings'] for command in commands))
 
     def test_startup_anr_or_keyguard_blocks_runner_and_preserves_evidence(self):
         for window in (READY_WINDOW.replace('com.android.launcher/.Launcher',

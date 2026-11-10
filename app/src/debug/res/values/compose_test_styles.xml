@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="ComposeShapeIconTestStyle">
+        <item name="kToastIcon">@drawable/compose_test_shape_icon</item>
+        <item name="kToastShowIcon">true</item>
+        <item name="kToastIconSize">24dp</item>
+    </style>
+</resources>

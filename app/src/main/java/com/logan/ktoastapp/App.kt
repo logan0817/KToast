@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.graphics.Color
 import android.view.Gravity
+import androidx.core.graphics.toColorInt
 import com.logan.ktoast.runtime.KToastRuntimePolicy
 import com.logan.ktoast.KToast
 
@@ -19,7 +20,7 @@ class App : Application() {
         //✅ 全局配置
         KToast.setDebugMode(isDebuggable).config {
             textColor = Color.WHITE
-            backgroundColor = Color.parseColor("#E6323232")
+            backgroundColor = "#E6323232".toColorInt()
             backgroundRadius = 24f
             gravity = Gravity.CENTER
             yOffset = 0

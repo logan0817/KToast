@@ -1,0 +1,7 @@
+<resources>
+    <style name="KToastConsumerBrand" parent="">
+        <item name="kToastBackgroundColor">#203040</item>
+        <item name="kToastTextColor">#FFFFFF</item>
+        <item name="kToastPaddingHorizontal">19dp</item>
+    </style>
+</resources>

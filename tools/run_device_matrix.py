@@ -19,9 +19,16 @@ FILES = {
     'aar': 'library-android/build/outputs/aar/library-android-release.aar',
     'lifecycleR8Consumer': 'tools/compatibility/lifecycle-consumer/build/outputs/apk/release/ktoast-lifecycle-consumer-release.apk',
     'lifecycleAar': 'library-lifecycle/build/outputs/aar/library-lifecycle-release.aar',
+    'composeR8Consumer': 'tools/compatibility/compose-consumer/build/outputs/apk/release/ktoast-compose-consumer-release.apk',
+    'composeAar': 'library-compose/build/outputs/aar/library-compose-release.aar',
 }
 TEST_PACKAGE = 'com.logan.ktoastapp.app.'
 CONSUMER = 'com.logan.ktoast.compatibility'
+CONSUMERS = (
+    ('r8Consumer', CONSUMER, 'KToastConsumer'),
+    ('lifecycleR8Consumer', 'com.logan.ktoast.lifecycleconsumer', 'KToastConsumer'),
+    ('composeR8Consumer', 'com.logan.ktoast.composeconsumer', 'KToastComposeConsumer'),
+)
 SNAPSHOT_MARKERS = {'window': 'WINDOW MANAGER', 'input': 'INPUT MANAGER',
                     'activity': 'ACTIVITY MANAGER', 'display': 'DISPLAY MANAGER',
                     'surfaceflinger': 'Build configuration:'}
@@ -57,19 +64,25 @@ def artifacts(root=ROOT):
         if not path.is_file() or path.stat().st_size == 0:
             raise ValueError('缺失或空产物：' + relative)
         result[name] = {'path': relative, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
-    candidate = json.loads((root / 'build/reports/compatibility/ktoast-candidate.json').read_text(encoding='utf-8'))
-    if candidate['sha256'] != result['aar']['sha256']:
-        raise ValueError('AAR 与候选报告 SHA-256 不一致')
-    lifecycle = json.loads((root / 'build/reports/compatibility/ktoast-lifecycle-candidate.json').read_text(encoding='utf-8'))
-    if lifecycle['sha256'] != result['lifecycleAar']['sha256']:
-        raise ValueError('Lifecycle AAR 与报告 SHA-256 不一致')
+    version = None
+    for artifact, key in (('ktoast', 'aar'), ('ktoast-lifecycle', 'lifecycleAar'), ('ktoast-compose', 'composeAar')):
+        candidate = json.loads((root / ('build/reports/compatibility/' + artifact + '-candidate.json')).read_text(encoding='utf-8'))
+        if candidate.get('sha256') != result[key]['sha256']:
+            raise ValueError(artifact + ' AAR 与候选报告 SHA-256 不一致')
+        coordinate = candidate.get('coordinate', {})
+        current_version = coordinate.get('version')
+        if (coordinate.get('group') != 'io.github.logan0817' or coordinate.get('module') != artifact or
+                not isinstance(current_version, str) or not current_version or
+                (version is not None and current_version != version)):
+            raise ValueError('矩阵候选模块坐标或版本不一致：' + artifact)
+        version = current_version
     return result
 
 
 def required_tests(api, root=ROOT):
     required = set()
     source = root / 'app/src/androidTest/java/com/logan/ktoastapp/app'
-    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest', 'WindowFailureDiagnosticsTest'):
+    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest', 'WindowFailureDiagnosticsTest', 'KToastStyleTest', 'KToastComposeTest'):
         text = (source / (name + '.kt')).read_text(encoding='utf-8')
         methods = re.findall(r'@Test\b(?:(?!\bfun\b).)*\bfun\s+(\w+)', text, re.S)
         if not methods:
@@ -122,14 +135,14 @@ def instrumentation_result(text, required):
     }
 
 
-def consumer_line(text, pid, baseline):
+def consumer_line(text, pid, baseline, tag="KToastConsumer"):
     for line in text.splitlines():
         fields = line.split(maxsplit=6)
         if len(fields) < 7 or fields[2] != pid or line in baseline:
             continue
-        if fields[4] == 'E' and fields[5].rstrip(':') == 'KToastConsumer':
+        if fields[4] == 'E' and fields[5].rstrip(':') == tag:
             raise ValueError('R8 消费者报告失败：' + line)
-        if fields[4] == 'I' and fields[5].rstrip(':') == 'KToastConsumer' and fields[6].startswith('PASS: '):
+        if fields[4] == 'I' and fields[5].rstrip(':') == tag and fields[6].startswith('PASS: '):
             return line
     return None
 
@@ -180,7 +193,16 @@ def run_device(api, serial):
         report['buildCommit'] = expected['commit']
         if report['commit'] and report['commit'] != report['buildCommit']:
             raise ValueError('构建与运行提交不一致')
-        for name in ('demo', 'tests', 'r8Consumer', 'lifecycleR8Consumer'):
+        # 只作用于上方已确认的临时模拟器：关闭系统转场，保留 Toast 逐帧回弹。
+        report['animationScales'] = {}
+        for setting, scale in (('window_animation_scale', 0), ('transition_animation_scale', 0),
+                               ('animator_duration_scale', 1)):
+            adb('shell', 'settings', 'put', 'global', setting, str(scale))
+            actual_scale = float(adb('shell', 'settings', 'get', 'global', setting).strip())
+            report['animationScales'][setting] = actual_scale
+            if actual_scale != scale:
+                raise ValueError('专用模拟器动画配置未生效：' + setting)
+        for name in ('demo', 'tests', *(entry[0] for entry in CONSUMERS)):
             result = adb('install', '-r', str(ROOT / FILES[name]), timeout=120)
             (output / (name + '-install.txt')).write_text(result, encoding='utf-8')
             if 'Success' not in result:
@@ -223,9 +245,9 @@ def run_device(api, serial):
                 'files': sorted(str(path.relative_to(output)) for path in destination.iterdir() if path.is_file())}
         if not report['instrumentation']['success']:
             raise ValueError('设备回归未满足必需用例或 Runner 未正常完成')
-        for key, consumer in (('r8Consumer', CONSUMER), ('lifecycleR8Consumer', 'com.logan.ktoast.lifecycleconsumer')):
+        for key, consumer, tag in CONSUMERS:
             adb('shell', 'am', 'force-stop', consumer)
-            baseline = set(adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S').splitlines())
+            baseline = set(adb('logcat', '-d', '-v', 'threadtime', tag + ':I', '*:S').splitlines())
             launch = adb('shell', 'am', 'start', '-W', '-n', consumer + '/.ConsumerActivity')
             (output / (key + '-launch.txt')).write_text(launch, encoding='utf-8')
             deadline = time.monotonic() + 30
@@ -234,10 +256,10 @@ def run_device(api, serial):
                 processes = adb('shell', 'ps')
                 pid = next((line.split()[1] for line in processes.splitlines()
                             if line.split() and line.split()[-1] == consumer), None)
-                logs = adb('logcat', '-d', '-v', 'threadtime', 'KToastConsumer:I', '*:S')
+                logs = adb('logcat', '-d', '-v', 'threadtime', tag + ':I', '*:S')
                 (output / (key + '-logcat.txt')).write_text(logs, encoding='utf-8')
                 if pid:
-                    line = consumer_line(logs, pid, baseline)
+                    line = consumer_line(logs, pid, baseline, tag)
                     if line:
                         report[key] = {'pid': pid, 'passLine': line}
                         break

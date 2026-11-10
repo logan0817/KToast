@@ -1,6 +1,6 @@
 # Core usage and styling
 
-These core APIs have been available since 1.1.0 and remain supported in the current 1.2.0 release. Start with [installation](../README_EN.md). For page-owned messages, see [Activity scopes](PAGE_SCOPE.md) or [LifecycleOwner scopes](LIFECYCLE_SCOPE.md) (Chinese).
+Except for the explicitly marked 1.3.0-SNAPSHOT candidate section, these core APIs have been available since 1.1.0 and remain supported in the current 1.2.0 release. Start with [installation](../README_EN.md). For page-owned messages, see [Activity scopes](PAGE_SCOPE.md) or [LifecycleOwner scopes](LIFECYCLE_SCOPE.md) (Chinese).
 
 [简体中文](USAGE.md) · [Documentation index](README.md)
 
@@ -41,6 +41,29 @@ import com.logan.ktoast.toast
 }
 ```
 
+## Semantic styles and branding (unreleased 1.3.0-SNAPSHOT candidate)
+
+The public installation version remains 1.2.0 and does not include these new APIs. This section applies to 1.3.0-SNAPSHOT source builds or local candidates; see the [contribution guide](../CONTRIBUTING.md) for candidate builds.
+
+```kotlin
+import com.logan.ktoast.KToastScope
+import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastType
+
+fun showSaved(scope: KToastScope) = scope.showStyled(
+    "Saved",
+    KToastStyle(KToastType.SUCCESS)
+) {
+    animationDuration = 150L
+}
+```
+
+`NORMAL` preserves the base appearance; `SUCCESS`, `ERROR`, `WARNING`, and `INFO` provide semantic day/night colors and distinct icons. `KToast`, `KToastScope`, and `KToastLifecycleScope` each provide `showStyled`, returning the existing `ToastHandle`. Java can pass `new KToastStyle(KToastType.SUCCESS)` without a Kotlin DSL.
+
+Use `KToastStyle(KToastType.SUCCESS, R.style.BrandToast)` for XML branding. The order is base configuration → enabled host theme → semantic appearance → brand XML → per-call configuration. The global configuration is not changed. Resources, themes, and the DSL are read on the calling thread; rendering and callbacks remain on the main thread. Queued requests retain their resolved configuration snapshot. Existing `show`, delayed APIs, defaults, and scheduling semantics remain unchanged.
+
+See [semantic styles and branding](STYLES.md) (Chinese) for XML attributes, dp/sp/px units, `values-night`, explicit icon hiding, threading, and system fallback limits.
+
 ## Java usage
 
 ```java
@@ -61,6 +84,32 @@ KToast.showDebug("Debug only");
 Runnable task = KToast.showDelayed("Show after 2 seconds", 2000L);
 KToast.cancelDelayed(task);
 ```
+
+## Animation interpolators (unreleased 1.3.0-SNAPSHOT candidate)
+
+Use `KToastConfig.animation` to configure entry and exit independently. The same configuration works with global defaults, per-call DSL, page scopes, Lifecycle, and Compose. `animationDuration` still controls duration:
+
+```kotlin
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
+import com.logan.ktoast.config.KToastAnimation
+import com.logan.ktoast.toast
+
+"Saved".toast {
+    animationDuration = 350L
+    animation = KToastAnimation(
+        enterInterpolator = OvershootInterpolator(4f),
+        exitInterpolator = DecelerateInterpolator(),
+        maxScale = 1.1f
+    )
+}
+```
+
+Set global defaults with `KToast.config { animation = … }`, or override a request in `scope.show`, `showStyled`, or Compose `showContent`. Java uses `config.setAnimation(new KToastAnimation(enter, exit, 1.1f))` with the existing configuration-object overload.
+
+Both phases retain the original bounce by default; a null interpolator selects `OvershootInterpolator`. `maxScale` defaults to `1.05f` and must be finite and within `1f..2f`. The window reserves transparent space for that scale and the shadow. Interpolator output is bounded to keep the scale inside that space; raise the limit for stronger bounce. Interpolators run on the main thread and must return finite values without blocking. Do not mutate an interpolator after submission. If an interpolator throws an Exception or returns a non-finite value, the library reports an `ERROR` diagnostic, cancels the current request with `CANCELED`, and continues the queue. Background system Toasts use platform animations.
+
+To preserve the released constructor, defaults, and `copy` ABI, `animation` is a class-body property. Use `config.snapshot()` for a complete configuration copy. Generated `copy()`, `equals()`, and `hashCode()` retain their original constructor-property semantics. Library inheritance, style resolution, and request snapshots use the complete copy and keep per-call overrides isolated.
 
 ## Common Scenarios
 

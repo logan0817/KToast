@@ -20,5 +20,6 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 include(
     "app",
     "library-android",
-    "library-lifecycle"
+    "library-lifecycle",
+    "library-compose"
 )

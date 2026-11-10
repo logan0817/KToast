@@ -1,0 +1,32 @@
+{
+  "version": "1.3.0",
+  "description": "与 1.3.0 设计及源码逐类核对的精确 JVM API 增量；不替代旧版本冻结基线。",
+  "classes": {
+    "com.logan.ktoast.lifecycle.KToastLifecycleScope": [
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showStyled(java.lang.CharSequence, com.logan.ktoast.config.KToastStyle);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showStyled(java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;I)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showStyled(java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int, com.logan.ktoast.runtime.KToastBehavior);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;ILcom/logan/ktoast/runtime/KToastBehavior;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showStyled(java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showStyled(java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle showStyled$default(com.logan.ktoast.lifecycle.KToastLifecycleScope, java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/lifecycle/KToastLifecycleScope;Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      }
+    ]
+  }
+}

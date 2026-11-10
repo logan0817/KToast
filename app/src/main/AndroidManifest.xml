@@ -13,6 +13,8 @@
         android:theme="@style/AppTheme"
         tools:ignore="AllowBackup">
         <activity android:name="com.logan.ktoastapp.LifecycleDemoActivity" android:exported="false" />
+        <activity android:name="com.logan.ktoastapp.ComposeToastActivity" android:exported="false" />
+        <activity android:name="com.logan.ktoastapp.StyleDemoActivity" android:exported="false" />
         <activity
             android:name="com.logan.ktoastapp.MainActivity"
             android:exported="true">

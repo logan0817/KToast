@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_compose_title">Compose 内容与页面清理</string>
+    <string name="demo_back">返回</string>
+    <string name="demo_compose_eyebrow">COMPOSE 扩展</string>
+    <string name="demo_compose_hero_title">同一队列，自定义内容</string>
+    <string name="demo_compose_hero_description">在 Compose 页面中使用语义提示和自定义内容，提示随页面离开或重建自动清理。</string>
+    <string name="demo_compose_content_badge">内容展示</string>
+    <string name="demo_compose_content_title">页面提示</string>
+    <string name="demo_compose_content_description">体验默认、语义与 Compose 内容，延时请求也归属当前页面。</string>
+    <string name="demo_compose_lifecycle_badge">生命周期</string>
+    <string name="demo_compose_lifecycle_title">离开与重建</string>
+    <string name="demo_compose_lifecycle_description">离开页面会取消当前及等待中的提示；重新进入后使用新的页面作用域。</string>
+    <string name="demo_compose_page_hidden">页面已离开，提示入口已关闭。点击下方「重新进入页面」继续体验。</string>
+    <string name="demo_compose_leave">离开页面</string>
+    <string name="demo_compose_enter">重新进入页面</string>
+    <string name="demo_compose_rebuild">重建当前页面</string>
+    <string name="demo_compose_custom">自定义 Compose 内容</string>
+    <string name="demo_compose_plain">普通提示</string>
+    <string name="demo_compose_success">成功样式</string>
+    <string name="demo_compose_delayed">登记三秒后显示</string>
+    <string name="demo_compose_cancel">取消本页面请求</string>
+    <string name="demo_compose_status_initial">点击按钮体验页面提示</string>
+    <string name="demo_compose_status_canceled">本页面请求已取消</string>
+    <string name="demo_compose_status_result">请求 %1$d：%2$s</string>
+</resources>

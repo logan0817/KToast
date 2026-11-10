@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import com.logan.ktoast.config.KToastConfig
 import com.logan.ktoast.config.KToastConfigFactory
+import com.logan.ktoast.config.KToastStyle
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastCallbacks
 import com.logan.ktoast.runtime.KToastDisplayMode
@@ -194,6 +195,22 @@ object KToast {
         return submitRequest(message, duration, behavior, callbacks, localConfig)
     }
 
+    /**
+     * 按基础配置、语义、品牌 XML、单次配置的顺序准备独立样式，返回原请求句柄。
+     * 与 showHandle 一样可跨线程调用；资源/主题和 DSL 在调用线程读取，不创建 View。
+     * 配置准备期间不要并发修改资源主题；容量拒绝不解析样式或执行 DSL。
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun showStyled(
+        message: CharSequence,
+        style: KToastStyle,
+        duration: Int = Toast.LENGTH_SHORT,
+        behavior: KToastBehavior = KToastBehavior(),
+        callbacks: KToastCallbacks = KToastCallbacks(),
+        localConfig: (KToastConfig.() -> Unit)? = null
+    ): ToastHandle = prepareSubmission(message, duration, behavior, callbacks, localConfig, style = style)
+
     @JvmStatic
     fun cancelGroup(groupKey: String) {
         KToastUtils.runOnMainThread {
@@ -222,9 +239,10 @@ object KToast {
         behavior: KToastBehavior,
         callbacks: KToastCallbacks,
         localConfig: (KToastConfig.() -> Unit)?,
-        explicitConfig: KToastConfig? = null
+        explicitConfig: KToastConfig? = null,
+        style: KToastStyle? = null
     ): ToastHandle = prepareSubmission(message, duration, behavior, callbacks, localConfig,
-        scope, delayMillis, explicitConfig)
+        scope, delayMillis, explicitConfig, style = style)
 
     private fun prepareSubmission(
         message: CharSequence,
@@ -237,7 +255,8 @@ object KToast {
         explicitConfig: KToastConfig? = null,
         transferredTicket: ToastAdmission.Ticket? = null,
         plannedAt: Long? = null,
-        submittedGeneration: Long = globalCancelGeneration
+        submittedGeneration: Long = globalCancelGeneration,
+        style: KToastStyle? = null
     ): ToastHandle {
         KToastUtils.checkInit()
         val generation = scope?.submissionGeneration()
@@ -264,7 +283,7 @@ object KToast {
         // 先登记再执行 DSL，取消能够找到仍在配置准备中的请求；额度直到准备退出才归还。
         pendingSubmissions[handle.id] = request
         try {
-            val config = (explicitConfig ?: globalConfig).copy()
+            var config = (explicitConfig ?: globalConfig).snapshot()
             if (explicitConfig == null && scope?.options?.followHostTheme == true) {
                 scope.host()?.let { host ->
                     val colors = host.obtainStyledAttributes(R.styleable.KToastHostTheme)
@@ -276,7 +295,12 @@ object KToast {
                     }
                 }
             }
-            if (!handle.isFinished) localConfig?.invoke(config)
+            if (!handle.isFinished) {
+                if (style != null) config = style.resolve(scope?.host() ?: context, config)
+                localConfig?.invoke(config)
+            }
+            // DSL 可保留接收者；冻结最终配置，避免排队期间外部修改已接纳请求。
+            config = config.snapshot()
             request.config = config
         } catch (error: Throwable) {
             pendingSubmissions.remove(handle.id)

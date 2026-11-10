@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_lifecycle_title">页面与请求管理</string>
+    <string name="demo_lifecycle_hero_badge">场景演示</string>
+    <string name="demo_lifecycle_hero_title">提示为什么会被取消？</string>
+    <string name="demo_lifecycle_hero_description">从切换页面、任务积压和等待超时三个场景，理解提示的处理方式。每个场景都有操作步骤和实时结果；开始新场景会先清理上一组请求。</string>
+
+    <string name="demo_lifecycle_scene_badge">场景 01 · 页面切换</string>
+    <string name="demo_lifecycle_scene_title">离开页面，取消旧提示</string>
+    <string name="demo_lifecycle_scene_description">按 1 → 2 → 3 操作：登记延时提示后，立即切换页面，再发送新提示。\n预期：旧页面的提示被取消，新页面的提示正常显示。</string>
+    <string name="lifecycle_page_guide">当前页面：%1$s · 提示绑定这次页面显示</string>
+    <string name="lifecycle_delayed">1. 登记 3 秒延时提示</string>
+    <string name="lifecycle_switch">2. 切换到页面 %1$s</string>
+    <string name="lifecycle_show">3. 显示本页新提示</string>
+    <string name="lifecycle_rebuild">重建当前页面</string>
+    <string name="lifecycle_rebuild_guide">也可先登记延时提示，再重建当前页面：旧页面的 View 和提示作用域会一起销毁，旧请求同样会被取消。</string>
+    <string name="lifecycle_delayed_idle">延时提示：尚未登记</string>
+    <string name="lifecycle_fresh_idle">本页新提示：尚未发送</string>
+    <string name="lifecycle_live_result">%1$s\n%2$s</string>
+    <string name="lifecycle_delayed_result">页面 %1$s 的延时提示：%2$s</string>
+    <string name="lifecycle_fresh_result">页面 %1$s 的新提示：%2$s</string>
+    <string name="lifecycle_delayed_message">这是页面 %1$s 的延时提示</string>
+    <string name="lifecycle_fresh_message">页面 %1$s 的新提示正常显示</string>
+
+    <string name="demo_capacity_scene_badge">场景 02 · 任务积压</string>
+    <string name="demo_capacity_scene_title">名额满了，就不再接收</string>
+    <string name="demo_capacity_scene_description">先登记 33 条延时请求，模拟任务积压。本 Demo 最多容纳 32 条待处理请求，第 33 条会被拒绝。\n再取消一条、补发一条，观察名额释放后能否重新接纳。请求延时 60 秒，观察完可直接清空。</string>
+    <string name="lifecycle_capacity">1. 登记 33 条延时请求</string>
+    <string name="lifecycle_capacity_retry">2. 取消一条，再补一条</string>
+    <string name="lifecycle_capacity_clear">清空这批请求</string>
+    <string name="lifecycle_capacity_idle">尚未开始\n预期：接纳 32 条，拒绝 1 条；释放名额后可补发。</string>
+    <string name="lifecycle_capacity_result">提交 %1$d 条：接纳 %2$d 条，拒绝 %3$d 条\n当前待处理 %4$d / 32 · 已取消 %5$d 条\n补发请求：%6$s</string>
+    <string name="lifecycle_retry_idle">尚未操作第 2 步</string>
+    <string name="lifecycle_capacity_message">积压请求 %1$d</string>
+    <string name="lifecycle_capacity_retry_message">释放名额后的补发请求</string>
+
+    <string name="demo_expiry_scene_badge">场景 03 · 等待超时</string>
+    <string name="demo_expiry_scene_title">等太久的提示，不再打扰</string>
+    <string name="demo_expiry_scene_description">一次提交 6 条长提示，按顺序显示。前面的提示占用时间，后面的提示需要排队。\n观察约 10 秒：仍在排队的请求会过期，不会再弹出；已经显示的提示会正常结束。</string>
+    <string name="lifecycle_expiry">开始排队，观察 6 条提示</string>
+    <string name="lifecycle_expiry_stop">停止本次排队</string>
+    <string name="lifecycle_expiry_idle">尚未开始\n预期：前几条依次显示，等候超过 10 秒的请求标记为过期。</string>
+    <string name="lifecycle_expiry_result">第 %1$d 条：%2$s</string>
+    <string name="lifecycle_expiry_message">排队提示 %1$d / 6</string>
+
+    <string name="lifecycle_state_waiting">已接纳，等待显示</string>
+    <string name="lifecycle_state_showing">正在显示</string>
+    <string name="lifecycle_state_finished">显示结束</string>
+    <string name="lifecycle_state_canceled">已取消，不会再显示</string>
+    <string name="lifecycle_state_replaced">已被新提示替换</string>
+    <string name="lifecycle_state_rejected">名额已满，未接纳</string>
+    <string name="lifecycle_state_expired">等待超时，已过期（未显示）</string>
+</resources>

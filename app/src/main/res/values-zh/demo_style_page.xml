@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_samples_badge">SAMPLES</string>
+    <string name="demo_samples_title">更多使用示例</string>
+    <string name="demo_samples_description">熟悉上方基础功能后，再按需查看语义与品牌样式、Compose 接入，以及页面切换和请求管理。</string>
+    <string name="demo_style_hero_badge">STYLE &amp; THEME</string>
+    <string name="demo_style_semantic_badge">SEMANTIC</string>
+    <string name="demo_style_semantic_title">用状态表达结果</string>
+    <string name="demo_style_semantic_description">选择普通、成功、错误、警告或信息提示，比较每种状态的颜色与图标。</string>
+    <string name="demo_style_brand_badge">BRAND</string>
+    <string name="demo_style_brand_title">复用统一的品牌外观</string>
+    <string name="demo_style_brand_description">同一套品牌配色可以重复使用。单次覆盖只改变当前提示的圆角，方便比较两种效果。</string>
+</resources>

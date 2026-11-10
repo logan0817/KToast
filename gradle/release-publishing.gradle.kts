@@ -72,13 +72,22 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 artifact(apiDocsJar)
-                artifactId = if (project.name == "library-lifecycle") "ktoast-lifecycle"
-                    else providers.gradleProperty("POM_ARTIFACT_ID").get()
+                artifactId = when (project.name) {
+                    "library-lifecycle" -> "ktoast-lifecycle"
+                    "library-compose" -> "ktoast-compose"
+                    else -> providers.gradleProperty("POM_ARTIFACT_ID").get()
+                }
                 pom {
-                    name.set(if (project.name == "library-lifecycle") "KToast Lifecycle"
-                        else providers.gradleProperty("POM_NAME").get())
-                    description.set(if (project.name == "library-lifecycle") "Optional LifecycleOwner scopes for KToast."
-                        else providers.gradleProperty("POM_DESCRIPTION").get())
+                    name.set(when (project.name) {
+                        "library-lifecycle" -> "KToast Lifecycle"
+                        "library-compose" -> "KToast Compose"
+                        else -> providers.gradleProperty("POM_NAME").get()
+                    })
+                    description.set(when (project.name) {
+                        "library-lifecycle" -> "Optional LifecycleOwner scopes for KToast."
+                        "library-compose" -> "Optional composition scopes and composable content for KToast."
+                        else -> providers.gradleProperty("POM_DESCRIPTION").get()
+                    })
                     url.set(providers.gradleProperty("POM_URL"))
                     licenses {
                         license {

@@ -17,6 +17,14 @@ sys.dont_write_bytecode = True
 from verify_candidate import ROOT, inspect, require
 
 GROUP_PATH = Path("io/github/logan0817/ktoast")
+ARTIFACTS = ("ktoast", "ktoast-lifecycle", "ktoast-compose")
+
+
+def release_artifacts(version):
+    """按已发布的模块演进验收，1.3 起禁止漏掉 Compose 模块。"""
+    deployment_identity(version)
+    numbers = tuple(int(part) for part in version.split("-", 1)[0].split("."))
+    return ARTIFACTS if numbers >= (1, 3, 0) else ARTIFACTS[:2] if numbers >= (1, 2, 0) else ARTIFACTS[:1]
 
 
 def deployment_identity(version):
@@ -27,7 +35,7 @@ def deployment_identity(version):
 
 
 def collect(repository, version, artifact="ktoast"):
-    require(artifact in ("ktoast", "ktoast-lifecycle"), "未知模块")
+    require(artifact in ARTIFACTS, "未知模块")
     deployment_identity(version)
     directory = repository / GROUP_PATH.parent / artifact / version
     prefix = artifact + "-" + version
@@ -131,7 +139,7 @@ def prepare_one(repository, version, public_key, fingerprint, output, javap, gpg
 
 
 def prepare(repository, version, public_key, fingerprint, output, javap, gpg, artifacts=("ktoast",)):
-    require(tuple(artifacts) in (("ktoast",), ("ktoast", "ktoast-lifecycle")), "必须验收核心或完整双模块")
+    require(tuple(artifacts) == release_artifacts(version), "必须验收该版本完整模块集合")
     if len(artifacts) == 1:
         return prepare_one(repository, version, public_key, fingerprint, output, javap, gpg)
     modules = {}
@@ -142,7 +150,8 @@ def prepare(repository, version, public_key, fingerprint, output, javap, gpg, ar
             modules[artifact] = prepare_one(repository, version, public_key, fingerprint, child, javap, gpg, artifact)
             with ZipFile(child) as archive:
                 payload.update({name: archive.read(name) for name in archive.namelist()})
-        require(modules["ktoast"]["source"] == modules["ktoast-lifecycle"]["source"], "两模块源码状态发生变化")
+        require(all(module["source"] == modules["ktoast"]["source"] for module in modules.values()),
+                "各模块源码状态发生变化")
         output.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(dir=output.parent, suffix=".zip", delete=False) as handle:
             merged = Path(handle.name)
@@ -163,7 +172,7 @@ def prepare(repository, version, public_key, fingerprint, output, javap, gpg, ar
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--artifacts", nargs="+", choices=("ktoast", "ktoast-lifecycle"), default=["ktoast"])
+    parser.add_argument("--artifacts", nargs="+", choices=ARTIFACTS, default=None)
     parser.add_argument("--repository", type=Path, default=ROOT / "build/staging-repository")
     parser.add_argument("--version", required=True)
     parser.add_argument("--public-key", type=Path, required=True)
@@ -176,7 +185,7 @@ def main():
     if args.rehearsal and not args.output.name.endswith("-TEST-KEY.zip"):
         parser.error("测试演练包必须使用 -TEST-KEY.zip 文件名")
     try:
-        report = prepare(args.repository, args.version, args.public_key, args.fingerprint, args.output, args.javap, args.gpg, tuple(args.artifacts))
+        report = prepare(args.repository, args.version, args.public_key, args.fingerprint, args.output, args.javap, args.gpg, tuple(args.artifacts) if args.artifacts else release_artifacts(args.version))
     except (ValueError, OSError, KeyError, TypeError, BadZipFile, ET.ParseError, subprocess.CalledProcessError) as error:
         raise SystemExit("发布包生成失败: " + str(error))
     report["rehearsal"] = args.rehearsal

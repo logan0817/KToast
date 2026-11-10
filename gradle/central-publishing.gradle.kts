@@ -7,7 +7,7 @@ import org.gradle.plugins.signing.Sign
 
 // 仅根入口可上传；保留原 Publication/签名，正式 release/drop 仍须独立审批。
 val library = project(":library-android")
-val libraries = listOf(library, project(":library-lifecycle"))
+val libraries = listOf(library, project(":library-lifecycle"), project(":library-compose"))
 val releaseVersion = providers.gradleProperty("VERSION").get()
 val releaseGroup = providers.gradleProperty("GROUP").get()
 val releaseArtifact = providers.gradleProperty("POM_ARTIFACT_ID").get()
@@ -33,7 +33,11 @@ fun verifyCentralModel() {
             "Central requires exactly one release MavenPublication per module."
         }
         val publication = publications.getByName("release") as MavenPublication
-        val artifact = if (module == library) releaseArtifact else "ktoast-lifecycle"
+        val artifact = when (module.name) {
+            "library-android" -> releaseArtifact
+            "library-lifecycle" -> "ktoast-lifecycle"
+            else -> "ktoast-compose"
+        }
         check(releaseGroup == "io.github.logan0817" && releaseArtifact == "ktoast" && deploymentProject == "KToast" &&
             publication.groupId == releaseGroup && publication.artifactId == artifact &&
             publication.version == releaseVersion) { "Central publication coordinates changed unexpectedly." }
@@ -86,7 +90,7 @@ val prepareCentralBundle = tasks.register<Exec>("prepareCentralBundle") {
         commandLine(
             "python3", "-B", "tools/prepare_central_bundle.py", "--version", releaseVersion,
             "--public-key", file(publicKey.get()).absolutePath, "--fingerprint", fingerprint.get(),
-            "--artifacts", "ktoast", "ktoast-lifecycle",
+            "--artifacts", "ktoast", "ktoast-lifecycle", "ktoast-compose",
             "--output", bundle.get().asFile.absolutePath,
             "--javap", file("${System.getProperty("java.home")}/bin/javap").absolutePath
         )
@@ -103,7 +107,7 @@ val verifyCentralStaging = tasks.register<Exec>("verifyCentralStaging") {
             .getByName("mavenCentral") as MavenArtifactRepository
         check(libraries.all {
             (it.extensions.getByType<PublishingExtension>().repositories.getByName("mavenCentral") as MavenArtifactRepository).url == repository.url
-        }) { "Both modules must use the same verified staging directory." }
+        }) { "All modules must use the same verified staging directory." }
         check(repository.url.scheme == "file") { "Central release must use a local staging directory." }
         commandLine(
             "python3", "-B", "tools/verify_central_staging.py",

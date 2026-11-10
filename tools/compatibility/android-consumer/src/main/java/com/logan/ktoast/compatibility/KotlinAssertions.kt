@@ -2,6 +2,8 @@ package com.logan.ktoast.compatibility
 
 import com.logan.ktoast.KToast
 import com.logan.ktoast.KToastScope
+import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastType
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastDisplayMode
 import com.logan.ktoast.runtime.ToastHandle
@@ -21,4 +23,12 @@ fun verifyKotlinConsumer(scope: KToastScope) {
     check(delayed.cancel() && delayed.isCanceled)
     scope.cancel()
     check(queued.isCanceled)
+    val style = KToastStyle(KToastType.WARNING)
+    val styled = scope.showStyled("styled Kotlin", style) {
+        check(icon != null && iconColor == textColor)
+        animationDuration = 0L
+    }
+    check(styled.state == ToastHandle.State.SHOWING && styled.cancel())
+    val globalStyled = KToast.showStyled("global styled Kotlin", style) { animationDuration = 0L }
+    check(globalStyled.state == ToastHandle.State.SHOWING && globalStyled.cancel())
 }

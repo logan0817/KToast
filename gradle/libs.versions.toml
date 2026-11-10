@@ -1,5 +1,5 @@
 [versions]
-agp = "8.6.0"
+agp = "8.13.0"
 ktoast-version = "1.1.0"
 kotlin = "1.9.23"
 dokka = "1.9.20"
@@ -18,6 +18,8 @@ fragment_version = "1.8.3"
 lifecycle_version = "2.6.2"
 constraint_layout_version = "2.2.1"
 startup_version = "1.1.1"
+compose = "1.7.8"
+compose-compiler = "1.5.13"
 
 [libraries]
 agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -38,6 +40,16 @@ lifecycle_livedata = { module = "androidx.lifecycle:lifecycle-livedata-ktx", ver
 lifecycle_common = { module = "androidx.lifecycle:lifecycle-common", version = "2.5.1" }
 androidx_constraint_layout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraint_layout_version" }
 startup = { module = "androidx.startup:startup-runtime", version.ref = "startup_version" }
+compose-runtime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
+compose-ui = { module = "androidx.compose.ui:ui", version.ref = "compose" }
+compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
+compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "compose" }
+compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "compose" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity_version" }
+activity-core = { module = "androidx.activity:activity", version.ref = "activity_version" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version = "2.8.3" }
+savedstate = { module = "androidx.savedstate:savedstate", version = "1.2.1" }
 ktoast = { module = "io.github.logan0817:ktoast", version.ref = "ktoast-version" }
 
 [plugins]

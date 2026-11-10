@@ -11,7 +11,7 @@ import sys
 from zipfile import BadZipFile, ZipFile
 
 sys.dont_write_bytecode = True
-from prepare_central_bundle import GROUP_PATH, deployment_identity, verify_signatures
+from prepare_central_bundle import GROUP_PATH, deployment_identity, release_artifacts, verify_signatures
 from verify_candidate import ROOT, require
 
 
@@ -39,7 +39,7 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
     bundle_sha = hashlib.sha256(bundle.read_bytes()).hexdigest()
     require(bundle_sha == report["bundle"]["sha256"], "正式 ZIP 与报告摘要不一致")
     modules = report.get("modules", {"ktoast": report})
-    require(set(modules) in ({"ktoast"}, {"ktoast", "ktoast-lifecycle"}), "双模块报告缺少必需模块")
+    require(set(modules) == set(release_artifacts(version)), "发布模块集合不完整")
     paths = {}
     signatures_by_module = {}
     metadata = set()
@@ -61,7 +61,7 @@ def verify(staging, bundle, bundle_report, version, public_key, fingerprint, gpg
     signature_checksums = {name + "." + algorithm for name in expected if name.endswith(".asc")
                            for algorithm in ("md5", "sha1", "sha256", "sha512")}
     if "modules" in report:
-        require(report.get("files") == paths and report["bundle"].get("files") == len(paths), "双模块逐文件报告不完整")
+        require(report.get("files") == paths and report["bundle"].get("files") == len(paths), "多模块逐文件报告不完整")
     else:
         require(report["bundle"].get("files") == len(paths), "正式报告的逐文件集合不完整")
     require(staging.is_dir() and not staging.is_symlink(), "插件暂存目录缺失或为符号链接")

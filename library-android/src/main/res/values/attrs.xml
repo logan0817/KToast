@@ -3,4 +3,34 @@
         <attr name="android:colorBackground" />
         <attr name="android:textColorPrimary" />
     </declare-styleable>
+    <declare-styleable name="KToastStyle">
+        <attr name="kToastTextColor" format="color" />
+        <attr name="kToastBackgroundColor" format="color" />
+        <attr name="kToastBackgroundRadius" format="dimension" />
+        <attr name="kToastTextSize" format="dimension" />
+        <attr name="kToastPaddingHorizontal" format="dimension" />
+        <attr name="kToastPaddingVertical" format="dimension" />
+        <attr name="kToastIcon" format="reference" />
+        <attr name="kToastIconColor" format="color" />
+        <attr name="kToastIconSize" format="dimension" />
+        <attr name="kToastIconPadding" format="dimension" />
+        <attr name="kToastShowIcon" format="boolean" />
+        <attr name="kToastMaxLines" format="integer" />
+        <attr name="kToastMaxWidthRatio" format="float" />
+        <attr name="kToastMinWidth" format="dimension" />
+        <attr name="kToastMinHeight" format="dimension" />
+        <attr name="kToastBorderColor" format="color" />
+        <attr name="kToastBorderWidth" format="dimension" />
+        <attr name="kToastGravity">
+            <flag name="top" value="0x30" />
+            <flag name="bottom" value="0x50" />
+            <flag name="start" value="0x00800003" />
+            <flag name="end" value="0x00800005" />
+            <flag name="center_vertical" value="0x10" />
+            <flag name="center_horizontal" value="0x01" />
+            <flag name="center" value="0x11" />
+        </attr>
+        <attr name="kToastXOffset" format="dimension" />
+        <attr name="kToastYOffset" format="dimension" />
+    </declare-styleable>
 </resources>
