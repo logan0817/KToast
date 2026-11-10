@@ -1,6 +1,6 @@
 # Compose 页面提示
 
-`ktoast-compose` 是 1.3.0 开发中的独立可选模块，当前候选版本为 `1.3.0-SNAPSHOT`，尚未正式发布到 Maven Central。它复用同版本核心和 `ktoast-lifecycle`，提供 Composition 所拥有的页面作用域及自定义 Composable 内容；没有另一套 Host、队列或状态总线。
+`ktoast-compose` 是 1.3.0 的独立可选模块，源码已进入正式候选准备，本地验证使用 `1.3.0-SNAPSHOT`，尚未正式发布到 Maven Central。它复用同版本核心和 `ktoast-lifecycle`，提供 Composition 所拥有的页面作用域及自定义 Composable 内容；没有另一套 Host、队列或状态总线。
 
 ## 依赖与宿主
 

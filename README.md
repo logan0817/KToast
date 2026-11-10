@@ -12,7 +12,7 @@ KToast 是支持 Kotlin 和 Java 的 Android 提示库。它提供前台自定�
 
 > 当前正式版本为 **1.2.0**，核心与可选 LifecycleOwner 扩展均已发布到 Maven Central。正式仓库文件、签名及两个独立消费者已验收；逐轮 CI、设备覆盖与限制见 [1.2.0 验收记录](docs/releases/1.2.0.md)。
 
-> 源码中的 **1.3.0-SNAPSHOT 正在开发，尚未发布**：新增语义/XML 样式与可选 Compose 内容。公开安装仍使用下方正式 1.2.0；候选使用见[开发指南](CONTRIBUTING.md)、[样式指南](docs/STYLES.md)、[Compose 指南](docs/COMPOSE.md)。
+> 源码已进入 **1.3.0 正式候选准备，尚未发布**：新增语义/XML 样式与可选 Compose 内容。公开安装仍使用下方正式 1.2.0；候选使用见[开发指南](CONTRIBUTING.md)、[样式指南](docs/STYLES.md)、[Compose 指南](docs/COMPOSE.md)。
 
 ## 安装
 

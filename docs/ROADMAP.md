@@ -15,7 +15,7 @@
 
 2026-10-15 发布。[设计与验收约束](design/1.2.0.md)已落实；最终版本 PR 第 32 轮和合并后 main 第 33 轮五版本矩阵通过。正式签名包、Central 批次、正式仓库 60 个文件和 10 份签名、两个正式仓库消费者的 Debug/R8 及 API 37 新进程冒烟已验收。逐轮失败、修正、缓存测量与覆盖限制见[验收记录](releases/1.2.0.md)，不将普通矩阵推广为专用 fixture 或厂商真机覆盖。
 
-## 1.3.0：语义、品牌主题与 Compose 内容（开发中）
+## 1.3.0：语义、品牌主题与 Compose 内容（正式候选，未发布）
 
 - KToastType / KToastStyle 与统一 showStyled；默认语义明暗视觉、XML 品牌复用、单次覆盖和请求快照。
 - 独立 ktoast-compose：Composition 作用域、真实 Owner/父 Composition 继承、默认可预览内容和自定义 Composable 内容；复用唯一串行调度。
