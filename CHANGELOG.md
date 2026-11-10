@@ -1,6 +1,6 @@
 # 版本变更
 
-## 1.3.0（正式候选，未发布）
+## 1.3.0（2026-11-10）
 
 - 新增 KToastType 与不可变 KToastStyle，提供 Normal/Success/Error/Warning/Info 语义、明暗配色、自有矢量图标及可复用 XML 品牌样式；全局、Activity、LifecycleOwner 新增返回 ToastHandle 的 showStyled。
 - 样式按基础、可选宿主主题、语义、品牌 XML、单次配置依次覆盖，提交形成快照，拒绝请求不解析样式或执行 DSL；旧普通入口保持原规则。
@@ -12,7 +12,7 @@
 - 新增 `KToastAnimation`，支持分别配置入场、退场插值器及最大缩放边界；通过 `KToastConfig.animation` 全局或单次设置，`snapshot()` 完整复制配置并保留既有构造与 copy 二进制接口。
 - 修正最大回弹倍率配合长文本时的测量不稳定；自定义插值器抛出 Exception 或返回非有限值时报告错误、取消当前提示并继续队列。
 
-当前源码为 `1.3.0` 正式候选，尚未发布；本地和 CI 验证继续显式使用 `-PVERSION=1.3.0-SNAPSHOT`，发布准备见 [1.3.0 记录](docs/releases/1.3.0.md)。方案与兼容边界见 [1.3.0 设计](docs/design/1.3.0.md)，使用见[样式](docs/STYLES.md)与 [Compose](docs/COMPOSE.md)。实际完成状态以本次验证记录为准。
+1.3.0 三个模块已正式发布到 Maven Central，完成最终 main 五档矩阵、90 个公开文件、15 份签名、三个正式消费者的 Debug/R8 构建和 API 33 真机新进程验收。本地和 CI 候选继续显式使用 `-PVERSION=1.3.0-SNAPSHOT`，实际结果与覆盖限制见 [1.3.0 记录](docs/releases/1.3.0.md)。方案与兼容边界见 [1.3.0 设计](docs/design/1.3.0.md)，使用见[样式](docs/STYLES.md)与 [Compose](docs/COMPOSE.md)。实际完成状态以本次验证记录为准。
 
 ## 1.2.0（2026-10-15）
 

@@ -1,6 +1,6 @@
 # 核心用法与样式示例
 
-除明确标注的 1.3.0-SNAPSHOT 候选章节外，以下核心 API 从 1.1.0 起可用，适用于当前正式 1.2.0；先完成 [README 安装步骤](../README.md)。页面独有提示优先使用 [Activity 作用域](PAGE_SCOPE.md) 或 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)。
+以下示例适用于正式 1.3.0；语义样式和动画插值器从 1.3.0 起提供，其余核心 API 从 1.1.0 起可用。先完成 [README 安装步骤](../README.md)。页面独有提示优先使用 [Activity 作用域](PAGE_SCOPE.md) 或 [LifecycleOwner 扩展](LIFECYCLE_SCOPE.md)。
 
 [English](USAGE_EN.md) · [文档导航](README.md)
 
@@ -41,9 +41,9 @@ import com.logan.ktoast.toast
 }
 ```
 
-## 语义样式与品牌主题（1.3.0-SNAPSHOT 候选，未发布）
+## 语义样式与品牌主题（1.3.0）
 
-公开安装版本仍为 1.2.0，不能直接调用本节新增 API。下面示例用于 1.3.0-SNAPSHOT 源码或本地候选；候选构建见[贡献指南](../CONTRIBUTING.md)。
+本节使用正式 1.3.0 新增 API，安装见 [README](../README.md#安装)。源码候选构建见[贡献指南](../CONTRIBUTING.md)。
 
 ```kotlin
 import com.logan.ktoast.KToastScope
@@ -85,7 +85,7 @@ Runnable task = KToast.showDelayed("Show after 2 seconds", 2000L);
 KToast.cancelDelayed(task);
 ```
 
-## 动画插值器（1.3.0-SNAPSHOT 候选，未发布）
+## 动画插值器（1.3.0）
 
 前台自定义 Toast 支持分别设置入场和退场插值器。全局配置、单次 DSL、页面作用域、Lifecycle 和 Compose 的配置方式相同，时长仍使用 `animationDuration`：
 

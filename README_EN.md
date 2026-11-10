@@ -10,9 +10,9 @@ KToast is an Android toast library for Kotlin and Java. It provides custom foreg
 
 The core supports Android 5.0+ without Compose, Material, or coroutines. Global messages can fall back to a system Toast in the background. Page-scoped messages are canceled when their host stops. For messages that require an action, evaluate Snackbar; for important background information, use notifications.
 
-> The current published version is **1.2.0**. The core and optional LifecycleOwner module are available on Maven Central. Repository files, signatures, and two independent consumers have been verified. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for CI results, device coverage, and limits.
+> The current published version is **1.3.0**. The core, optional LifecycleOwner module, and optional Compose module are available on Maven Central. All 90 repository files, 15 signatures, and three independent consumers have been verified. See the [1.3.0 verification record](docs/releases/1.3.0.md) (Chinese) for CI results, device coverage, and limits.
 
-> **The source is preparing the 1.3.0 release candidate; it is not published.** It adds semantic/XML styles and optional Compose content. Keep using the released 1.2.0 coordinates below. See the [contributor guide](CONTRIBUTING.md), [style guide](docs/STYLES.md), and [Compose guide](docs/COMPOSE.md) for source candidates.
+1.3.0 adds semantic/XML branding, optional Compose content, and configurable animation interpolators. It retains the default bounce and fixes clipped rounded corners. See the [style guide](docs/STYLES.md), [Compose guide](docs/COMPOSE.md), and [animation interpolators](docs/USAGE_EN.md#animation-interpolators-130). For source verification, see [Contributing](CONTRIBUTING.md).
 
 ## Installation
 
@@ -31,14 +31,14 @@ Add the published dependency to your app module:
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.2.0")
+    implementation("io.github.logan0817:ktoast:1.3.0")
 }
 ```
 
 Groovy:
 
 ```groovy
-implementation 'io.github.logan0817:ktoast:1.2.0'
+implementation 'io.github.logan0817:ktoast:1.3.0'
 ```
 
 AndroidX App Startup initializes the library automatically. No extra permission or overlay permission is required. If you disable KToast's initializer, call `KToast.init(this)` in `Application.onCreate`; see the [manual initialization instructions](docs/PAGE_SCOPE.md#接入与生命周期) (Chinese) for the Manifest configuration.
@@ -84,6 +84,7 @@ The default mode is `REPLACE`. See [core usage](docs/USAGE_EN.md) for styling, q
 | Application-wide message | `KToast` / `toast` extensions | Keeps global control and system fallback behavior | 1.1.0 |
 | Message owned by an Activity | `KToastScope` | Cancels current requests; the scope can be reused after restart | 1.1.0 |
 | Message owned by a Fragment View or another Owner | `KToastLifecycleScope` | Closes the old session; restart accepts only new requests | 1.2.0 |
+| Message owned by a Compose page | `rememberKToastScope` | Cancels on stop; closes permanently when leaving Composition | 1.3.0 |
 
 All entry points share one sequential presentation queue. Activity scope example:
 
@@ -111,7 +112,7 @@ Create a new scope after Activity recreation. See [Activity scopes](docs/PAGE_SC
 
 ## Optional features in 1.2.0
 
-These APIs are available in the published `1.2.0` release. Runtime policies belong to the core; LifecycleOwner scopes require the optional module at the same version. The [contributing guide](CONTRIBUTING.md#构建本地候选与消费者) (Chinese) covers source development and local candidate verification.
+These APIs were introduced in 1.2.0 and are available in the current `1.3.0` release. Runtime policies belong to the core; LifecycleOwner scopes require the optional module at the same version. The [contributing guide](CONTRIBUTING.md#构建本地候选与消费者) (Chinese) covers source development and local candidate verification.
 
 ### Optional runtime policy
 
@@ -134,10 +135,10 @@ All limits default to `null`, preserving existing behavior. At capacity, accepte
 
 ### LifecycleOwner scopes
 
-The optional module is `io.github.logan0817:ktoast-lifecycle:1.2.0`. It depends on the same core version and `lifecycle-common:2.5.1`, without adding Fragment, Compose, or coroutines. Using the core alone does not add Lifecycle. Add the optional module at the same version:
+The optional module is `io.github.logan0817:ktoast-lifecycle:1.3.0`. It depends on the same core version and `lifecycle-common:2.5.1`, without adding Fragment, Compose, or coroutines. Using the core alone does not add Lifecycle. Add the optional module at the same version:
 
 ```kotlin
-implementation("io.github.logan0817:ktoast-lifecycle:1.2.0")
+implementation("io.github.logan0817:ktoast-lifecycle:1.3.0")
 ```
 
 The module brings in the matching core transitively. Runtime policies alone only require the core.
@@ -153,10 +154,18 @@ view.setOnClickListener { toastScope.show("Saved") }
 
 The old scope closes permanently when its View is destroyed; create another scope for the new View. See [LifecycleOwner scopes](docs/LIFECYCLE_SCOPE.md) (Chinese).
 
+## Optional Compose module
+
+```kotlin
+implementation("io.github.logan0817:ktoast-compose:1.3.0")
+```
+
+The module brings in the matching Lifecycle and core modules transitively. Use `rememberKToastScope()` from event handlers, with `showStyled` or custom Composable content. The core and Lifecycle modules do not add Compose when used alone. See the [Compose guide](docs/COMPOSE.md) (Chinese) for host, compiler, and lifecycle requirements.
+
 ## Compatibility and behavior
 
 - Minimum runtime: API 21. Library bytecode: JVM 1.8. Kotlin metadata: 1.9. These do not guarantee support for every older compiler or AGP.
-- Core production dependencies: Kotlin stdlib 1.9.23 and AndroidX Startup 1.1.1. Tested consumer combinations and Android versions are recorded in the [verification record](docs/releases/1.2.0.md) (Chinese).
+- Core production dependencies: Kotlin stdlib 1.9.23 and AndroidX Startup 1.1.1. Tested consumer combinations and Android versions are recorded in the [verification record](docs/releases/1.3.0.md) (Chinese).
 - Window operations, content factories, and callbacks run on the main thread. Per-call configuration runs on the calling thread. Configure mutable global styles during initialization or centrally on the main thread.
 - `onShow` / `SHOWN` means the render call returned. System Toast completion uses a local timer. Neither guarantees that the user saw the message.
 - Extra ProGuard rules are usually unnecessary. See [troubleshooting](TROUBLESHOOTING.md) (Chinese) for integration, fallback, lifecycle, and toolchain issues.

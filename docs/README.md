@@ -1,6 +1,6 @@
 # 文档导航
 
-KToast 的当前正式版本为 **1.2.0**，核心与可选生命周期扩展均已发布到 Maven Central，并完成正式仓库与独立消费者验收。安装见[项目首页](../README.md)，历史发布证据见[1.2.0 记录](releases/1.2.0.md)，当前正式候选见 [1.3.0 准备](releases/1.3.0.md)。贡献流程通过 `-PVERSION=1.3.0-SNAPSHOT` 验证本地候选，不与正式仓库验收混用。
+KToast 的当前正式版本为 **1.3.0**，核心、可选生命周期和 Compose 扩展均已发布到 Maven Central，并完成正式仓库与三个独立消费者验收。安装见[项目首页](../README.md)，本版证据见 [1.3.0 记录](releases/1.3.0.md)，历史发布见[1.2.0 记录](releases/1.2.0.md)。贡献流程通过 `-PVERSION=1.3.0-SNAPSHOT` 验证本地候选，不与正式仓库验收混用。
 
 ## 使用库
 
@@ -20,7 +20,7 @@ KToast 的当前正式版本为 **1.2.0**，核心与可选生命周期扩展均
 | --- | --- |
 | [贡献指南](../CONTRIBUTING.md) | 项目结构、环境、构建、验证、问题报告与 PR |
 | [发布指南](RELEASING.md) | 三模块候选、正式签名、上传、审核与发布后验证 |
-| [1.3.0 发布准备](releases/1.3.0.md) | 正式候选、三模块验证及本机发布状态 |
+| [1.3.0 验收记录](releases/1.3.0.md) | 正式发布、三模块验证及本机发布方式 |
 | [1.2.0 验收记录](releases/1.2.0.md) | 发布结果、CI 矩阵、产物摘要及覆盖限制 |
 | [1.1.0 发布归档](releases/1.1.0.md) | 历史验收和正式发布证据，不作为当前操作步骤 |
 | [版本路线](ROADMAP.md) | 已交付范围与待评估方向 |
@@ -28,15 +28,15 @@ KToast 的当前正式版本为 **1.2.0**，核心与可选生命周期扩展均
 
 ## API 与架构
 
-核心 Dokka 模块说明为 [API.md](API.md)，扩展为 [library-lifecycle/API.md](../library-lifecycle/API.md)。生成 API 文档：
+核心 Dokka 模块说明为 [API.md](API.md)，扩展为 [library-lifecycle/API.md](../library-lifecycle/API.md) 和 [library-compose/API.md](../library-compose/API.md)。生成 API 文档：
 
 ```bash
-./gradlew :library-android:apiDocsJar :library-lifecycle:apiDocsJar -PVERSION=1.2.0-SNAPSHOT --console=plain
+./gradlew :library-android:apiDocsJar :library-lifecycle:apiDocsJar :library-compose:apiDocsJar -PVERSION=1.3.0-SNAPSHOT --console=plain
 ```
 
-HTML 分别位于 `library-android/build/docs/api/index.html` 和 `library-lifecycle/build/docs/api/index.html`，并作为各模块的 `javadoc` 包发布。当前没有承诺另行托管的在线 API 站点。
+HTML 分别位于 `library-android/build/docs/api/index.html`、`library-lifecycle/build/docs/api/index.html` 和 `library-compose/build/docs/api/index.html`，并作为各模块的 `javadoc` 包发布。当前没有承诺另行托管的在线 API 站点。
 
-`api/` 下的 JSON 是机器检查用的公开 JVM API 基线，包含正式 1.0.5、1.1.0 与审阅过的 1.2.0 增量；它们不是接入教程，也不能自动更新为当前扫描结果来消除兼容失败。
+`api/` 下的 JSON 是机器检查用的公开 JVM API 基线，包含正式 1.0.5、1.1.0、1.2.0 及审阅过的 1.3.0 精确增量；它们不是接入教程，也不能自动更新为当前扫描结果来消除兼容失败。
 
 基础调用链示意：
 
@@ -46,17 +46,17 @@ HTML 分别位于 `library-android/build/docs/api/index.html` 和 `library-lifec
 
 ## 文档维护约定
 
-- 产品名称为 **KToast**，扩展名称为 **KToast Lifecycle**；坐标使用 `ktoast`、`ktoast-lifecycle`，代码标识符保持既有命名。
+- 产品名称为 **KToast**，扩展名称为 **KToast Lifecycle** 和 **KToast Compose**；坐标使用 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，代码标识符保持既有命名。
 - README 提供入门，专题指南解释当前行为，CHANGELOG 记录用户可见变更，发布指南提供当前步骤，逐版本归档保存历史证据。
 - 文档默认使用中文；中英文首页与核心示例保持版本、默认值、依赖和行为一致。未翻译专题在英文入口标明语言。
 - 保留现有 `README_EN.md`、`docs/API.md` 等已被引用或参与构建的名称；不为格式统一改变公开接口或发布坐标。
 - 文件使用可辨识的功能名称；设计与验收记录按版本归档。旧 `NEXT_VERSION_PLAN.md` 保留导航，后续版本不会覆盖旧设计。
 - 发布前检查相对链接、代码块、示例符号和版本状态；构建缓存、日志、签名材料、个人环境及临时报告不提交。
 
-## 1.3.0 源码候选（未发布）
+## 1.3.0 使用指南
 
 - [语义与品牌样式](STYLES.md)：showStyled、XML、values-night、覆盖优先级与快照。
 - [Compose 页面与内容](COMPOSE.md)：可选模块、生命周期、Preview、自定义内容及异常边界。
 - [版本设计](design/1.3.0.md)：范围、兼容、工具链和验收门槛。
 
-正式安装仍使用 README 的 1.2.0，源码候选使用贡献指南命令。
+正式安装使用 README 的 1.3.0；本地 SNAPSHOT 验证继续使用贡献指南命令。
