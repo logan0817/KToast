@@ -164,6 +164,8 @@ internal class ModernToastStrategy : IToastStrategy {
                     }
                     true
                 }.also { decor.viewTreeObserver.addOnPreDrawListener(it) }
+                val screenLocation = IntArray(2)
+                val localLocation = IntArray(2)
                 contentPreDrawListener = ViewTreeObserver.OnPreDrawListener {
                     var positioned = true
                     if (windowAdded && currentRequest === request && toastView.width > 0 && toastView.height > 0) {
@@ -172,7 +174,18 @@ internal class ModernToastStrategy : IToastStrategy {
                             val gravity = Gravity.getAbsoluteGravity(config.gravity, activity.window.decorView.layoutDirection)
                             // 子 Composition 可在首次 layout 后完成；绘制前按真实尺寸定位，避开 layout 中的重测与重入。
                             val position = ToastPlacement.resolve(bounds, toastView.width, toastView.height, gravity, config.xOffset, config.yOffset)
-                            if (params.x != position.first || params.y != position.second) {
+                            // 参数已提交不代表窗口已移动；屏幕与窗口坐标相减可去除回弹变换。
+                            toastView.getLocationOnScreen(screenLocation)
+                            toastView.getLocationInWindow(localLocation)
+                            var actualX = screenLocation[0] - localLocation[0]
+                            var actualY = screenLocation[1] - localLocation[1]
+                            val decor = activity.window.decorView
+                            decor.getLocationOnScreen(screenLocation)
+                            decor.getLocationInWindow(localLocation)
+                            actualX -= screenLocation[0] - localLocation[0]
+                            actualY -= screenLocation[1] - localLocation[1]
+                            if (params.x != position.first || params.y != position.second ||
+                                kotlin.math.abs(actualX - position.first) > 1 || kotlin.math.abs(actualY - position.second) > 1) {
                                 if (repositionRunnable == null) {
                                     // 当前 traversal 内更新参数可能无法再触发布局，移到本帧结束后交给 WindowManager。
                                     repositionRunnable = Runnable {
@@ -182,6 +195,7 @@ internal class ModernToastStrategy : IToastStrategy {
                                                 params.x = position.first
                                                 params.y = position.second
                                                 wm.updateViewLayout(toastView, params)
+                                                toastView.requestLayout()
                                             } catch (error: Exception) {
                                                 KToast.dispatcher.onPresentationError(request.handle, error)
                                                 notifyDismiss(ToastHandle.DismissReason.CANCELED)
