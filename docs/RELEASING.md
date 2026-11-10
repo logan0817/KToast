@@ -45,7 +45,7 @@ python3 -B tools/verify_central_service.py -- ./gradlew
 
 [Candidate device matrix](https://github.com/logan0817/KToast/actions/workflows/device-matrix.yml) 在构建任务生成同一批 Demo、测试、三个 R8 消费者 APK 和三份 AAR，再由 API 21、30、31、35、36 的设备任务消费。手动触发时明确选择待验收分支，并核对实际运行提交。
 
-构建任务同时检查 Demo 和三个库的 Lint。专用云端设备保留默认动画，逐帧回弹边界用例必须观察实际 Animator 帧；不能关闭动画后将此项当作通过。本机仅真机调试的约束不影响已授权的云端专用设备矩阵。
+构建任务同时检查 Demo 和三个库的 Lint。专用云端设备关闭窗口和 Activity 转场（`window_animation_scale=0`、`transition_animation_scale=0`），避免 API 35 的残留系统转场层让页面 Surface 透明、输入层拒绝焦点；保留 `animator_duration_scale=1`，逐帧回弹边界用例必须观察真实 Animator 帧。矩阵入口在专用模拟器身份核验后写入并回读这三项配置，不一致即失败；不应用到日常真机。本机仅真机调试的约束不影响已授权的云端专用设备矩阵。
 
 构建任务用临时 SDK 视图仅暴露既定平台 31/36，其余构建工具通过符号链接复用 hosted 镜像已有安装。这样镜像额外预装的平台不会改变 `OldTargetApi` 检查阈值；保持项目 SDK 基线和 Lint 规则，不删除镜像 SDK。设备任务仍独立运行完整五档矩阵。
 

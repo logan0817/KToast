@@ -166,7 +166,7 @@ jobs:
           target: ${{ matrix.target }}
           profile: Nexus 6
           avd-name: ktoast-api-${{ matrix.api }}
-          # 回弹边界回归需要真实 Animator 帧，专用云端设备保留默认动画。
+          # 矩阵入口单独关闭系统转场，保留 Animator=1，验证真实回弹帧。
           disable-animations: false
           enable-hw-keyboard: false
           script: python3 -B tools/run_device_matrix.py --api ${{ matrix.api }} --serial emulator-5554

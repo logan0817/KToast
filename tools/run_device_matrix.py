@@ -193,6 +193,15 @@ def run_device(api, serial):
         report['buildCommit'] = expected['commit']
         if report['commit'] and report['commit'] != report['buildCommit']:
             raise ValueError('构建与运行提交不一致')
+        # 只作用于上方已确认的临时模拟器：关闭系统转场，保留 Toast 逐帧回弹。
+        report['animationScales'] = {}
+        for setting, scale in (('window_animation_scale', 0), ('transition_animation_scale', 0),
+                               ('animator_duration_scale', 1)):
+            adb('shell', 'settings', 'put', 'global', setting, str(scale))
+            actual_scale = float(adb('shell', 'settings', 'get', 'global', setting).strip())
+            report['animationScales'][setting] = actual_scale
+            if actual_scale != scale:
+                raise ValueError('专用模拟器动画配置未生效：' + setting)
         for name in ('demo', 'tests', *(entry[0] for entry in CONSUMERS)):
             result = adb('install', '-r', str(ROOT / FILES[name]), timeout=120)
             (output / (name + '-install.txt')).write_text(result, encoding='utf-8')
