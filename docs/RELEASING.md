@@ -1,8 +1,21 @@
 # 发布指南
 
-本页维护 **1.3.0** 的三模块发布步骤，当前源码为未发布 `1.3.0` 正式候选；本地和 CI 候选验证继续显式使用 `1.3.0-SNAPSHOT`。当前正式版本仍为 **1.2.0**；已发布坐标不能覆盖，不要重复上传或发布同一版本。以下正式命令仅是后续经批准发布时的示例，不表示本版已发布或获得上传授权。当前准备见 [1.3.0 记录](releases/1.3.0.md)，历史发布见 [1.2.0 验收记录](releases/1.2.0.md)和 [1.1.0 归档](releases/1.1.0.md)。
+当前正式版本为 **1.3.0**，三个模块已发布并完成公开仓库与真实消费者验收，见 [1.3.0 记录](releases/1.3.0.md)。本页维护已验证的本机 GPG/agent 与 Central USER_MANAGED 流程；以下 `1.3.0` 命令是本次发布记录的示例，**该坐标已发布，禁止重跑上传或 publish**。后续版本须先确定新的未发布版本，再取得对应授权。源码与 CI 候选继续显式使用 `1.3.0-SNAPSHOT`。历史证据见 [1.2.0](releases/1.2.0.md)和 [1.1.0](releases/1.1.0.md)。
 
-1.3.0 计划同批发布 `io.github.logan0817:ktoast`、`ktoast-lifecycle` 与 `ktoast-compose`。扩展传递依赖同版下层模块，不允许混用不匹配版本。操作前先确认本次具体目标；提交、推送、PR、合并、Central 上传、正式发布、标签和 GitHub Release 分别按授权执行。
+1.3.0 已同批发布 `io.github.logan0817:ktoast`、`ktoast-lifecycle` 与 `ktoast-compose`。扩展传递依赖同版下层模块，不允许混用不匹配版本。操作前先确认本次具体目标；提交、推送、PR、合并、Central 上传、正式发布、标签和 GitHub Release 分别按授权执行。
+
+## 本机发布默认方式
+
+后续版本沿用以下顺序，具体版本和操作仍按本次授权确定：
+
+1. 先将正式版本元数据通过 PR 合入 main，验收合并后 CI，固定干净提交及三模块 AAR/sources 摘要。
+2. 本机复用既有 GPG 子钥和 agent，用根 `prepareCentralBundle` 生成真实正式版本的 POM、metadata、Dokka 与三模块签名包；显式选择历史已核对的完整指纹，口令由系统 pinentry 管理。不得将私钥或口令迁移至 GitHub。Central token 沿用用户级 Gradle 配置，不复制到仓库或命令行。
+3. 本项目 Candidate 仅支持 SNAPSHOT，正式 Staging 必须签名；正式包由根任务生成并与 CI 受测 AAR/sources 比较。POM、metadata 与 Dokka 应包含真实正式版本，不把 SNAPSHOT 文件改名当作正式制品。三消费者先完成正式 Staging Debug/R8 及相应设备检查。
+4. 仅执行一次根 `:publishToMavenCentral`，保留请求时间及实际上传 ZIP，等待整个进程退出，再通过官方 `GET /api/v1/publisher/deployments` 定位本次唯一 ID；核对名称、三个坐标、时间及上传前的批次列表。
+5. 用 `POST /api/v1/publisher/status?id=<ID>` 查询至 VALIDATED，核对 errors 与三个 purls；通过 `GET /api/v1/publisher/deployment/<ID>/download/<Maven路径>` 下载并验收文件。仅在授权覆盖时对同一 ID 执行 `POST /api/v1/publisher/deployment/<ID>` 正式 publish；请求前保存标记。响应丢失先查原 ID，不重复上传或发布。
+6. 等待 PUBLISHED、三坐标 `published=true`，再从公开 Maven Central 下载验签，并用仅从公开仓库解析的新消费者验证 Debug/R8 和设备新进程。通过后同步安装说明及本版验收记录。标签和 GitHub Release 按独立授权处理。
+
+根任务可能重新生成 ZIP 容器，插件上传 ZIP 的顺序、压缩与时间戳也可能不同。分别记录各 ZIP 摘要，以全部内部文件字节一致性关联它们，不要求不同 ZIP 容器的 SHA 相同。发布后出现 `Deployment components info not found` 时保留原响应，并结合状态、公开坐标、文件和真实消费判断结果，不以该诊断为由重复上传。
 
 ## 发布门槛
 
@@ -84,7 +97,7 @@ Actions 的输入、构建报告及逐 API 报告保留 **14 天**。验收时�
 
 批准本次发布范围后，核对 `gradle.properties` 的 `VERSION`、`APP_VERSION_NAME`、`APP_VERSION_CODE`，同步 CHANGELOG；正式仓库确认上线前，README 不提前宣称新坐标已可安装。兼容基线独立于版本配置，不能随版本号自动覆盖。
 
-下面命令中的 `1.3.0` 是未发布的未来正式版本示例，仅在版本准备及具体发布操作获得授权后执行；不得向已发布 1.2.0 坐标重复上传。执行本地准备不等于授权上传或正式发布。签名默认关闭；两种模式均要求 `--no-configuration-cache`，不使用公开 build scan 或调试日志保存签名环境。
+下面命令中的 `1.3.0` 是已完成发布的历史示例；后续发布须替换为已确认的新未发布版本，获得对应授权后执行；不得向已发布坐标重复上传。执行本地准备不等于授权上传或正式发布。签名默认关闭；两种模式均要求 `--no-configuration-cache`，不使用公开 build scan 或调试日志保存签名环境。
 
 ### 本机 GPG 模式
 
@@ -152,7 +165,7 @@ python3 -B tools/verify_central_deployment.py \
 
 该工具仅离线核对指定快照、下载字节和签名，不认证账号权限、快照来源或实时状态。插件实际 ZIP 的顺序、压缩和时间戳可能不同于本地冻结 ZIP，需另记实际上传包摘要并核对内部文件，不能混称同一个 ZIP。
 
-远端验收通过后，再取得并执行正式发布授权。发布前重新查询同一 ID 的状态，核对坐标与验收包；不要按模糊名称操作其他批次。若组件查询报 `Deployment components info not found`，保留该诊断，通过状态与实际文件核对，不据此重复上传。
+远端验收通过后，在明确的正式发布授权范围内执行；已有持续授权覆盖时无需重复确认。发布前重新查询同一 ID 的状态，核对坐标与验收包；不要按模糊名称操作其他批次。若组件查询报 `Deployment components info not found`，保留该诊断，通过状态与实际文件核对，不据此重复上传。
 
 发布后确认 PUBLISHED、实际正式仓库可解析，并下载三模块的制品、签名与校验和核验。使用只从正式仓库解析的新消费者验证 Debug/R8，避免本地 Candidate 或 Staging 遮蔽正式坐标。然后同步 README 中英文、CHANGELOG、Demo 版本和逐版本记录；标签与 GitHub Release 在相应授权下创建并核对提交及资源。
 
@@ -160,9 +173,9 @@ python3 -B tools/verify_central_deployment.py \
 
 发布元数据集中于 `gradle.properties`；签名与 Publication 在 `gradle/release-publishing.gradle.kts`，验收在 `gradle/release-verification.gradle.kts`，Central 上传与门禁在 `gradle/central-publishing.gradle.kts`。修改插件版本、批次模型或文件集合时，先更新对应回归并重新验证三模块流程。
 
-## 1.3.0 开发版的三模块入口
+## 三模块入口与工具链
 
-当前源码为未发布 `1.3.0` 正式候选；正式仓库与历史发布证据仍为 1.2.0，不直接把历史命令替换为新发布操作。本地候选统一使用 `verifyReleaseCandidate -PVERSION=1.3.0-SNAPSHOT`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
+当前源码版本为已发布 `1.3.0`；正式仓库验收见本版记录，不直接把历史命令替换为新发布操作。本地候选统一使用 `verifyReleaseCandidate -PVERSION=1.3.0-SNAPSHOT`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
 
 Compose 需要真实 sources/Dokka、AAR、POM/Gradle metadata、精确公开 API 和直接依赖检查，发布包不得漏掉任一模块。包验证按版本保留历史单/双模块规则；>=1.3 必须三模块。根上传入口与人工发布模式保持，候选生成与配置 dry-run 不触发上传。
 

@@ -10,9 +10,9 @@ KToast 是支持 Kotlin 和 Java 的 Android 提示库。它提供前台自定�
 
 核心支持 Android 5.0+，不依赖 Compose、Material 或协程。全局提示在后台可尝试系统 Toast；页面提示随宿主停止取消，适合保存成功、上传状态等短暂反馈。需要用户操作的提示应评估 Snackbar，重要后台消息应使用通知。
 
-> 当前正式版本为 **1.2.0**，核心与可选 LifecycleOwner 扩展均已发布到 Maven Central。正式仓库文件、签名及两个独立消费者已验收；逐轮 CI、设备覆盖与限制见 [1.2.0 验收记录](docs/releases/1.2.0.md)。
+> 当前正式版本为 **1.3.0**，核心、可选 LifecycleOwner 和 Compose 扩展均已发布到 Maven Central。正式仓库 90 个文件、15 份签名及三个独立消费者已验收；CI、真机覆盖与限制见 [1.3.0 验收记录](docs/releases/1.3.0.md)。
 
-> 源码已进入 **1.3.0 正式候选准备，尚未发布**：新增语义/XML 样式与可选 Compose 内容。公开安装仍使用下方正式 1.2.0；候选使用见[开发指南](CONTRIBUTING.md)、[样式指南](docs/STYLES.md)、[Compose 指南](docs/COMPOSE.md)。
+1.3.0 新增语义/XML 品牌样式、可选 Compose 内容及可配置动画插值器，保留默认缩放回弹并修复圆角裁剪。接入见[样式指南](docs/STYLES.md)、[Compose 指南](docs/COMPOSE.md)与[动画插值器](docs/USAGE.md#动画插值器130)。源码验证见[贡献指南](CONTRIBUTING.md)。
 
 ## 安装
 
@@ -31,14 +31,14 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.2.0")
+    implementation("io.github.logan0817:ktoast:1.3.0")
 }
 ```
 
 Groovy：
 
 ```groovy
-implementation 'io.github.logan0817:ktoast:1.2.0'
+implementation 'io.github.logan0817:ktoast:1.3.0'
 ```
 
 默认通过 AndroidX App Startup 自动初始化，无需额外权限，也无需申请悬浮窗权限。关闭本库自动初始化时，须在 `Application.onCreate` 调用 `KToast.init(this)`；[手动初始化说明](docs/PAGE_SCOPE.md#接入与生命周期)包含 Manifest 配置。
@@ -84,8 +84,9 @@ import com.logan.ktoast.toast
 | 应用全局提示 | `KToast` / `toast` 扩展 | 保留全局控制与后台系统降级规则 | 1.1.0 |
 | 消息属于某个 Activity | `KToastScope` | 取消本轮请求；恢复后作用域可复用 | 1.1.0 |
 | 消息属于 Fragment View 或独立 Owner | `KToastLifecycleScope` | 关闭旧活动期；恢复只接受新请求 | 1.2.0 |
+| 消息属于 Compose 页面 | `rememberKToastScope` | 停止取消；离开 Composition 永久关闭 | 1.3.0 |
 
-三个入口共享同一串行展示队列。Activity 作用域示例：
+以上入口共享同一串行展示队列。Activity 作用域示例：
 
 ```kotlin
 import android.app.Activity
@@ -111,7 +112,7 @@ Activity 重建后为新实例创建作用域。窗口约束、输入法避让�
 
 ## 1.2.0 可选能力
 
-以下 API 可直接使用正式 `1.2.0`。运行策略属于核心库；LifecycleOwner 作用域须添加同版可选扩展。源码开发与本地候选验证见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。
+以下 API 从 1.2.0 起提供，当前正式 `1.3.0` 可直接使用。运行策略属于核心库；LifecycleOwner 作用域须添加同版可选扩展。源码开发与本地候选验证见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。
 
 ### 可选运行策略
 
@@ -134,10 +135,10 @@ KToast.setRuntimePolicy(
 
 ### LifecycleOwner 扩展
 
-独立模块坐标为 `io.github.logan0817:ktoast-lifecycle:1.2.0`，传递依赖同版核心和 `lifecycle-common:2.5.1`，不额外引入 Fragment、Compose 或协程。单独接入核心不会引入 Lifecycle。添加扩展时使用同版坐标：
+独立模块坐标为 `io.github.logan0817:ktoast-lifecycle:1.3.0`，传递依赖同版核心和 `lifecycle-common:2.5.1`，不额外引入 Fragment、Compose 或协程。单独接入核心不会引入 Lifecycle。添加扩展时使用同版坐标：
 
 ```kotlin
-implementation("io.github.logan0817:ktoast-lifecycle:1.2.0")
+implementation("io.github.logan0817:ktoast-lifecycle:1.3.0")
 ```
 
 扩展传递依赖同版核心，不必重复声明核心依赖；只需运行策略时使用核心即可。
@@ -153,10 +154,18 @@ view.setOnClickListener { toastScope.show("保存成功") }
 
 View 销毁后旧作用域永久关闭，View 重建时重新创建。完整说明见 [LifecycleOwner 作用域](docs/LIFECYCLE_SCOPE.md)。
 
+## Compose 可选扩展
+
+```kotlin
+implementation("io.github.logan0817:ktoast-compose:1.3.0")
+```
+
+Compose 扩展传递依赖同版生命周期模块和核心，不必重复声明。使用 `rememberKToastScope()` 在点击等事件中显示，支持 `showStyled` 和自定义 Composable 内容。核心和生命周期模块单独接入不增加 Compose 依赖；宿主、编译器及生命周期要求见 [Compose 指南](docs/COMPOSE.md)。
+
 ## 兼容性与行为边界
 
 - 最低运行版本为 API 21，库字节码目标为 JVM 1.8，Kotlin metadata 为 1.9；这些信息不代表任意旧编译器或 AGP 均可用。
-- 核心生产依赖为 Kotlin stdlib 1.9.23 和 AndroidX Startup 1.1.1。已验证的消费者组合和平台范围见[验收记录](docs/releases/1.2.0.md)。
+- 核心生产依赖为 Kotlin stdlib 1.9.23 和 AndroidX Startup 1.1.1。已验证的消费者组合和平台范围见[验收记录](docs/releases/1.3.0.md)。
 - 窗口、内容工厂和回调在主线程执行；局部配置 DSL 在调用线程执行。全局可变样式应在初始化或主线程统一设置。
 - `onShow` / `SHOWN` 表示渲染调用返回，系统 Toast 完成时间按本地计时估计，均不保证用户实际看到提示。
 - 通常不需要额外混淆规则。接入、系统降级、生命周期和工具链问题见 [排障指南](TROUBLESHOOTING.md)。

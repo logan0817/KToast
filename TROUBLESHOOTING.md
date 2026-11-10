@@ -1,6 +1,6 @@
 # 排障指南
 
-安装与最小示例见 [README](README.md)，开发环境和本地候选构建见 [贡献指南](CONTRIBUTING.md)，签名与上传见 [发布指南](docs/RELEASING.md)。本页集中解释失败现象与诊断方法，当前正式版为 1.2.0，核心与可选生命周期扩展须使用匹配版本。
+安装与最小示例见 [README](README.md)，开发环境和本地候选构建见 [贡献指南](CONTRIBUTING.md)，签名与上传见 [发布指南](docs/RELEASING.md)。本页集中解释失败现象与诊断方法，当前正式版为 1.3.0，核心、可选生命周期与 Compose 扩展须使用匹配版本。
 
 ## 提示未显示或队列未推进
 
@@ -91,10 +91,10 @@ Espresso 出现 `INJECT_EVENTS` 时检查实际点击目标；若命中系统导
 
 矩阵的 `WindowFailureDiagnosticsTest` 验证真实规则与私有目录导出。诊断使用 `adb shell run-as` / `adb exec-out run-as` 读取当前运行文件；外部存储在旧系统可能未挂载或无权限。旧 `dumpsys` 不支持 `-t`，因此由读取端或主机命令设置超时。命令错误文本或空文件不能作为有效快照。
 
-收尾快照与首次失败并非同一时刻，不能仅凭收尾焦点判断完整根因。采证错误只作为附加错误，保留原失败。各轮已确认事实与未解决限制见[验收记录](docs/releases/1.2.0.md)。
+收尾快照与首次失败并非同一时刻，不能仅凭收尾焦点判断完整根因。采证错误只作为附加错误，保留原失败。各轮已确认事实与未解决限制见[验收记录](docs/releases/1.3.0.md)。
 
-## 1.3.0 源码候选与 Compose
+## 1.3.0 样式与 Compose
 
-开发版未发布，正式 1.2.0 不含 showStyled 或 Compose 模块。样式覆盖与资源单位见[样式指南](docs/STYLES.md)，ComponentActivity、真实 Owner、Preview 与关闭后调用规则见[Compose 指南](docs/COMPOSE.md)。核心/Lifecycle 单独接入不应解析到 Compose、Fragment 或协程。
+showStyled 与 Compose 模块从正式 1.3.0 起提供，1.2.0 不含这些 API；使用 README 中的同版正式坐标。样式覆盖与资源单位见[样式指南](docs/STYLES.md)，ComponentActivity、真实 Owner、Preview 与关闭后调用规则见[Compose 指南](docs/COMPOSE.md)。核心/Lifecycle 单独接入不应解析到 Compose、Fragment 或协程。
 
 候选报告新增 `ktoast-compose-candidate.json`；独立 Compose 消费者使用自身 Wrapper。三库 API、依赖边界、核心/Lifecycle 旧工具链及 Compose 现代消费者分别核对，不把一项成功当作全部兼容。用户 Composable 内部异常（首次/重组）遵循应用异常机制，不承诺转换为取消；工厂与同步窗口创建失败仍由核心错误路径处理。

@@ -1,18 +1,18 @@
 # Compose 页面提示
 
-`ktoast-compose` 是 1.3.0 的独立可选模块，源码已进入正式候选准备，本地验证使用 `1.3.0-SNAPSHOT`，尚未正式发布到 Maven Central。它复用同版本核心和 `ktoast-lifecycle`，提供 Composition 所拥有的页面作用域及自定义 Composable 内容；没有另一套 Host、队列或状态总线。
+`ktoast-compose` 是从 1.3.0 起提供的独立可选模块，已发布到 Maven Central。它复用同版本核心和 `ktoast-lifecycle`，提供 Composition 所拥有的页面作用域及自定义 Composable 内容；没有另一套 Host、队列或状态总线。
 
 ## 依赖与宿主
 
-本仓库 Demo 通过项目依赖开发：
+应用通过 Maven Central 添加同版扩展：
 
 ```kotlin
 dependencies {
-    implementation(project(":library-compose"))
+    implementation("io.github.logan0817:ktoast-compose:1.3.0")
 }
 ```
 
-独立消费者须先生成本地 Candidate 并指向该候选仓库，不能把开发版本当作 Maven Central 已可安装的版本。构建入口见[贡献指南](../CONTRIBUTING.md)。
+扩展传递依赖同版生命周期模块与核心，不必重复声明。本仓库 Demo 通过 `project(":library-compose")` 开发；源码候选与独立消费者验证见[贡献指南](../CONTRIBUTING.md)。
 
 本模块最低 Android API 21，库字节码为 JVM 1.8、Kotlin metadata 1.9。当前构建配置采用 Kotlin 1.9.23、Compose Compiler 1.5.13；依赖 Compose Runtime/UI/Foundation 1.7.8、Lifecycle Runtime Compose 2.8.3、Activity 1.9.2 和 SavedState 1.2.1。Runtime/UI 和同版本生命周期模块属于 API 依赖，其余为实现依赖；依赖的实际解析结果仍须由应用确认。核心和生命周期模块单独接入不引入 Compose。Compose 应用还须启用自己的 Compose 构建配置，不能仅依赖库的字节码目标推断编译器兼容性。
 

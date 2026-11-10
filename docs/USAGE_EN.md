@@ -1,6 +1,6 @@
 # Core usage and styling
 
-Except for the explicitly marked 1.3.0-SNAPSHOT candidate section, these core APIs have been available since 1.1.0 and remain supported in the current 1.2.0 release. Start with [installation](../README_EN.md). For page-owned messages, see [Activity scopes](PAGE_SCOPE.md) or [LifecycleOwner scopes](LIFECYCLE_SCOPE.md) (Chinese).
+These examples target the published 1.3.0 release. Semantic styles and animation interpolators were introduced in 1.3.0; the other core APIs have been available since 1.1.0. Start with [installation](../README_EN.md). For page-owned messages, see [Activity scopes](PAGE_SCOPE.md) or [LifecycleOwner scopes](LIFECYCLE_SCOPE.md) (Chinese).
 
 [简体中文](USAGE.md) · [Documentation index](README.md)
 
@@ -41,9 +41,9 @@ import com.logan.ktoast.toast
 }
 ```
 
-## Semantic styles and branding (unreleased 1.3.0-SNAPSHOT candidate)
+## Semantic styles and branding (1.3.0)
 
-The public installation version remains 1.2.0 and does not include these new APIs. This section applies to 1.3.0-SNAPSHOT source builds or local candidates; see the [contribution guide](../CONTRIBUTING.md) for candidate builds.
+This section uses APIs introduced in the published 1.3.0 release. See [installation](../README_EN.md#installation) for dependencies, or the [contribution guide](../CONTRIBUTING.md) for source candidates.
 
 ```kotlin
 import com.logan.ktoast.KToastScope
@@ -85,7 +85,7 @@ Runnable task = KToast.showDelayed("Show after 2 seconds", 2000L);
 KToast.cancelDelayed(task);
 ```
 
-## Animation interpolators (unreleased 1.3.0-SNAPSHOT candidate)
+## Animation interpolators (1.3.0)
 
 Use `KToastConfig.animation` to configure entry and exit independently. The same configuration works with global defaults, per-call DSL, page scopes, Lifecycle, and Compose. `animationDuration` still controls duration:
 

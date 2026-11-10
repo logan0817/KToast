@@ -97,4 +97,4 @@ import com.logan.ktoast.toastHandle
 
 两类丢弃均以原有 `State.CANCELED` 和 `DismissReason.CANCELED` 结束；不增加旧枚举成员。`dropReason` 在终态回调前可见，可跨线程读取。丢弃不会发送 `onShow`，`onCancel` 和 `onDismiss` 各最多一次，均在主线程执行；普通取消与正常结束的附加原因为 `null`。
 
-容量和 LRU 限制约束登记数与条目数，不是整个进程的内存字节上限；主线程阻塞时也无法保证回调及时执行。验收证据和覆盖边界见 [1.2.0 记录](releases/1.2.0.md)。
+容量和 LRU 限制约束登记数与条目数，不是整个进程的内存字节上限；主线程阻塞时也无法保证回调及时执行。验收证据和覆盖边界见 [1.3.0 记录](releases/1.3.0.md)。
