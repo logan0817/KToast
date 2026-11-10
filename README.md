@@ -172,6 +172,7 @@ Compose 扩展传递依赖同版生命周期模块和核心，不必重复声明
 
 ## 文档与示例
 
+- [1.3.0 Release 与 Demo 下载](https://github.com/logan0817/KToast/releases/tag/1.3.0)：提供 APK 和 SHA-256 校验文件。Demo 为 Release 构建，使用开发证书签名，仅供体验示例。
 - [文档导航](docs/README.md)：用户指南、API、维护和设计记录。
 - [Demo 源码](app/src/main/java/com/logan/ktoastapp/MainActivity.kt)及[生命周期 Demo](app/src/main/java/com/logan/ktoastapp/LifecycleDemoActivity.kt)：从源码构建当前示例。
 - [贡献指南](CONTRIBUTING.md)：环境准备、测试和提交约定。
