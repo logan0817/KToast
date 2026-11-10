@@ -2,8 +2,8 @@ package com.logan.ktoast.strategy
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.TimeInterpolator
 import android.annotation.SuppressLint
-import android.annotation.TargetApi
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -18,7 +18,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.ViewTreeObserver
-import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -33,6 +32,7 @@ import com.logan.ktoast.utils.KActivityStack
 import com.logan.ktoast.utils.KToastUtils
 import java.lang.ref.WeakReference
 import java.util.ArrayDeque
+import kotlin.math.ceil
 
 /**
  * 现代化 Toast 渲染策略
@@ -73,10 +73,12 @@ internal class ModernToastStrategy : IToastStrategy {
     private var decorReference: WeakReference<View>? = null
     private var windowBounds: ToastWindowBounds? = null
     private var hostLayoutDirection: Int? = null
-    private var contentLayoutListener: View.OnLayoutChangeListener? = null
+    private var contentPreDrawListener: ViewTreeObserver.OnPreDrawListener? = null
+    private var repositionRunnable: Runnable? = null
+    private var animationFailureRunnable: Runnable? = null
 
     override fun show(request: ToastRequest, listener: ToastPresentationListener) {
-        val config = request.config ?: KToast.globalConfig.copy()
+        val config = request.config ?: KToast.globalConfig.snapshot()
         currentRequest = request
         this.listener = listener
         dismissNotified = false
@@ -92,7 +94,9 @@ internal class ModernToastStrategy : IToastStrategy {
             windowManagerReference = WeakReference(wm)
             val content = createToastView(activity, request.message, config, request.scope != null)
             contentReference = WeakReference(content)
-            val toastView = if (request.scope != null) ToastViewport(activity).apply {
+            val toastView = (if (request.scope != null) ToastViewport(activity)
+                else ToastAnimationFrame(activity)).apply {
+                maxScale = config.animation.maxScale
                 // 公共样式已设置内容初始透明度，包装后改由根容器执行动画。
                 content.alpha = 1f
                 content.scaleX = 1f
@@ -101,7 +105,7 @@ internal class ModernToastStrategy : IToastStrategy {
                 scaleX = 0.8f
                 scaleY = 0.8f
                 addView(content)
-            } else content
+            }
             viewReference = WeakReference(toastView)
             observeHost(activity)
             attachListener = object : View.OnAttachStateChangeListener {
@@ -119,7 +123,7 @@ internal class ModernToastStrategy : IToastStrategy {
                     if (exitStarted || currentRequest == null) return@setOnClickListener
                     exitStarted = true
                     removeDismissTimer()
-                    executeExitAnimation(toastView, config.animationDuration) {
+                    executeExitAnimation(toastView, config) {
                         notifyDismiss(ToastHandle.DismissReason.CANCELED)
                     }
                 }
@@ -160,18 +164,40 @@ internal class ModernToastStrategy : IToastStrategy {
                     }
                     true
                 }.also { decor.viewTreeObserver.addOnPreDrawListener(it) }
-                contentLayoutListener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-                    if (windowAdded && currentRequest != null &&
-                        (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop)) {
+                contentPreDrawListener = ViewTreeObserver.OnPreDrawListener {
+                    var positioned = true
+                    if (windowAdded && currentRequest === request && toastView.width > 0 && toastView.height > 0) {
                         try {
-                            applyViewport(activity, toastView as ToastViewport, params, request, config)
-                            wm.updateViewLayout(toastView, params)
+                            val bounds = windowBounds ?: ToastWindowGeometry.resolve(activity, request.scope.options)
+                            val gravity = Gravity.getAbsoluteGravity(config.gravity, activity.window.decorView.layoutDirection)
+                            // 子 Composition 可在首次 layout 后完成；绘制前按真实尺寸定位，避开 layout 中的重测与重入。
+                            val position = ToastPlacement.resolve(bounds, toastView.width, toastView.height, gravity, config.xOffset, config.yOffset)
+                            if (params.x != position.first || params.y != position.second) {
+                                if (repositionRunnable == null) {
+                                    // 当前 traversal 内更新参数可能无法再触发布局，移到本帧结束后交给 WindowManager。
+                                    repositionRunnable = Runnable {
+                                        repositionRunnable = null
+                                        if (windowAdded && currentRequest === request) {
+                                            try {
+                                                params.x = position.first
+                                                params.y = position.second
+                                                wm.updateViewLayout(toastView, params)
+                                            } catch (error: Exception) {
+                                                KToast.dispatcher.onPresentationError(request.handle, error)
+                                                notifyDismiss(ToastHandle.DismissReason.CANCELED)
+                                            }
+                                        }
+                                    }.also { toastView.post(it) }
+                                }
+                                positioned = false
+                            }
                         } catch (error: Exception) {
                             KToast.dispatcher.onPresentationError(request.handle, error)
                             notifyDismiss(ToastHandle.DismissReason.CANCELED)
                         }
                     }
-                }.also { toastView.addOnLayoutChangeListener(it) }
+                    positioned
+                }.also { toastView.viewTreeObserver.addOnPreDrawListener(it) }
                 applyViewport(activity, toastView as ToastViewport, params, request, config)
             }
             wm.addView(toastView, params)
@@ -187,7 +213,7 @@ internal class ModernToastStrategy : IToastStrategy {
                     toastView.post(announceRunnable!!)
                 }
             }
-            executeEnterAnimation(toastView, config.animationDuration)
+            executeEnterAnimation(toastView, config)
             val baseTime = if (request.duration == Toast.LENGTH_LONG) 3500 else 2000
             val displayTime = if (request.scope?.options?.useAccessibilityTimeout == true && Build.VERSION.SDK_INT >= 29) {
                 val manager = activity.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
@@ -198,7 +224,7 @@ internal class ModernToastStrategy : IToastStrategy {
                 exitStarted = true
                 val currentView = viewReference?.get()
                 if (currentView != null && currentView.isAttachedToWindow) {
-                    executeExitAnimation(currentView, config.animationDuration) {
+                    executeExitAnimation(currentView, config) {
                         notifyDismiss(ToastHandle.DismissReason.COMPLETED)
                     }
                 } else {
@@ -216,8 +242,8 @@ internal class ModernToastStrategy : IToastStrategy {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.Q)
     private fun accessibilityContentFlags(content: View, config: KToastConfig): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return 0
         var flags = AccessibilityManager.FLAG_CONTENT_TEXT or
             (if (config.icon != null) AccessibilityManager.FLAG_CONTENT_ICONS else 0)
         // 自定义子控件也可能提供无障碍点击操作，不能只按气泡关闭开关判断交互。
@@ -372,28 +398,52 @@ internal class ModernToastStrategy : IToastStrategy {
         view.scaleY = 0.8f
     }
 
-    private fun executeEnterAnimation(view: View, duration: Long) {
+    private fun executeEnterAnimation(view: View, config: KToastConfig) {
         view.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(duration)
-            .setInterpolator(OvershootInterpolator()) // 回弹效果
+            .setDuration(config.animationDuration)
+            .setInterpolator(animationInterpolator(config, entering = true))
             .start()
     }
 
-    private fun executeExitAnimation(view: View, duration: Long, onEnd: () -> Unit) {
+    private fun executeExitAnimation(view: View, config: KToastConfig, onEnd: () -> Unit) {
         view.animate()
             .alpha(0f)
             .scaleX(0.8f)
             .scaleY(0.8f)
-            .setDuration(duration)
+            .setDuration(config.animationDuration)
+            .setInterpolator(animationInterpolator(config, entering = false))
             .setListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
-                    onEnd()
+                    // 最后一帧也可能报错，交由待执行的错误任务取消，不能先按正常结束收尾。
+                    if (animationFailureRunnable == null) onEnd()
                 }
             })
             .start()
+    }
+
+    private fun animationInterpolator(config: KToastConfig, entering: Boolean): TimeInterpolator {
+        val bounded = config.animation.boundedInterpolator(entering)
+        val request = currentRequest
+        return TimeInterpolator { fraction ->
+            try {
+                bounded.getInterpolation(fraction)
+            } catch (error: Exception) {
+                if (request != null && currentRequest === request && animationFailureRunnable == null) {
+                    // 在 Animator 更新栈外取消，避免清理旧动画时重入当前帧。
+                    animationFailureRunnable = Runnable {
+                        animationFailureRunnable = null
+                        if (currentRequest === request) {
+                            KToast.dispatcher.onPresentationError(request.handle, error)
+                            if (currentRequest === request) notifyDismiss(ToastHandle.DismissReason.CANCELED)
+                        }
+                    }.also { KToast.mainHandler.post(it) }
+                }
+                fraction.coerceIn(0f, 1f)
+            }
+        }
     }
 
     override fun cancel(reason: ToastHandle.DismissReason) {
@@ -411,8 +461,14 @@ internal class ModernToastStrategy : IToastStrategy {
         windowAdded = false
         attachListener?.let { view?.removeOnAttachStateChangeListener(it) }
         attachListener = null
-        contentLayoutListener?.let { view?.removeOnLayoutChangeListener(it) }
-        contentLayoutListener = null
+        contentPreDrawListener?.let { listener ->
+            view?.viewTreeObserver?.takeIf { it.isAlive }?.removeOnPreDrawListener(listener)
+        }
+        contentPreDrawListener = null
+        repositionRunnable?.let { view?.removeCallbacks(it) }
+        repositionRunnable = null
+        animationFailureRunnable?.let { KToast.mainHandler.removeCallbacks(it) }
+        animationFailureRunnable = null
         announceRunnable?.let { view?.removeCallbacks(it) }
         announceRunnable = null
         viewportListener?.let { listener ->
@@ -430,13 +486,22 @@ internal class ModernToastStrategy : IToastStrategy {
 
         try {
             // 先拆除监听器，再取消动画，防止旧动画结束回调覆盖本次取消原因。
-            view?.animate()?.setListener(null)
-            if (view is ToastViewport) view.removeAllViews()
-            contentReference = null
-            view?.animate()?.cancel()
-            // addView 已注册窗口时，首轮遍历可能尚未附着 View，仍必须移除。
-            if (view != null && wm != null && shouldRemoveWindow) {
-                wm.removeViewImmediate(view)
+            try {
+                view?.animate()?.setListener(null)
+                if (view is ToastAnimationFrame) view.removeAllViews()
+            } catch (e: Exception) {
+                if (KToast.debugMode) e.printStackTrace()
+            } finally {
+                contentReference = null
+                try {
+                    view?.animate()?.cancel()
+                } finally {
+                    // 内容 detach 或动画清理失败，也必须独立尝试移除根窗口。
+                    // addView 已注册窗口时，首轮遍历可能尚未附着 View，仍必须移除。
+                    if (view != null && wm != null && shouldRemoveWindow) {
+                        wm.removeViewImmediate(view)
+                    }
+                }
             }
         } catch (e: Exception) {
             if (KToast.debugMode) e.printStackTrace()
@@ -460,8 +525,50 @@ internal class ModernToastStrategy : IToastStrategy {
     }
 }
 
-/** 限制整个内容的测量边界，包括图标、内边距和调用方的自定义 View。 */
-internal class ToastViewport(context: Context) : FrameLayout(context) {
+/** 窗口为回弹峰值和阴影预留透明边距，气泡放大时仍位于 Surface 内。 */
+internal open class ToastAnimationFrame(context: Context) : FrameLayout(context) {
+    var maxScale = 1.05f
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val content = getChildAt(0)
+        if (content == null) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
+        }
+        val shadow = ceil(KToastUtils.dp2px(4f) * maxScale).toInt()
+        fun contentSpec(spec: Int): Int {
+            if (MeasureSpec.getMode(spec) == MeasureSpec.UNSPECIFIED) return spec
+            val size = ((MeasureSpec.getSize(spec) - 2 * shadow) / maxScale).toInt().coerceAtLeast(0)
+            return MeasureSpec.makeMeasureSpec(size, MeasureSpec.getMode(spec))
+        }
+        val params = content.layoutParams as LayoutParams
+        val horizontalMargins = params.leftMargin + params.rightMargin
+        val verticalMargins = params.topMargin + params.bottomMargin
+        // 先从窗口预算反算内容上限，避免边距与内容反复挤压、在较大回弹时振荡。
+        content.measure(
+            getChildMeasureSpec(contentSpec(widthMeasureSpec), horizontalMargins, params.width),
+            getChildMeasureSpec(contentSpec(heightMeasureSpec), verticalMargins, params.height)
+        )
+        val marginRatio = (maxScale - 1f) / 2
+        val width = content.measuredWidth + horizontalMargins
+        val height = content.measuredHeight + verticalMargins
+        val horizontal = ceil(width * marginRatio).toInt() + shadow
+        val vertical = ceil(height * marginRatio).toInt() + shadow
+        if (paddingLeft != horizontal || paddingTop != vertical) {
+            setPadding(horizontal, vertical, horizontal, vertical)
+        }
+        setMeasuredDimension(
+            resolveSizeAndState((width + 2 * horizontal).coerceAtLeast(suggestedMinimumWidth), widthMeasureSpec, content.measuredState),
+            resolveSizeAndState(
+                (height + 2 * vertical).coerceAtLeast(suggestedMinimumHeight), heightMeasureSpec,
+                content.measuredState shl MEASURED_HEIGHT_STATE_SHIFT
+            )
+        )
+    }
+}
+
+/** 限制整个窗口的测量边界，包括气泡、动画边距和调用方的自定义 View。 */
+internal class ToastViewport(context: Context) : ToastAnimationFrame(context) {
     var widthLimit = 1
     var heightLimit = 1
 

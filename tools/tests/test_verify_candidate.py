@@ -15,6 +15,8 @@ from verify_candidate import inspect_publication
 
 
 class PublicationValidationTest(unittest.TestCase):
+    artifact = "ktoast"
+
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory(prefix="ktoast-publication-test-")
         self.addCleanup(self.folder.cleanup)
@@ -32,6 +34,8 @@ class PublicationValidationTest(unittest.TestCase):
                 "com.logan.ktoast/-k-toast-scope/index.html",
                 "com.logan.ktoast/-k-toast-scope-options/index.html",
                 "com.logan.ktoast.config/-k-toast-config/index.html",
+                "com.logan.ktoast.config/-k-toast-style/index.html",
+                "com.logan.ktoast.config/-k-toast-type/index.html",
                 "com.logan.ktoast.runtime/-toast-handle/index.html",
                 "com.logan.ktoast.runtime/-k-toast-runtime-policy/index.html",
                 "com.logan.ktoast.runtime/-toast-drop-reason/index.html",
@@ -79,7 +83,7 @@ class PublicationValidationTest(unittest.TestCase):
     def inspect(self):
         (self.root / "module.json").write_text(json.dumps(self.module), encoding="utf-8")
         ET.ElementTree(self.pom).write(self.root / "pom-default.xml", encoding="utf-8")
-        return inspect_publication(self.aar, self.sources, self.root, self.source_dir, self.javadoc)
+        return inspect_publication(self.aar, self.sources, self.root, self.source_dir, self.javadoc, artifact=self.artifact)
 
     def test_valid_publication(self):
         self.assertEqual(1, self.inspect()["sourceFiles"])
@@ -163,6 +167,66 @@ class PublicationValidationTest(unittest.TestCase):
         with ZipFile(self.javadoc, "a") as archive:
             archive.writestr("com.logan.ktoast.runtime/-toast-dispatcher/index.html", "<html>internal</html>")
         with self.assertRaisesRegex(ValueError, "internal"):
+            self.inspect()
+
+
+class ComposePublicationValidationTest(PublicationValidationTest):
+    artifact = "ktoast-compose"
+
+    def setUp(self):
+        super().setUp()
+        self.module = json.loads(json.dumps(self.module).replace('ktoast-', 'ktoast-compose-'))
+        self.module["component"]["module"] = self.artifact
+        self.pom.find("artifactId").text = self.artifact
+        api = [
+            ("org.jetbrains.kotlin", "kotlin-stdlib", "1.9.23"),
+            ("io.github.logan0817", "ktoast-lifecycle", "1.1.0-SNAPSHOT"),
+            ("androidx.compose.runtime", "runtime", "1.7.8"),
+            ("androidx.compose.ui", "ui", "1.7.8"),
+        ]
+        implementation = [
+            ("androidx.compose.foundation", "foundation", "1.7.8"),
+            ("androidx.lifecycle", "lifecycle-runtime-compose", "2.8.3"),
+            ("androidx.savedstate", "savedstate", "1.2.1"),
+            ("androidx.activity", "activity", "1.9.2"),
+        ]
+        def node(item):
+            return {"group": item[0], "module": item[1], "version": {"requires": item[2]}}
+        self.module["variants"][0]["dependencies"] = [node(item) for item in api]
+        self.module["variants"][1]["dependencies"] = [node(item) for item in api + implementation]
+        self.pom.find("dependencies").clear()
+        for entries, scope in ((api, "compile"), (implementation, "runtime")):
+            for group, artifact, version in entries:
+                dependency = ET.SubElement(self.pom.find("dependencies"), "dependency")
+                for tag, value in (("groupId", group), ("artifactId", artifact), ("version", version), ("scope", scope)):
+                    ET.SubElement(dependency, tag).text = value
+        with ZipFile(self.javadoc, "w") as archive:
+            for name in ("index.html", "com.logan.ktoast.compose/-k-toast-compose-scope/index.html",
+                         "com.logan.ktoast.compose/remember-k-toast-scope.html", "com.logan.ktoast.compose/-k-toast-content.html"):
+                archive.writestr(name, "<html>Compose API fixture</html>")
+
+    def test_wrong_pom_runtime_scope(self):
+        self.pom.find("dependencies").findall("dependency")[-1].find("scope").text = "compile"
+        with self.assertRaisesRegex(ValueError, "scope"):
+            self.inspect()
+
+    def test_docs_missing_scope_rejected(self):
+        with ZipFile(self.javadoc) as archive:
+            entries = {name: archive.read(name) for name in archive.namelist()
+                       if "-k-toast-compose-scope/index.html" not in name}
+        with ZipFile(self.javadoc, "w") as archive:
+            for name, content in entries.items(): archive.writestr(name, content)
+        with self.assertRaisesRegex(ValueError, "公开页面"):
+            self.inspect()
+
+    def test_different_lifecycle_version_is_rejected(self):
+        self.module["variants"][0]["dependencies"][1]["version"]["requires"] = "1.2.0"
+        with self.assertRaisesRegex(ValueError, "变体依赖"):
+            self.inspect()
+
+    def test_implementation_dependency_cannot_leak_into_api_variant(self):
+        self.module["variants"][0]["dependencies"].append(self.module["variants"][1]["dependencies"][-1])
+        with self.assertRaisesRegex(ValueError, "变体依赖"):
             self.inspect()
 
 

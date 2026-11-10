@@ -1,6 +1,7 @@
 """矩阵工具必须拒绝空运行、必需用例跳过、中断及旧进程 PASS。"""
 
 import json
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -31,8 +32,16 @@ INSTRUMENTATION_STATUS_CODE: -4
 
 class DeviceMatrixTest(unittest.TestCase):
     def test_real_required_source_count_and_modern_subset(self):
-        self.assertEqual(38, len(required_tests(21)))
-        self.assertEqual(41, len(required_tests(30)))
+        additional = {name for name in required_tests(21)
+                      if 'KToastStyleTest#' in name or 'KToastComposeTest#' in name}
+        self.assertTrue(any('KToastStyleTest#' in name for name in additional))
+        self.assertTrue(any('KToastComposeTest#' in name for name in additional))
+        self.assertEqual(40 + len(additional), len(required_tests(21)))
+        self.assertEqual(43 + len(additional), len(required_tests(30)))
+        self.assertIn(matrix.TEST_PACKAGE + 'KToastLifecycleTest#roundedContentBounceStaysInsideWindowForGlobalAndScopedRequests',
+                      required_tests(21))
+        self.assertIn(matrix.TEST_PACKAGE + 'KToastLifecycleTest#invalidAnimationCancelsOnceReportsErrorAndPromotesQueue',
+                      required_tests(21))
         self.assertEqual(required_tests(30), required_tests(36))
         self.assertFalse(any('cutout' in name.lower() for name in required_tests(36)))
 
@@ -70,6 +79,13 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertIsNone(consumer_line(line, '10634', set()))
         self.assertIsNone(consumer_line(line, '10633', {line}))
 
+    def test_compose_consumer_tag_is_distinct_and_verified(self):
+        line = '10-10 15:01:21.041 10633 10633 I KToastComposeConsumer: PASS: compose'
+        self.assertIsNone(consumer_line(line, '10633', set()))
+        self.assertEqual(line, consumer_line(line, '10633', set(), 'KToastComposeConsumer'))
+        with self.assertRaisesRegex(ValueError, '消费者报告失败'):
+            consumer_line(line.replace(' I ', ' E '), '10633', set(), 'KToastComposeConsumer')
+
     def test_consumer_error_is_failure(self):
         with self.assertRaisesRegex(ValueError, '消费者报告失败'):
             consumer_line('10-10 15:01:21.041 10633 10633 E KToastConsumer: Consumer verification failed', '10633', set())
@@ -84,6 +100,33 @@ class DeviceMatrixTest(unittest.TestCase):
             candidate = root / 'build/reports/compatibility/ktoast-candidate.json'
             candidate.parent.mkdir(parents=True)
             candidate.write_text(json.dumps({'sha256': 'wrong'}), encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'SHA-256'):
+                artifacts(root)
+
+    def test_compose_artifact_requires_own_digest_and_matching_version(self):
+        with tempfile.TemporaryDirectory(prefix='ktoast-matrix-version-test-') as folder:
+            root = Path(folder)
+            for relative in FILES.values():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'fixture')
+            reports = root / 'build/reports/compatibility'
+            reports.mkdir(parents=True)
+            for artifact in ('ktoast', 'ktoast-lifecycle', 'ktoast-compose'):
+                (reports / (artifact + '-candidate.json')).write_text(json.dumps({
+                    'sha256': hashlib.sha256(b'fixture').hexdigest(),
+                    'coordinate': {'group': 'io.github.logan0817', 'module': artifact, 'version': '1.3.0-SNAPSHOT'},
+                }))
+            self.assertEqual(8, len(artifacts(root)))
+            compose = reports / 'ktoast-compose-candidate.json'
+            candidate = json.loads(compose.read_text())
+            candidate['coordinate']['version'] = '1.2.0'
+            compose.write_text(json.dumps(candidate))
+            with self.assertRaisesRegex(ValueError, '版本不一致'):
+                artifacts(root)
+            candidate['coordinate']['version'] = '1.3.0-SNAPSHOT'
+            candidate['sha256'] = 'wrong'
+            compose.write_text(json.dumps(candidate))
             with self.assertRaisesRegex(ValueError, 'SHA-256'):
                 artifacts(root)
 
@@ -152,7 +195,8 @@ class DeviceMatrixTest(unittest.TestCase):
             elif args[0] == 'logcat':
                 log_reads += 1
                 if log_reads > 1:
-                    text = '10-10 15:01:21.041 10633 10633 I KToastConsumer: PASS: fixture ' + str(generation)
+                    tag = 'KToastComposeConsumer' if active_package.endswith('composeconsumer') else 'KToastConsumer'
+                    text = '10-10 15:01:21.041 10633 10633 I ' + tag + ': PASS: fixture ' + str(generation)
             return subprocess.CompletedProcess(command, 0, text)
 
         with tempfile.TemporaryDirectory(prefix='ktoast-matrix-flow-test-') as folder:
@@ -183,7 +227,8 @@ class DeviceMatrixTest(unittest.TestCase):
         self.assertTrue(result['success'])
         self.assertEqual('10633', result['r8Consumer']['pid'])
         self.assertEqual(['sample.Test#filtered'], result['instrumentation']['notReported'])
-        self.assertEqual(4, sum(command[0] == 'install' for command in commands))
+        self.assertEqual(5, sum(command[0] == 'install' for command in commands))
+        self.assertEqual('10633', result['composeR8Consumer']['pid'])
         self.assertNotIn('failureDiagnostics', result)
         self.assertTrue(result['startupPreflight']['success'])
         self.assertEqual([['shell', 'dumpsys', 'window']],

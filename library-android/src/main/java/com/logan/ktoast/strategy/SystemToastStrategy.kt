@@ -14,7 +14,7 @@ internal class SystemToastStrategy : IToastStrategy {
     private var dismissNotified = false
 
     override fun show(request: ToastRequest, listener: ToastPresentationListener) {
-        val config = request.config ?: KToast.globalConfig.copy()
+        val config = request.config ?: KToast.globalConfig.snapshot()
         currentRequest = request
         this.listener = listener
         dismissNotified = false

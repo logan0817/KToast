@@ -1,6 +1,7 @@
 package com.logan.ktoastapp
 
 import android.graphics.Color
+import androidx.core.graphics.toColorInt
 import com.logan.ktoast.config.KToastConfig
 import com.logan.ktoast.toast
 
@@ -16,7 +17,7 @@ const val COLOR_WARNING = "#FF9800"//警告样式 (橙色)
 // --- 成功样式 (绿色) ---
 fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
-        backgroundColor = Color.parseColor(COLOR_SUCCESS)
+        backgroundColor = COLOR_SUCCESS.toColorInt()
         icon = R.drawable.ktoast_ic_success
         iconColor = Color.WHITE
         block?.invoke(this)
@@ -26,7 +27,7 @@ fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
 // --- 错误样式 (红色) ---
 fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
-        backgroundColor = Color.parseColor(COLOR_ERROR)
+        backgroundColor = COLOR_ERROR.toColorInt()
         icon = R.drawable.ktoast_ic_error
         iconColor = Color.WHITE
         block?.invoke(this)
@@ -37,7 +38,7 @@ fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
 
 fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
     this.toast {
-        backgroundColor = Color.parseColor(COLOR_WARNING)
+        backgroundColor = COLOR_WARNING.toColorInt()
         icon = R.drawable.ktoast_ic_warning
         iconColor = Color.WHITE
         block?.invoke(this)

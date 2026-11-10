@@ -10,10 +10,6 @@
     <string name="demo_hero_badge_fallback">后台自动降级</string>
 
     <string name="demo_status_summary_title">运行状态</string>
-    <string name="demo_status_permission_label">通知权限</string>
-    <string name="demo_status_debug_label">调试模式</string>
-    <string name="demo_status_last_action_label">最近动作</string>
-    <string name="demo_status_guide_label">继续体验</string>
     <string name="demo_status_permission_on">已开启</string>
     <string name="demo_status_permission_off">未开启</string>
     <string name="demo_status_debug_on">已启用</string>
@@ -71,7 +67,6 @@
 
     <string name="demo_card_system_title">系统策略</string>
     <string name="demo_card_system_badge">系统策略</string>
-    <string name="demo_card_system_desc">围绕通知权限、后台切换与系统回退策略的体验入口。</string>
     <string name="demo_background_note">后台路径仍然受通知权限与不同 ROM 策略影响。</string>
     <string name="demo_background_toast">后台系统降级</string>
     <string name="demo_request_permission">通知权限</string>
@@ -130,16 +125,5 @@
     <string name="demo_toast_app_warning">请检查网络连接。</string>
     <string name="demo_toast_permission_granted">通知权限已授权，后台路径可用。</string>
     <string name="demo_toast_permission_denied">通知权限未授权，后台路径可能不可用。</string>
-    <string name="demo_lifecycle_entry">生命周期与容量策略示例</string>
-    <string name="lifecycle_policy_summary">示例策略：待处理 32 条，资格后等待 10 秒，历史 256 条。数值仅用于演示。</string>
-    <string name="lifecycle_switch">A / B 页面切换</string>
-    <string name="lifecycle_rebuild">重建当前页面 View</string>
-    <string name="lifecycle_result">%1$s / %2$s / dropReason=%3$s</string>
-    <string name="lifecycle_no_drop">无</string>
-    <string name="lifecycle_page_guide">页面 %1$s：先发延时提示再切页，旧提示应取消。返回或重建 View 后只接纳新请求。</string>
-    <string name="lifecycle_show">显示本页提示</string>
-    <string name="lifecycle_delayed">3 秒后显示，再切换页面</string>
-    <string name="lifecycle_capacity">容量拒绝：登记 40 条延时请求</string>
-    <string name="lifecycle_expiry">等待过期：串行登记 10 条长提示</string>
-    <string name="lifecycle_cancel">取消本页请求</string>
+    <string name="demo_lifecycle_entry">页面切换与请求管理示例</string>
 </resources>

@@ -1,0 +1,24 @@
+<resources>
+    <string name="demo_style_entry">Semantic styles and branding</string>
+    <string name="demo_compose_entry">Compose content and page cleanup</string>
+    <string name="demo_style_title">Semantic styles and branding</string>
+    <string name="demo_style_description">Choose a semantic type or reuse an XML brand style. Try again after changing the system light or dark theme to compare colors.</string>
+    <string name="demo_style_normal">Normal: updated</string>
+    <string name="demo_style_success">Success: saved</string>
+    <string name="demo_style_error">Error: network unavailable</string>
+    <string name="demo_style_warning">Warning: storage is low</string>
+    <string name="demo_style_info">Info: using offline data</string>
+    <string name="demo_style_brand">Reuse an XML brand style</string>
+    <string name="demo_style_override">Override the brand corner radius</string>
+    <style name="KToastDemoBrand" parent="">
+        <item name="kToastBackgroundColor">@color/ktoast_demo_brand_background</item>
+        <item name="kToastTextColor">@color/ktoast_demo_brand_foreground</item>
+        <item name="kToastIconColor">@color/ktoast_demo_brand_foreground</item>
+        <item name="kToastBackgroundRadius">12dp</item>
+        <item name="kToastTextSize">16sp</item>
+        <item name="kToastPaddingHorizontal">20dp</item>
+        <item name="kToastPaddingVertical">14dp</item>
+    </style>
+    <color name="ktoast_demo_brand_background">#4527A0</color>
+    <color name="ktoast_demo_brand_foreground">#FFFFFF</color>
+</resources>

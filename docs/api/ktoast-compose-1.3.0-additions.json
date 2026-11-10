@@ -1,0 +1,94 @@
+{
+  "version": "1.3.0",
+  "description": "与 1.3.0 设计及源码逐类核对的精确 JVM API 增量；不替代旧版本冻结基线。",
+  "classes": {
+    "com.logan.ktoast.compose.KToastComposeScope": [
+      {
+        "declaration": "public com.logan.ktoast.compose.KToastComposeScope(kotlin.jvm.internal.DefaultConstructorMarker);",
+        "descriptor": "(Lkotlin/jvm/internal/DefaultConstructorMarker;)V"
+      },
+      {
+        "declaration": "public final boolean isClosed();",
+        "descriptor": "()Z"
+      },
+      {
+        "declaration": "public final class com.logan.ktoast.compose.KToastComposeScope implements java.lang.AutoCloseable {"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle show(java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showContent(java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>, kotlin.jvm.functions.Function2<? super androidx.compose.runtime.Composer, ? super java.lang.Integer, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showDelayed(java.lang.CharSequence, long, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;JILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final com.logan.ktoast.runtime.ToastHandle showStyled(java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1<? super com.logan.ktoast.config.KToastConfig, kotlin.Unit>);",
+        "descriptor": "(Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public final void cancel();",
+        "descriptor": "()V"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle show$default(com.logan.ktoast.compose.KToastComposeScope, java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/compose/KToastComposeScope;Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle showContent$default(com.logan.ktoast.compose.KToastComposeScope, java.lang.CharSequence, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function2, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/compose/KToastComposeScope;Ljava/lang/CharSequence;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle showDelayed$default(com.logan.ktoast.compose.KToastComposeScope, java.lang.CharSequence, long, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/compose/KToastComposeScope;Ljava/lang/CharSequence;JILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static com.logan.ktoast.runtime.ToastHandle showStyled$default(com.logan.ktoast.compose.KToastComposeScope, java.lang.CharSequence, com.logan.ktoast.config.KToastStyle, int, com.logan.ktoast.runtime.KToastBehavior, com.logan.ktoast.runtime.KToastCallbacks, kotlin.jvm.functions.Function1, int, java.lang.Object);",
+        "descriptor": "(Lcom/logan/ktoast/compose/KToastComposeScope;Ljava/lang/CharSequence;Lcom/logan/ktoast/config/KToastStyle;ILcom/logan/ktoast/runtime/KToastBehavior;Lcom/logan/ktoast/runtime/KToastCallbacks;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/logan/ktoast/runtime/ToastHandle;"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.compose.KToastComposeScope$Companion Companion;",
+        "descriptor": "Lcom/logan/ktoast/compose/KToastComposeScope$Companion;"
+      },
+      {
+        "declaration": "public static final int $stable;",
+        "descriptor": "I"
+      },
+      {
+        "declaration": "public void close();",
+        "descriptor": "()V"
+      }
+    ],
+    "com.logan.ktoast.compose.KToastComposeScope$Companion": [
+      {
+        "declaration": "public com.logan.ktoast.compose.KToastComposeScope$Companion(kotlin.jvm.internal.DefaultConstructorMarker);",
+        "descriptor": "(Lkotlin/jvm/internal/DefaultConstructorMarker;)V"
+      },
+      {
+        "declaration": "public final class com.logan.ktoast.compose.KToastComposeScope$Companion {"
+      }
+    ],
+    "com.logan.ktoast.compose.KToastComposeScopeKt": [
+      {
+        "declaration": "public final class com.logan.ktoast.compose.KToastComposeScopeKt {"
+      },
+      {
+        "declaration": "public static final com.logan.ktoast.compose.KToastComposeScope rememberKToastScope(com.logan.ktoast.KToastScopeOptions, androidx.compose.runtime.Composer, int, int);",
+        "descriptor": "(Lcom/logan/ktoast/KToastScopeOptions;Landroidx/compose/runtime/Composer;II)Lcom/logan/ktoast/compose/KToastComposeScope;"
+      }
+    ],
+    "com.logan.ktoast.compose.KToastContentKt": [
+      {
+        "declaration": "public final class com.logan.ktoast.compose.KToastContentKt {"
+      },
+      {
+        "declaration": "public static final void KToastContent(java.lang.CharSequence, androidx.compose.ui.Modifier, com.logan.ktoast.config.KToastStyle, com.logan.ktoast.config.KToastConfig, androidx.compose.runtime.Composer, int, int);",
+        "descriptor": "(Ljava/lang/CharSequence;Landroidx/compose/ui/Modifier;Lcom/logan/ktoast/config/KToastStyle;Lcom/logan/ktoast/config/KToastConfig;Landroidx/compose/runtime/Composer;II)V"
+      }
+    ]
+  }
+}

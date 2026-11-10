@@ -1,0 +1,36 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <color name="ktoast_test_brand_background">#203040</color>
+    <style name="KToastTestHostTheme" parent="@android:style/Theme.Material.Light">
+        <item name="android:colorBackground">#112233</item>
+        <item name="android:textColorPrimary">#FDF4DF</item>
+    </style>
+    <style name="KToastTestBrand" parent="">
+        <item name="kToastBackgroundColor">@color/ktoast_test_brand_background</item>
+        <item name="kToastTextColor">#FFFFFFFF</item>
+        <item name="kToastBackgroundRadius">13dp</item>
+        <item name="kToastTextSize">17sp</item>
+        <item name="kToastPaddingHorizontal">19dp</item>
+        <item name="kToastPaddingVertical">7dp</item>
+        <item name="kToastIcon">@drawable/ktoast_style_info</item>
+        <item name="kToastIconColor">#FFE082</item>
+        <item name="kToastIconSize">21dp</item>
+        <item name="kToastIconPadding">6dp</item>
+        <item name="kToastMaxLines">3</item>
+        <item name="kToastMaxWidthRatio">0.65</item>
+        <item name="kToastMinWidth">33dp</item>
+        <item name="kToastMinHeight">22dp</item>
+        <item name="kToastBorderColor">#FFE082</item>
+        <item name="kToastBorderWidth">2dp</item>
+        <item name="kToastGravity">top|start</item>
+        <item name="kToastXOffset">5dp</item>
+        <item name="kToastYOffset">9dp</item>
+    </style>
+    <style name="KToastTestThemeBrand" parent="">
+        <item name="kToastTextColor">?android:attr/textColorPrimary</item>
+        <item name="kToastShowIcon">false</item>
+    </style>
+    <style name="KToastTestPixels" parent="">
+        <!-- 回归测试刻意使用 px，验证字号转换，不能换成 dp 或 sp。 -->
+        <item name="kToastTextSize" tools:ignore="PxUsage">42px</item>
+    </style>
+</resources>

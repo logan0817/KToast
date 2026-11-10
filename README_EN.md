@@ -12,6 +12,8 @@ The core supports Android 5.0+ without Compose, Material, or coroutines. Global 
 
 > The current published version is **1.2.0**. The core and optional LifecycleOwner module are available on Maven Central. Repository files, signatures, and two independent consumers have been verified. See the [1.2.0 verification record](docs/releases/1.2.0.md) (Chinese) for CI results, device coverage, and limits.
 
+> **1.3.0-SNAPSHOT is under development and is not published.** It adds semantic/XML styles and optional Compose content. Keep using the released 1.2.0 coordinates below. See the [contributor guide](CONTRIBUTING.md), [style guide](docs/STYLES.md), and [Compose guide](docs/COMPOSE.md) for source candidates.
+
 ## Installation
 
 Add Maven Central to your repositories in `settings.gradle.kts`:

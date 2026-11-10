@@ -1,5 +1,5 @@
 {
-  "description": "1.2.0 未发布生命周期扩展精确公开 API 清单",
+  "description": "1.2.0 已发布生命周期扩展冻结公开 API 基线",
   "classes": {
     "com.logan.ktoast.lifecycle.KToastLifecycleScope$Companion": [
       {
@@ -123,5 +123,8 @@
         "descriptor": "()V"
       }
     ]
-  }
+  },
+  "source": "https://repo.maven.apache.org/maven2/io/github/logan0817/ktoast-lifecycle/1.2.0/ktoast-lifecycle-1.2.0.aar",
+  "aarSha256": "163fca78a0dd7dfcbd157178cbaf37afda8040c8163eb5f6bf4998a88db08321",
+  "version": "1.2.0"
 }

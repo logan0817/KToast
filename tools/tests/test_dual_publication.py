@@ -1,4 +1,4 @@
-"""两个真实模块必须同时完整验收；夹具只测文件协议，不冒充签名或 Portal。"""
+"""版本要求的模块必须同时完整验收；夹具只测文件协议，不冒充签名或 Portal。"""
 
 import hashlib
 import json
@@ -17,16 +17,19 @@ from verify_central_deployment import verify as verify_deployment
 
 
 class DualPublicationTest(unittest.TestCase):
+    version = "1.2.0"
+    artifacts = ("ktoast", "ktoast-lifecycle")
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="ktoast-dual-test-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.repository = self.root / "repository"
-        for artifact in ("ktoast", "ktoast-lifecycle"):
-            directory = self.repository / GROUP_PATH.parent / artifact / "1.2.0"
+        for artifact in self.artifacts:
+            directory = self.repository / GROUP_PATH.parent / artifact / self.version
             directory.mkdir(parents=True)
             for suffix in (".aar", "-sources.jar", "-javadoc.jar", ".pom", ".module"):
-                name = artifact + "-1.2.0" + suffix
+                name = artifact + "-" + self.version + suffix
                 content = ("fixture " + name).encode()
                 (directory / name).write_bytes(content)
                 (directory / (name + ".asc")).write_bytes(b"-----BEGIN PGP SIGNATURE-----")
@@ -37,9 +40,9 @@ class DualPublicationTest(unittest.TestCase):
         with patch("prepare_central_bundle.verify_signatures", return_value={}), \
                 patch("prepare_central_bundle.check_pom"), \
                 patch("prepare_central_bundle.inspect", side_effect=lambda *args, **kwargs: {
-                    "coordinate": {"group": "io.github.logan0817", "module": kwargs["artifact"], "version": "1.2.0"}}):
-            self.report = prepare(self.repository, "1.2.0", self.root / "key.asc", "A" * 40,
-                                  self.bundle, "javap", "gpg", ("ktoast", "ktoast-lifecycle"))
+                    "coordinate": {"group": "io.github.logan0817", "module": kwargs["artifact"], "version": self.version}}):
+            self.report = prepare(self.repository, self.version, self.root / "key.asc", "A" * 40,
+                                  self.bundle, "javap", "gpg", self.artifacts)
         self.report["source"] = {"commit": "a" * 40, "dirty": False}
         self.report["rehearsal"] = False
         for module in self.report["modules"].values(): module["source"] = self.report["source"]
@@ -49,9 +52,9 @@ class DualPublicationTest(unittest.TestCase):
         self.downloads.mkdir()
         for path in self.repository.rglob("*"):
             if path.is_file(): shutil.copy2(path, self.downloads / path.name)
-        self.status = {"deploymentId": "fixture-id", "deploymentName": "io.github.logan0817-KToast-1.2.0",
+        self.status = {"deploymentId": "fixture-id", "deploymentName": "io.github.logan0817-KToast-" + self.version,
                        "deploymentState": "VALIDATED", "errors": {},
-                       "purls": ["pkg:maven/io.github.logan0817/" + artifact + "@1.2.0?type=aar"
+                       "purls": ["pkg:maven/io.github.logan0817/" + artifact + "@" + self.version + "?type=aar"
                                  for artifact in self.report["modules"]]}
         self.addCleanup(patch.stopall)
         patch("verify_central_staging.check_source", return_value=self.report["source"]).start()
@@ -60,7 +63,7 @@ class DualPublicationTest(unittest.TestCase):
 
     def staging_check(self, normalize=False):
         self.report_file.write_text(json.dumps(self.report))
-        return verify_staging(self.staging, self.bundle, self.report_file, "1.2.0", self.root / "key.asc",
+        return verify_staging(self.staging, self.bundle, self.report_file, self.version, self.root / "key.asc",
                               "A" * 40, root=self.root, normalize_signature_checksums=normalize)
 
     def remote_check(self):
@@ -71,12 +74,12 @@ class DualPublicationTest(unittest.TestCase):
                                  self.root / "key.asc", "A" * 40, "gpg")
 
     def test_complete_dual_bundle_staging_and_remote_protocol(self):
-        self.assertEqual(60, self.report["bundle"]["files"])
-        self.assertEqual(60, len(self.staging_check()["files"]))
-        self.assertEqual(60, len(self.remote_check()["files"]))
+        self.assertEqual(30 * len(self.artifacts), self.report["bundle"]["files"])
+        self.assertEqual(30 * len(self.artifacts), len(self.staging_check()["files"]))
+        self.assertEqual(30 * len(self.artifacts), len(self.remote_check()["files"]))
 
     def test_missing_lifecycle_file_and_unknown_third_module_are_rejected(self):
-        path = self.staging / GROUP_PATH.parent / "ktoast-lifecycle/1.2.0/ktoast-lifecycle-1.2.0.aar"
+        path = self.staging / GROUP_PATH.parent / ("ktoast-lifecycle/" + self.version + "/ktoast-lifecycle-" + self.version + ".aar")
         content = path.read_bytes()
         path.unlink()
         with self.assertRaisesRegex(ValueError, "缺失"): self.staging_check()
@@ -85,7 +88,7 @@ class DualPublicationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "非预期"): self.staging_check()
 
     def test_lifecycle_tampering_and_different_source_are_rejected(self):
-        path = self.staging / GROUP_PATH.parent / "ktoast-lifecycle/1.2.0/ktoast-lifecycle-1.2.0.aar"
+        path = self.staging / GROUP_PATH.parent / ("ktoast-lifecycle/" + self.version + "/ktoast-lifecycle-" + self.version + ".aar")
         original = path.read_bytes()
         path.write_bytes(b"tampered")
         with self.assertRaisesRegex(ValueError, "不一致"): self.staging_check()
@@ -96,8 +99,8 @@ class DualPublicationTest(unittest.TestCase):
     def test_partial_portal_coordinates_and_bad_download_are_rejected(self):
         self.status["purls"].pop()
         with self.assertRaisesRegex(ValueError, "坐标"): self.remote_check()
-        self.status["purls"].append("pkg:maven/io.github.logan0817/ktoast-lifecycle@1.2.0?type=aar")
-        (self.downloads / "ktoast-lifecycle-1.2.0.aar").write_bytes(b"tampered")
+        self.status["purls"].append("pkg:maven/io.github.logan0817/" + self.artifacts[-1] + "@" + self.version + "?type=aar")
+        (self.downloads / ("ktoast-lifecycle-" + self.version + ".aar")).write_bytes(b"tampered")
         with self.assertRaisesRegex(ValueError, "远端文件"): self.remote_check()
 
     def test_signature_checksum_normalization_is_atomic_across_modules(self):
@@ -112,7 +115,7 @@ class DualPublicationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "签名派生校验和错误"): self.staging_check(True)
         self.assertTrue(all(path.exists() for path in derived))
         derived[-1].write_text(original)
-        self.assertEqual(40, len(self.staging_check(True)["normalizedSignatureChecksums"]))
+        self.assertEqual(20 * len(self.artifacts), len(self.staging_check(True)["normalizedSignatureChecksums"]))
         self.assertFalse(any(path.exists() for path in derived))
 
     def test_rehearsal_and_missing_module_are_rejected(self):
@@ -121,6 +124,31 @@ class DualPublicationTest(unittest.TestCase):
         self.report["rehearsal"] = False
         del self.report["modules"]["ktoast-lifecycle"]
         with self.assertRaises(ValueError): self.staging_check()
+
+
+class TriplePublicationTest(DualPublicationTest):
+    version = "1.3.0"
+    artifacts = ("ktoast", "ktoast-lifecycle", "ktoast-compose")
+
+    def test_missing_compose_module_cannot_be_hidden_by_rewriting_report(self):
+        del self.report["modules"]["ktoast-compose"]
+        with self.assertRaisesRegex(ValueError, "模块集合"):
+            self.staging_check()
+        with self.assertRaisesRegex(ValueError, "模块集合"):
+            self.remote_check()
+
+    def test_incomplete_artifact_selection_is_rejected_before_signing(self):
+        with patch("prepare_central_bundle.prepare_one") as prepare_one:
+            with self.assertRaisesRegex(ValueError, "完整模块集合"):
+                prepare(self.repository, self.version, self.root / "key.asc", "A" * 40,
+                        self.bundle, "javap", "gpg", ("ktoast", "ktoast-lifecycle"))
+            prepare_one.assert_not_called()
+
+    def test_compose_tampering_is_rejected(self):
+        path = self.staging / GROUP_PATH.parent / "ktoast-compose" / self.version / ("ktoast-compose-" + self.version + ".aar")
+        path.write_bytes(b"tampered")
+        with self.assertRaisesRegex(ValueError, "不一致"):
+            self.staging_check()
 
 
 if __name__ == "__main__": unittest.main()

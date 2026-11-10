@@ -44,7 +44,7 @@ def verify(java_home, sdk, gradle_home):
     with ZipFile(ROOT / "library-android/build/outputs/aar/library-android-release.aar") as archive:
         candidate.write_bytes(archive.read("classes.jar"))
     reports = []
-    for version, suffix in (("1.0.5", ""), ("1.1.0", "110")):
+    for version, suffix in (("1.0.5", ""), ("1.1.0", "110"), ("1.2.0", "120")):
         folder = output / version
         folder.mkdir(exist_ok=True)
         aar = folder / ("ktoast-" + version + ".aar")
@@ -56,15 +56,36 @@ def verify(java_home, sdk, gradle_home):
                 raise ValueError("正式 AAR 摘要不符：" + version)
         baseline = folder / "baseline.jar"
         with ZipFile(aar) as archive: baseline.write_bytes(archive.read("classes.jar"))
+        baseline_dependencies = []
+        candidate_dependencies = []
+        baseline_artifacts = {"ktoast": digest(aar)}
+        if version == "1.2.0":
+            lifecycle_aar = folder / "ktoast-lifecycle-1.2.0.aar"
+            lifecycle_url = "https://repo.maven.apache.org/maven2/io/github/logan0817/ktoast-lifecycle/1.2.0/" + lifecycle_aar.name
+            if not lifecycle_aar.exists():
+                with urlopen(lifecycle_url, timeout=30) as response: lifecycle_aar.write_bytes(response.read())
+            with urlopen(lifecycle_url + ".sha256", timeout=30) as response:
+                if digest(lifecycle_aar) != response.read().decode().strip():
+                    raise ValueError("正式 Lifecycle AAR 摘要不符：" + version)
+            baseline_artifacts["ktoast-lifecycle"] = digest(lifecycle_aar)
+            old_lifecycle = folder / "lifecycle-baseline.jar"
+            new_lifecycle = folder / "lifecycle-candidate.jar"
+            with ZipFile(lifecycle_aar) as archive: old_lifecycle.write_bytes(archive.read("classes.jar"))
+            with ZipFile(ROOT / "library-lifecycle/build/outputs/aar/library-lifecycle-release.aar") as archive:
+                new_lifecycle.write_bytes(archive.read("classes.jar"))
+            lifecycle_common = cached_jar(cache, "androidx.lifecycle", "lifecycle-common", "2.5.1")
+            baseline_dependencies = [old_lifecycle, lifecycle_common]
+            candidate_dependencies = [new_lifecycle, lifecycle_common]
         sources = [ROOT / "tools/compatibility" / (language + "Consumer" + suffix + extension)
                    for language, extension in (("Java", ".java"), ("Kotlin", ".kt"))]
         stamp = {"baseline": digest(aar), "sources": [digest(path) for path in sources],
-                 "compiler": [digest(path) for path in compiler], "android": digest(android)}
+                 "compiler": [digest(path) for path in compiler], "android": digest(android),
+                 "dependencies": [digest(path) for path in baseline_dependencies]}
         stamp_file = folder / "compiled.json"
         classes = folder / "classes"
         if not stamp_file.exists() or json.loads(stamp_file.read_text()) != stamp:
             classes.mkdir(exist_ok=True)
-            classpath = os.pathsep.join(str(path) for path in (baseline, stdlib, android))
+            classpath = os.pathsep.join(str(path) for path in (baseline, stdlib, android, *baseline_dependencies))
             run([java_home / "bin/javac", "-source", "8", "-target", "8", "-cp", classpath,
                  "-d", classes, sources[0]])
             run([java_home / "bin/java", "-cp", os.pathsep.join(map(str, compiler)),
@@ -72,12 +93,14 @@ def verify(java_home, sdk, gradle_home):
                  "-classpath", classpath, "-d", classes, sources[1]])
             stamp_file.write_text(json.dumps(stamp, indent=2) + "\n")
         before = {path.relative_to(classes).as_posix(): digest(path) for path in classes.rglob("*.class")}
-        classpath = os.pathsep.join(str(path) for path in (classes, candidate, stdlib, android))
-        names = ("JavaConsumer", "KotlinConsumerKt") if not suffix else ("JavaConsumer110", "KotlinConsumer110Kt")
+        classpath = os.pathsep.join(str(path) for path in (classes, candidate, stdlib, android, *candidate_dependencies))
+        names = ("JavaConsumer", "KotlinConsumerKt") if not suffix else ("JavaConsumer" + suffix, "KotlinConsumer" + suffix + "Kt")
         results = [run([java_home / "bin/java", "-cp", classpath, "compatibility." + name]) for name in names]
         after = {path.relative_to(classes).as_posix(): digest(path) for path in classes.rglob("*.class")}
         if not before or before != after: raise ValueError("消费者字节码改变")
-        reports.append({"version": version, "baselineSha256": digest(aar), "classes": before, "results": results})
+        reports.append({"version": version, "baselineSha256": digest(aar), "baselineArtifacts": baseline_artifacts,
+                        "classes": before, "results": results,
+                        "candidateDependencies": {path.name: digest(path) for path in candidate_dependencies}})
     report = {"candidateSha256": digest(candidate), "consumers": reports, "androidWindowsExecuted": False}
     (output / "result.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     return report

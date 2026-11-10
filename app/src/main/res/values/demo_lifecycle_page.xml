@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_lifecycle_title">Page and request management</string>
+    <string name="demo_lifecycle_hero_badge">GUIDED EXAMPLES</string>
+    <string name="demo_lifecycle_hero_title">Why was a notification canceled?</string>
+    <string name="demo_lifecycle_hero_description">Explore page changes, a full backlog, and queue expiry with step-by-step actions and live results. Starting a scene clears the previous requests.</string>
+
+    <string name="demo_lifecycle_scene_badge">SCENE 01 · PAGE CHANGES</string>
+    <string name="demo_lifecycle_scene_title">Leave the page, cancel old requests</string>
+    <string name="demo_lifecycle_scene_description">Follow 1 → 2 → 3: schedule a delayed notification, switch pages immediately, then send a new one.\nExpected: the old request is canceled; the new page can still show notifications.</string>
+    <string name="lifecycle_page_guide">Current page: %1$s · Requests belong to this view</string>
+    <string name="lifecycle_delayed">1. Schedule a 3-second delay</string>
+    <string name="lifecycle_switch">2. Switch to page %1$s</string>
+    <string name="lifecycle_show">3. Show a new notification</string>
+    <string name="lifecycle_rebuild">Rebuild the current page</string>
+    <string name="lifecycle_rebuild_guide">You can also schedule a delayed notification, then rebuild this page. Destroying the old view closes its scope and cancels its requests.</string>
+    <string name="lifecycle_delayed_idle">Delayed notification: not scheduled</string>
+    <string name="lifecycle_fresh_idle">New notification: not sent</string>
+    <string name="lifecycle_live_result">%1$s\n%2$s</string>
+    <string name="lifecycle_delayed_result">Page %1$s delayed notification: %2$s</string>
+    <string name="lifecycle_fresh_result">Page %1$s new notification: %2$s</string>
+    <string name="lifecycle_delayed_message">Delayed notification from page %1$s</string>
+    <string name="lifecycle_fresh_message">Page %1$s can show new notifications</string>
+
+    <string name="demo_capacity_scene_badge">SCENE 02 · A FULL BACKLOG</string>
+    <string name="demo_capacity_scene_title">A full queue rejects new requests</string>
+    <string name="demo_capacity_scene_description">Schedule 33 delayed requests to simulate a backlog. This demo accepts up to 32 pending requests and rejects the 33rd.\nThen cancel one and retry to see the slot become available. These requests wait 60 seconds; clear them when you are done.</string>
+    <string name="lifecycle_capacity">1. Schedule 33 delayed requests</string>
+    <string name="lifecycle_capacity_retry">2. Cancel one and retry</string>
+    <string name="lifecycle_capacity_clear">Clear this batch</string>
+    <string name="lifecycle_capacity_idle">Not started\nExpected: 32 accepted, 1 rejected; freeing a slot allows a retry.</string>
+    <string name="lifecycle_capacity_result">Submitted: %1$d · Accepted: %2$d · Rejected: %3$d\nPending: %4$d / 32 · Canceled: %5$d\nRetry: %6$s</string>
+    <string name="lifecycle_retry_idle">Complete step 2 to retry</string>
+    <string name="lifecycle_capacity_message">Backlog request %1$d</string>
+    <string name="lifecycle_capacity_retry_message">Retry after freeing a slot</string>
+
+    <string name="demo_expiry_scene_badge">SCENE 03 · QUEUE EXPIRY</string>
+    <string name="demo_expiry_scene_title">Old notifications should not interrupt</string>
+    <string name="demo_expiry_scene_description">Queue 6 long notifications. They appear one at a time while the rest wait.\nWatch for about 10 seconds: requests still waiting expire without appearing. Notifications already showing finish normally.</string>
+    <string name="lifecycle_expiry">Queue 6 notifications</string>
+    <string name="lifecycle_expiry_stop">Stop this queue</string>
+    <string name="lifecycle_expiry_idle">Not started\nExpected: the first few appear; requests waiting longer than 10 seconds expire.</string>
+    <string name="lifecycle_expiry_result">Request %1$d: %2$s</string>
+    <string name="lifecycle_expiry_message">Queued notification %1$d / 6</string>
+
+    <string name="lifecycle_state_waiting">Accepted, waiting to show</string>
+    <string name="lifecycle_state_showing">Showing</string>
+    <string name="lifecycle_state_finished">Finished showing</string>
+    <string name="lifecycle_state_canceled">Canceled; will not appear again</string>
+    <string name="lifecycle_state_replaced">Replaced by a new notification</string>
+    <string name="lifecycle_state_rejected">Queue full; not accepted</string>
+    <string name="lifecycle_state_expired">Expired while waiting; never shown</string>
+</resources>

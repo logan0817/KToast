@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_compose_title">Compose content and page cleanup</string>
+    <string name="demo_back">Back</string>
+    <string name="demo_compose_eyebrow">COMPOSE EXTENSION</string>
+    <string name="demo_compose_hero_title">One queue, custom content</string>
+    <string name="demo_compose_hero_description">Show semantic and custom content in Compose. Leaving or rebuilding the page cleans up its requests.</string>
+    <string name="demo_compose_content_badge">CONTENT</string>
+    <string name="demo_compose_content_title">Page notifications</string>
+    <string name="demo_compose_content_description">Try default, semantic, and Compose content. Delayed requests belong to this page too.</string>
+    <string name="demo_compose_lifecycle_badge">LIFECYCLE</string>
+    <string name="demo_compose_lifecycle_title">Leave and rebuild</string>
+    <string name="demo_compose_lifecycle_description">Leaving cancels active and waiting requests. Enter again to create a new page scope.</string>
+    <string name="demo_compose_page_hidden">The page has closed its notification scope. Enter the page again to continue.</string>
+    <string name="demo_compose_leave">Leave the page</string>
+    <string name="demo_compose_enter">Enter the page again</string>
+    <string name="demo_compose_rebuild">Rebuild the current page</string>
+    <string name="demo_compose_custom">Custom Compose content</string>
+    <string name="demo_compose_plain">Default notification</string>
+    <string name="demo_compose_success">Success style</string>
+    <string name="demo_compose_delayed">Show after three seconds</string>
+    <string name="demo_compose_cancel">Cancel page requests</string>
+    <string name="demo_compose_status_initial">Choose an action to try page notifications</string>
+    <string name="demo_compose_status_canceled">Page requests canceled</string>
+    <string name="demo_compose_status_result">Request %1$d: %2$s</string>
+</resources>

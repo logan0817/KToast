@@ -8,51 +8,53 @@
 | --- | --- |
 | `library-android/` | 核心公开 API、调度、窗口和样式 |
 | `library-lifecycle/` | 可选 LifecycleOwner 扩展 |
+| `library-compose/` | 可选 Composition 作用域和 Composable 内容 |
 | `app/` | Demo 与 Android 设备回归 |
 | `tools/` | API、候选、发布、消费者和设备证据校验 |
 | `tools/compatibility/` | 独立消费者与冻结字节码样例 |
 | `gradle/` | 发布、签名与验收 Gradle 脚本 |
 | `docs/` | 使用、维护、设计和逐版本证据 |
 
-Gradle 内部模块名与公开坐标不同：`library-android` 发布为 `ktoast`，`library-lifecycle` 发布为 `ktoast-lifecycle`。不要仅为统一名称移动模块或改变包名、API、坐标。
+Gradle 内部模块名与公开坐标不同：`library-android` 发布为 `ktoast`，`library-lifecycle` 发布为 `ktoast-lifecycle`，`library-compose` 发布为 `ktoast-compose`。不要仅为统一名称移动模块或改变包名、API、坐标。
 
 ## 开发环境
 
-- JDK 17、仓库 Gradle Wrapper 8.14.3、AGP 8.6.0、Kotlin 1.9.23。
-- 已有 Android SDK：platforms 36 与 31，Build Tools 34.0.0 与 30.0.3；后两项中的旧版本用于独立消费者。
+- JDK 17、仓库 Gradle Wrapper 8.14.3、AGP 8.13.0、Kotlin 1.9.23。
+- 已有 Android SDK：platforms 36 与 31，Build Tools 35.0.0、34.0.0 与 30.0.3；旧核心及生命周期消费者使用 30.0.3。
 - Python 3.9+ 用于校验工具；签名或验签才需要 GnuPG 2，常规候选不需要密钥或 Central 凭据。
 - Android Studio 与终端使用同一 JDK、SDK 和 Gradle 缓存；SDK 路径放在本地 `local.properties` 或现有 `ANDROID_HOME` 中，不提交个人路径。
 
-AGP 8.6 官方最高支持 API 35，仓库 compileSdk 36 超出该范围；现有构建与设备验证不等于官方支持认证。保留当前配置的边界见 [验收记录](docs/releases/1.2.0.md)。不要为绕过错误随意升级工具链或删除缓存。
+开发版 AGP 8.13 支持 compileSdk 36，保留 JDK/Gradle/Kotlin；Compose 使用 compiler 1.5.13 与 Runtime/UI/Foundation 1.7.8。1.2.0 历史工具链边界保留在[验收记录](docs/releases/1.2.0.md)。不要为绕过错误清理共享缓存。
 
 以下命令从项目根执行。Windows 使用对应 `gradlew.bat`；独立消费者须使用其自己的 Wrapper。
 
 ## 构建本地候选与消费者
 
 ```bash
-./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
+./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.3.0-SNAPSHOT --console=plain
 ```
 
-根候选任务检查两个模块的 JVM 测试、库 Lint、Python 工具与发布模型，生成 AAR、POM、Gradle metadata、sources、Dokka 文档及对应校验报告。不签名、不上传，也不执行消费者设备运行。普通任务不需要先 `clean`。
+根候选任务检查核心/生命周期 JVM 测试、三个模块的库 Lint、Python 工具与发布模型，生成 AAR、POM、Gradle metadata、sources、Dokka 文档及对应校验报告。不签名、不上传，也不执行消费者设备运行。普通任务不需要先 `clean`。
 
 本地 Maven 仓库位于 `build/candidate-repository`。要在另一个应用试用候选，在其仓库中加入此目录的本机绝对路径（仅放在本地配置中），使用：
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.2.0-SNAPSHOT")
+    implementation("io.github.logan0817:ktoast:1.3.0-SNAPSHOT")
     // 需要 LifecycleOwner 作用域时使用这一项；它会传递依赖同版核心。
-    // implementation("io.github.logan0817:ktoast-lifecycle:1.2.0-SNAPSHOT")
+    // implementation("io.github.logan0817:ktoast-lifecycle:1.3.0-SNAPSHOT")
 }
 ```
 
-两个独立消费者分别验证核心与扩展：
+三个独立消费者分别验证核心、生命周期与 Compose：
 
 ```bash
-./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
-./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.2.0-SNAPSHOT --console=plain
+./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
 ```
 
-消费者固定 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、JVM 1.8，使用同一 JDK 17、SDK 和共享缓存。构建会核对实际解析 AAR 的 SHA，防止验证到旧 SNAPSHOT。该组合内置 Lint 的 Kotlin metadata 提示仍存在，不能推广为任意旧工具链兼容。
+核心/生命周期消费者固定 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、JVM 1.8，使用同一 JDK 17、SDK 和共享缓存。构建会核对实际解析 AAR 的 SHA，防止验证到旧 SNAPSHOT。该组合内置 Lint 的 Kotlin metadata 提示仍存在，不能推广为任意旧工具链兼容。Compose 消费者独立使用 AGP 8.13.0、Gradle 8.14.3、Kotlin 1.9.23、compileSdk 36、JVM 1.8；仅从指定本地候选/暂存仓库解析三个同版 KToast AAR 并比对摘要。
 
 ## 选择验证范围
 
@@ -62,7 +64,7 @@ dependencies {
 | Dokka 模块说明或 KDoc | 重新生成相关 API 文档与候选，检查 HTML 和文档包 |
 | 核心调度或取消 | 核心 JVM、相关设备回归、默认行为与公共 API |
 | LifecycleOwner 绑定 | 扩展 JVM、停止恢复与 View 重建设备回归、独立消费者 |
-| 公共 API、依赖或发布配置 | 双模块候选、正式 API 基线、冻结消费者、源码消费者及 R8；发布工具变更另跑对应配置回归 |
+| 公共 API、依赖或发布配置 | 三模块候选、正式 API 基线、冻结消费者、源码消费者及 R8；发布工具变更另跑对应配置回归 |
 | Python 工具 | `python3 -B -m unittest discover -s tools/tests -v` |
 
 已编译旧消费者的入口：
@@ -71,11 +73,11 @@ dependencies {
 python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
 ```
 
-`JAVA_HOME` 需指向上述 JDK 17，`ANDROID_HOME` 指向已有 SDK。工具核验正式 1.0.5/1.1.0 AAR，编译后冻结 Java/Kotlin 样例字节码，再替换候选运行；不执行真正的 Android 窗口。源码和冻结消费者不能互相替代。
+`JAVA_HOME` 需指向上述 JDK 17，`ANDROID_HOME` 指向已有 SDK。工具核验正式 1.0.5/1.1.0/1.2.0 AAR，编译后冻结 Java/Kotlin 样例字节码，再替换候选运行；不执行真正的 Android 窗口。源码和冻结消费者不能互相替代。
 
 设备运行与专用 fixture 见[排障指南](TROUBLESHOOTING.md#设备回归与专用场景)，云端五版本流程见[发布指南](docs/RELEASING.md#云端设备矩阵)。每个结果需关联实际提交、设备与产物，区分通过、失败、跳过和未报告。
 
-云端 CI 在一个构建任务中分步完成候选与消费者验证，再让五个 API 任务消费同批产物；并行上限为 5，实际并发受 GitHub 配额和 runner 可用性限制。Gradle 跨运行缓存由官方 `setup-gradle` 统一管理，`main` 写入、PR/其他分支只读；缓存依赖和 Wrapper，不缓存本轮候选、报告或 APK，也不叠加其他 Gradle 缓存 Action。缓存未命中仍运行完整构建，消费者继续重新解析 SNAPSHOT 并校验本轮 AAR SHA。修改 CI 时核对命令顺序、产物路径及失败归档，并执行 YAML/工作流静态检查；不要仅因 YAML 调整重跑本地设备矩阵，云端缓存和排队效果须另行验收。
+云端 CI 在一个构建任务中分步完成候选与消费者验证，再让五个 API 任务消费同批八份 APK/AAR；并行上限为 5，实际并发受 GitHub 配额和 runner 可用性限制。Gradle 跨运行缓存由官方 `setup-gradle` 统一管理，`main` 写入、PR/其他分支只读；缓存依赖和 Wrapper，不缓存本轮候选、报告或 APK，也不叠加其他 Gradle 缓存 Action。缓存未命中仍运行完整构建，消费者继续重新解析 SNAPSHOT 并校验本轮 AAR SHA。修改 CI 时核对命令顺序、产物路径及失败归档，并执行 YAML/工作流静态检查；不要仅因 YAML 调整重跑本地设备矩阵，云端缓存和排队效果须另行验收。
 
 ## 报告问题
 

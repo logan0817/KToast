@@ -5,6 +5,7 @@ import android.app.Application
 import android.os.Bundle
 import android.widget.Toast
 import com.logan.ktoast.config.KToastConfig
+import com.logan.ktoast.config.KToastStyle
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastCallbacks
 import com.logan.ktoast.runtime.ToastHandle
@@ -72,6 +73,20 @@ class KToastScope private constructor(host: Activity, val options: KToastScopeOp
         behavior: KToastBehavior = KToastBehavior(),
         callbacks: KToastCallbacks = KToastCallbacks()
     ): ToastHandle = KToast.submitScopedRequest(this, message, 0L, duration, behavior, callbacks, null, config)
+
+    /**
+     * 基础配置与启用的宿主主题之后，依次叠加语义、品牌 XML 和单次配置。
+     * 可跨线程提交；资源/主题和 DSL 在调用线程读取，期间不要并发修改主题。
+     */
+    @JvmOverloads
+    fun showStyled(
+        message: CharSequence,
+        style: KToastStyle,
+        duration: Int = Toast.LENGTH_SHORT,
+        behavior: KToastBehavior = KToastBehavior(),
+        callbacks: KToastCallbacks = KToastCallbacks(),
+        localConfig: (KToastConfig.() -> Unit)? = null
+    ): ToastHandle = KToast.submitScopedRequest(this, message, 0L, duration, behavior, callbacks, localConfig, style = style)
 
     /** 延时从调用时计算，返回与显示请求相同的句柄，可立即撤回。 */
     @JvmOverloads

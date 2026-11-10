@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_style_entry">语义提示与品牌主题</string>
+    <string name="demo_compose_entry">Compose 内容与页面清理</string>
+    <string name="demo_style_title">语义提示与品牌主题</string>
+    <string name="demo_style_description">选择提示类型，或复用 XML 品牌样式。切换系统明暗模式后再次点击，可检查当前资源配色。</string>
+    <string name="demo_style_normal">普通：已更新</string>
+    <string name="demo_style_success">成功：保存完成</string>
+    <string name="demo_style_error">错误：网络连接异常</string>
+    <string name="demo_style_warning">警告：剩余空间不足</string>
+    <string name="demo_style_info">信息：正在使用离线数据</string>
+    <string name="demo_style_brand">品牌 XML：复用主题</string>
+    <string name="demo_style_override">单次覆盖：品牌基础上修改圆角</string>
+</resources>

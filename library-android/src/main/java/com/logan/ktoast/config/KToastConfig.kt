@@ -81,4 +81,10 @@ data class KToastConfig(
 
     /** 自定义内容工厂 */
     var contentFactory: KToastContentFactory? = null
-)
+) {
+    /** 入场/退场插值器及回弹边界；保留已发布主构造与 copy 的 JVM 接口。 */
+    var animation: KToastAnimation = KToastAnimation()
+
+    /** 包含动画的完整配置副本；Kotlin 自动生成的 copy/equals 只包含主构造属性。 */
+    fun snapshot(): KToastConfig = copy().also { it.animation = animation }
+}

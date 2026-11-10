@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.logan.ktoast.composeconsumer'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.logan.ktoast.composeconsumer'
+        minSdk 21
+        targetSdk 36
+        versionCode 1
+        versionName 'verification'
+    }
+    buildFeatures { compose true }
+    composeOptions { kotlinCompilerExtensionVersion '1.5.13' }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions { jvmTarget = '1.8' }
+    buildTypes {
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
+}
+
+dependencies {
+    implementation 'io.github.logan0817:ktoast-compose:' + providers.gradleProperty('ktoastVersion').getOrElse('1.3.0-SNAPSHOT')
+    implementation 'androidx.activity:activity-compose:1.9.2'
+}
+
+configurations.configureEach {
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+
+tasks.register('verifyCandidateArtifact') {
+    doLast {
+        def digest = { file -> java.security.MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString() }
+        ['debugRuntimeClasspath', 'releaseRuntimeClasspath'].each { name ->
+            def artifacts = configurations.getByName(name).resolvedConfiguration.resolvedArtifacts
+            ['ktoast': 'library-android', 'ktoast-lifecycle': 'library-lifecycle', 'ktoast-compose': 'library-compose'].each { artifact, module ->
+                def resolved = artifacts.find { it.moduleVersion.id.group == 'io.github.logan0817' && it.name == artifact }
+                def expected = new File(projectDir, '../../../' + module + '/build/outputs/aar/' + module + '-release.aar')
+                if (resolved == null || !expected.isFile() || digest(expected) != digest(resolved.file)) {
+                    throw new GradleException('Resolved ' + artifact + ' differs from the current candidate: ' + name)
+                }
+                if (resolved.moduleVersion.id.version != providers.gradleProperty('ktoastVersion').getOrElse('1.3.0-SNAPSHOT')) {
+                    throw new GradleException('Mixed KToast module versions: ' + name)
+                }
+                println 'Consumer ' + name + ' ' + artifact + ' SHA-256: ' + digest(resolved.file)
+            }
+            if (artifacts.any { it.moduleVersion.id.group.startsWith('androidx.compose.material') || it.moduleVersion.id.group.startsWith('androidx.fragment') }) {
+                throw new GradleException('Compose consumer resolved an unrelated optional dependency: ' + name)
+            }
+        }
+    }
+}
+tasks.named('preBuild') { dependsOn 'verifyCandidateArtifact' }

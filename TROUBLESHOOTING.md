@@ -37,28 +37,28 @@ hide/show 或自定义路由若不改变 Owner 的 STARTED 状态，库不会自
 
 ## JDK、SDK 与依赖下载
 
-仓库使用 JDK 17；Gradle 8.14.3 不支持以 JDK 25 运行。Android Studio 与终端选同一 Gradle JDK，独立消费者也使用 JDK 17，但使用自己的 Gradle 7.4.2 Wrapper。库字节码 JVM 1.8 不要求构建环境安装 JDK 8，也不能据此推断 Android 标准库 API 可用。
+仓库使用 JDK 17；Gradle 8.14.3 不支持以 JDK 25 运行。Android Studio 与终端选同一 Gradle JDK，独立消费者也使用 JDK 17；核心及生命周期消费者使用自己的 Gradle 7.4.2 Wrapper，Compose 消费者使用自己的 Gradle 8.14.3 Wrapper。库字节码 JVM 1.8 不要求构建环境安装 JDK 8，也不能据此推断 Android 标准库 API 可用。
 
-[AGP 8.6 官方说明](https://developer.android.com/build/releases/past-releases/agp-8-6-0-release-notes)最高支持 API 35，当前 compileSdk 36 超出范围。`android.suppressUnsupportedCompileSdk` 仅压制提示，不代表官方认证。实际版本、SDK 和命令见[开发环境](CONTRIBUTING.md#开发环境)。
+开发版使用 [AGP 8.13](https://developer.android.com/build/releases/agp-8-13-0-release-notes#compatibility)，支持 compileSdk 36，已移除原 `android.suppressUnsupportedCompileSdk` 提示压制。1.2.0 的旧工具链边界见[历史验收记录](docs/releases/1.2.0.md)。实际版本、SDK 和命令见[开发环境](CONTRIBUTING.md#开发环境)。
 
 不要先执行 `clean`、删除共享缓存或盲目升级工具链；分析首个有效错误。依赖网络握手失败时，检查现有代理是否被 Gradle 使用。必要时为单次命令传入现有代理的 `-Dhttp.proxyHost`、`-Dhttp.proxyPort`、`-Dhttps.proxyHost`、`-Dhttps.proxyPort`，不要提交个人代理、关闭 TLS 验证或更换为不可信仓库。
 
 ## 候选与消费者不一致
 
-生成双模块候选后运行两个独立消费者，命令见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。显式使用 `-PktoastVersion=1.2.0-SNAPSHOT`；`ktoastPublication` 仅接受 `candidate` 和 `staging`，两者都是仓库 `build/` 下的本地目录。
+生成三模块候选后运行三个独立消费者，命令见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。显式使用 `-PktoastVersion=1.3.0-SNAPSHOT`；`ktoastPublication` 仅接受 `candidate` 和 `staging`，两者都是仓库 `build/` 下的本地目录。
 
 消费者 preBuild 分别核对 Debug 与 Release 实际 AAR SHA，不能只检查文件存在。Staging 构建会覆盖 publication 元数据；测试 SNAPSHOT 前重新生成 Candidate，不混用正式版本和 SNAPSHOT 报告。扩展必须和核心同版。
 
 AGP 7.2.2 的旧 Lint 可能输出 Kotlin metadata 1.9 与分析器期望 1.6 的诊断；JVM 1.8 消除了原高字节码警告，不代表该分析器获得完整支持。仅记录实际构建、运行与限制。
 
-候选报告按模块命名为 `ktoast-candidate.json` 和 `ktoast-lifecycle-candidate.json`。不要使用旧单模块 `candidate.json` 或其他版本的报告代替。正式 API 扫描、冻结字节码、源码消费者、R8 与设备分别验证，单项不能替代整体。
+候选报告按模块命名为 `ktoast-candidate.json`、`ktoast-lifecycle-candidate.json` 和 `ktoast-compose-candidate.json`。不要使用旧单模块 `candidate.json` 或其他版本的报告代替。正式 API 扫描、冻结字节码、源码消费者、R8 与设备分别验证，单项不能替代整体。
 
 ## 设备回归与专用场景
 
 在允许测试安装的专用设备上执行：
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest -PVERSION=1.2.0-SNAPSHOT --console=plain
+./gradlew :app:connectedDebugAndroidTest -PVERSION=1.3.0-SNAPSHOT --console=plain
 ```
 
 测试会安装并启动 Demo，设备须解锁、允许前台 Activity 显示。构建通过不等于设备通过，结果应按 API、提交和产物分别记录。云端入口与报告核验见[设备矩阵](docs/RELEASING.md#云端设备矩阵)。普通矩阵不启用下述专用 fixture。
@@ -92,3 +92,9 @@ Espresso 出现 `INJECT_EVENTS` 时检查实际点击目标；若命中系统导
 矩阵的 `WindowFailureDiagnosticsTest` 验证真实规则与私有目录导出。诊断使用 `adb shell run-as` / `adb exec-out run-as` 读取当前运行文件；外部存储在旧系统可能未挂载或无权限。旧 `dumpsys` 不支持 `-t`，因此由读取端或主机命令设置超时。命令错误文本或空文件不能作为有效快照。
 
 收尾快照与首次失败并非同一时刻，不能仅凭收尾焦点判断完整根因。采证错误只作为附加错误，保留原失败。各轮已确认事实与未解决限制见[验收记录](docs/releases/1.2.0.md)。
+
+## 1.3.0 源码候选与 Compose
+
+开发版未发布，正式 1.2.0 不含 showStyled 或 Compose 模块。样式覆盖与资源单位见[样式指南](docs/STYLES.md)，ComponentActivity、真实 Owner、Preview 与关闭后调用规则见[Compose 指南](docs/COMPOSE.md)。核心/Lifecycle 单独接入不应解析到 Compose、Fragment 或协程。
+
+候选报告新增 `ktoast-compose-candidate.json`；独立 Compose 消费者使用自身 Wrapper。三库 API、依赖边界、核心/Lifecycle 旧工具链及 Compose 现代消费者分别核对，不把一项成功当作全部兼容。用户 Composable 内部异常（首次/重组）遵循应用异常机制，不承诺转换为取消；工厂与同步窗口创建失败仍由核心错误路径处理。

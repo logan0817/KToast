@@ -8,8 +8,12 @@ val verifyPublicationTools = tasks.register<Exec>("verifyPublicationTools") {
     commandLine("python3", "-B", "-m", "unittest", "discover", "-s", "tools/tests", "-v")
 }
 
-val candidateChecks = listOf("library-android" to "ktoast", "library-lifecycle" to "ktoast-lifecycle").map { (module, artifact) ->
-    tasks.register<Exec>(if (artifact == "ktoast") "verifyCandidateArtifacts" else "verifyLifecycleCandidateArtifacts") {
+val candidateChecks = listOf("library-android" to "ktoast", "library-lifecycle" to "ktoast-lifecycle", "library-compose" to "ktoast-compose").map { (module, artifact) ->
+    tasks.register<Exec>(when (artifact) {
+        "ktoast" -> "verifyCandidateArtifacts"
+        "ktoast-lifecycle" -> "verifyLifecycleCandidateArtifacts"
+        else -> "verifyComposeCandidateArtifacts"
+    }) {
         group = "verification"
         description = "生成并校验 $artifact 本地 SNAPSHOT 候选；不签名或上传。"
         dependsOn(":$module:publishReleasePublicationToCandidateRepository")
@@ -34,6 +38,7 @@ tasks.register("verifyReleaseCandidate") {
         ":library-android:testDebugUnitTest",
         ":library-android:lintDebug",
         ":library-lifecycle:testDebugUnitTest",
-        ":library-lifecycle:lintDebug"
+        ":library-lifecycle:lintDebug",
+        ":library-compose:lintDebug"
     )
 }

@@ -1,7 +1,13 @@
 package com.logan.ktoastapp.app
 
 import android.os.Looper
+import android.animation.TimeInterpolator
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.View
+import android.view.ViewTreeObserver
+import android.view.animation.AnticipateOvershootInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.TextView
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -9,10 +15,16 @@ import androidx.test.ext.junit.rules.activityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.logan.ktoast.KToast
+import com.logan.ktoast.KToastScope
+import com.logan.ktoast.KToastScopeOptions
+import com.logan.ktoast.config.KToastConfig
+import com.logan.ktoast.config.KToastAnimation
 import com.logan.ktoast.runtime.KToastCallbacks
 import com.logan.ktoast.runtime.KToastContentFactory
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastDisplayMode
+import com.logan.ktoast.runtime.KToastDiagnosticEvent
+import com.logan.ktoast.runtime.KToastDiagnosticListener
 import com.logan.ktoast.runtime.ToastHandle
 import com.logan.ktoast.toastDelayed
 import com.logan.ktoastapp.MainActivity
@@ -204,7 +216,7 @@ class KToastLifecycleTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         rule.scenario.onActivity { activity ->
             assertTrue(content.isAttachedToWindow)
-            activity.windowManager.removeViewImmediate(content)
+            activity.windowManager.removeViewImmediate(content.rootView)
             assertTrue(handle.isCanceled)
             assertEquals(1, terminalCount)
             assertFalse(handle.cancel())
@@ -280,6 +292,162 @@ class KToastLifecycleTest {
             nextTask.run()
             assertEquals(0, oldContentCount)
             assertEquals(1, newContentCount)
+        }
+    }
+
+    @Test
+    fun roundedContentBounceStaysInsideWindowForGlobalAndScopedRequests() {
+        val animations = listOf(KToastAnimation(), KToastAnimation(
+            enterInterpolator = OvershootInterpolator(8f),
+            exitInterpolator = AnticipateOvershootInterpolator(4f), maxScale = 1.2f),
+            KToastAnimation(enterInterpolator = OvershootInterpolator(50f), maxScale = 2f))
+        for ((scoped, animation) in listOf(false, true).flatMap { scoped -> animations.map { scoped to it } }) {
+            val finished = CountDownLatch(1)
+            var minScale = Float.POSITIVE_INFINITY
+            var maxScale = 0f
+            var intermediateFrames = 0
+            var clippedFrames = 0
+            var terminalCount = 0
+            var scope: KToastScope? = null
+            var animatedRoot: View? = null
+            lateinit var content: View
+            lateinit var root: View
+            lateinit var observer: ViewTreeObserver.OnPreDrawListener
+            lateinit var handle: ToastHandle
+            rule.scenario.onActivity { host ->
+                val config = KToastConfig().apply {
+                    animationDuration = 700L
+                    this.animation = animation
+                    contentFactory = KToastContentFactory { context, message, _ ->
+                        TextView(context).apply {
+                            text = if (animation.maxScale == 2f) message.toString().repeat(20) else message
+                            maxLines = 4
+                            setTextColor(Color.WHITE)
+                            setPadding(48, 32, 48, 32)
+                            background = GradientDrawable().apply {
+                                setColor(Color.DKGRAY)
+                                cornerRadius = 32f
+                            }
+                        }.also { content = it }
+                    }
+                }
+                val callbacks = KToastCallbacks(
+                    onShow = {
+                        root = content.rootView
+                        animatedRoot = root
+                        observer = ViewTreeObserver.OnPreDrawListener {
+                            minScale = minOf(minScale, root.scaleX, root.scaleY)
+                            maxScale = maxOf(maxScale, root.scaleX, root.scaleY)
+                            if (root.scaleX > 0.8f && root.scaleX < 1f) intermediateFrames++
+                            val left = root.pivotX + (content.left - root.pivotX) * root.scaleX
+                            val right = root.pivotX + (content.right - root.pivotX) * root.scaleX
+                            val top = root.pivotY + (content.top - root.pivotY) * root.scaleY
+                            val bottom = root.pivotY + (content.bottom - root.pivotY) * root.scaleY
+                            if (left < 0f || top < 0f || right > root.width || bottom > root.height) clippedFrames++
+                            true
+                        }
+                        root.viewTreeObserver.addOnPreDrawListener(observer)
+                    },
+                    onDismiss = { _, _ ->
+                        terminalCount++
+                        animatedRoot?.viewTreeObserver?.takeIf { it.isAlive }?.let {
+                            it.removeOnPreDrawListener(observer)
+                        }
+                        finished.countDown()
+                    }
+                )
+                handle = if (scoped) {
+                    KToastScope.create(host).also { scope = it }.show("Rounded scoped content", config, callbacks = callbacks)
+                } else {
+                    KToast.showHandle("Rounded global content", callbacks = callbacks) {
+                        animationDuration = config.animationDuration
+                        this.animation = config.animation
+                        contentFactory = config.contentFactory
+                    }
+                }
+            }
+            try {
+                assertTrue("Animation never completed: scoped=$scoped", finished.await(6, TimeUnit.SECONDS))
+                rule.scenario.onActivity {
+                    assertTrue("No animated frames observed: scoped=$scoped", intermediateFrames > 0)
+                    assertTrue("Bounce disappeared: scoped=$scoped max=$maxScale", maxScale > 1f)
+                    assertTrue("Invalid animated scale: scoped=$scoped min=$minScale", minScale > 0f)
+                    assertTrue("Animation exceeds configured limit: scoped=$scoped max=$maxScale", maxScale <= animation.maxScale + 0.0001f)
+                    assertEquals("Rounded content leaves its window: scoped=$scoped", 0, clippedFrames)
+                    if (animation.maxScale == 2f) {
+                        assertTrue("Text collapsed while reserving animation space: width=${content.width}, window=${root.width}",
+                            content.width > root.width / 4)
+                        assertTrue("Maximum-scale animation was not exercised", maxScale > 1.95f)
+                    }
+                    assertEquals(ToastHandle.DismissReason.COMPLETED, handle.dismissReason)
+                    assertEquals(1, terminalCount)
+                    assertFalse(root.isAttachedToWindow)
+                }
+            } finally {
+                rule.scenario.onActivity { scope?.close(); KToast.cancel() }
+            }
+        }
+    }
+
+    @Test
+    fun invalidAnimationCancelsOnceReportsErrorAndPromotesQueue() {
+        for (entering in listOf(true, false)) {
+            for (failure in listOf("nonFinite", "exception", "lastFrame")) {
+                val dismissed = CountDownLatch(1)
+                var terminalCount = 0
+                var errors = 0
+                lateinit var scope: KToastScope
+                lateinit var failed: ToastHandle
+                lateinit var next: ToastHandle
+                lateinit var content: View
+                lateinit var failedRoot: View
+                val invalid = TimeInterpolator { fraction ->
+                    when {
+                        failure == "lastFrame" && fraction < 1f -> fraction
+                        fraction == 0f -> 0f
+                        failure == "exception" -> throw IllegalArgumentException("intentional animation failure")
+                        else -> Float.NaN
+                    }
+                }
+                rule.scenario.onActivity { host ->
+                    scope = KToastScope.create(host, KToastScopeOptions(diagnostics = KToastDiagnosticListener { _, event, _ ->
+                        if (event == KToastDiagnosticEvent.ERROR) errors++
+                    }))
+                    failed = scope.show("invalid animation", Toast.LENGTH_LONG,
+                        KToastBehavior(KToastDisplayMode.QUEUE), KToastCallbacks(onDismiss = { _, _ ->
+                            terminalCount++
+                            dismissed.countDown()
+                        })) {
+                        animationDuration = 200L
+                        animation = if (entering) KToastAnimation(enterInterpolator = invalid)
+                        else KToastAnimation(exitInterpolator = invalid)
+                        cancelOnTouch = !entering
+                        contentFactory = KToastContentFactory { context, message, _ ->
+                            TextView(context).apply { text = message }.also { content = it }
+                        }
+                    }
+                    failedRoot = content.rootView
+                    next = scope.show("after invalid animation", Toast.LENGTH_LONG,
+                        KToastBehavior(KToastDisplayMode.QUEUE)) { animationDuration = 0L }
+                }
+                try {
+                    if (!entering) {
+                        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                        rule.scenario.onActivity { assertTrue(content.performClick()) }
+                    }
+                    assertTrue("Failed animation did not finish: entering=$entering failure=$failure",
+                        dismissed.await(4, TimeUnit.SECONDS))
+                    rule.scenario.onActivity {
+                        assertTrue(failed.isCanceled)
+                        assertEquals(1, terminalCount)
+                        assertEquals(1, errors)
+                        assertFalse(failedRoot.isAttachedToWindow)
+                        assertEquals(ToastHandle.State.SHOWING, next.state)
+                    }
+                } finally {
+                    rule.scenario.onActivity { scope.close() }
+                }
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.logan.ktoast.KToastScope
 import com.logan.ktoast.KToastScopeOptions
 import com.logan.ktoast.config.KToastConfig
+import com.logan.ktoast.config.KToastStyle
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastCallbacks
 import com.logan.ktoast.runtime.ToastHandle
@@ -67,6 +68,17 @@ class KToastLifecycleScope private constructor(host: Activity, owner: LifecycleO
         behavior: KToastBehavior = KToastBehavior(),
         callbacks: KToastCallbacks = KToastCallbacks()
     ): ToastHandle = session.current().show(message, config, duration, behavior, callbacks)
+
+    /** 与页面作用域共用语义、品牌 XML、单次覆盖及调用线程准备规则。 */
+    @JvmOverloads
+    fun showStyled(
+        message: CharSequence,
+        style: KToastStyle,
+        duration: Int = Toast.LENGTH_SHORT,
+        behavior: KToastBehavior = KToastBehavior(),
+        callbacks: KToastCallbacks = KToastCallbacks(),
+        localConfig: (KToastConfig.() -> Unit)? = null
+    ): ToastHandle = session.current().showStyled(message, style, duration, behavior, callbacks, localConfig)
 
     @JvmOverloads
     fun showDelayed(

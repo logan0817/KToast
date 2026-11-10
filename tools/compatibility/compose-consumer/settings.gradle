@@ -1,0 +1,27 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id 'com.android.application' version '8.13.0'
+        id 'org.jetbrains.kotlin.android' version '1.9.23'
+    }
+}
+
+def publication = providers.gradleProperty('ktoastPublication').getOrElse('candidate')
+if (!(publication in ['candidate', 'staging'])) {
+    throw new GradleException('ktoastPublication must be candidate or staging')
+}
+dependencyResolutionManagement {
+    repositories {
+        exclusiveContent {
+            forRepository { maven { url = new File(settingsDir, '../../../build/' + publication + '-repository') } }
+            filter { includeGroup 'io.github.logan0817' }
+        }
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'ktoast-compose-consumer'

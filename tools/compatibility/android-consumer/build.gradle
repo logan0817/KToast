@@ -29,7 +29,7 @@ android {
 }
 
 dependencies {
-    implementation 'io.github.logan0817:ktoast:' + providers.gradleProperty('ktoastVersion').getOrElse('1.2.0-SNAPSHOT')
+    implementation 'io.github.logan0817:ktoast:' + providers.gradleProperty('ktoastVersion').getOrElse('1.3.0-SNAPSHOT')
 }
 
 // 本地候选会重复生成，同一 SNAPSHOT 坐标每次构建都读取最新元数据。
