@@ -172,6 +172,7 @@ The module brings in the matching Lifecycle and core modules transitively. Use `
 
 ## Documentation and sample
 
+- [1.3.0 Release and Demo download](https://github.com/logan0817/KToast/releases/tag/1.3.0): APK and SHA-256 checksum. The Demo is a release build signed with a development certificate, intended for trying the examples.
 - [Documentation index](docs/README.md): user guides, API, maintenance, and design records. Detailed guides are primarily in Chinese; this README and [core examples](docs/USAGE_EN.md) are available in English.
 - [Sample Activity](app/src/main/java/com/logan/ktoastapp/MainActivity.kt) and [Lifecycle sample](app/src/main/java/com/logan/ktoastapp/LifecycleDemoActivity.kt): build current samples from source.
 - [Contributing](CONTRIBUTING.md), [release guide](docs/RELEASING.md), and [roadmap](docs/ROADMAP.md) (Chinese).
