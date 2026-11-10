@@ -47,6 +47,8 @@ python3 -B tools/verify_central_service.py -- ./gradlew
 
 构建任务同时检查 Demo 和三个库的 Lint。专用云端设备保留默认动画，逐帧回弹边界用例必须观察实际 Animator 帧；不能关闭动画后将此项当作通过。本机仅真机调试的约束不影响已授权的云端专用设备矩阵。
 
+构建任务用临时 SDK 视图仅暴露既定平台 31/36，其余构建工具通过符号链接复用 hosted 镜像已有安装。这样镜像额外预装的平台不会改变 `OldTargetApi` 检查阈值；保持项目 SDK 基线和 Lint 规则，不删除镜像 SDK。设备任务仍独立运行完整五档矩阵。
+
 设备矩阵的 `max-parallel: 5` 允许五个 API 任务在构建完成后同时运行，每个任务使用独立 runner。实际并发仍受账号配额、其他任务和 runner 可用性限制；该设置减少矩阵内部排队，不缩短构建或单个设备任务，也不修复设备失焦。
 
 构建任务使用固定提交的官方 [`gradle/actions/setup-gradle`](https://github.com/gradle/actions/tree/v5.0.2/setup-gradle) v5.0.2 管理跨运行 Gradle User Home 缓存；主工程仍用 Wrapper 8.14.3，核心/生命周期消费者仍用各自 Wrapper 7.4.2，Compose 消费者使用 Wrapper 8.14.3，共用 JDK 17。不叠加 `setup-java` 的 Gradle 缓存或 `actions/cache`。仅 `main` 写入缓存，PR 和其他分支只读可访问的缓存；缓存缺失时按原命令下载依赖和构建，不跳过任何验证步骤。
