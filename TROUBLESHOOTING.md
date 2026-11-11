@@ -63,7 +63,7 @@ AGP 7.2.2 的旧 Lint 可能输出 Kotlin metadata 1.9 与分析器期望 1.6 �
 
 测试会安装并启动 Demo，设备须解锁、允许前台 Activity 显示。构建通过不等于设备通过，结果应按 API、提交和产物分别记录。云端入口与报告核验见[设备矩阵](docs/RELEASING.md#云端设备矩阵)。普通矩阵不启用下述专用 fixture。
 
-云端工作流另有 API 35 的 `fixtures` 必需任务，通过 `tools/run_platform_fixtures.py` 顺序配置并运行下述五项专项。它复用普通矩阵的本轮 APK，运行前核验八产物摘要和提交；结束后恢复设置及缺口 overlay 并重启回读。原始结果和恢复记录保存在 `platform-fixtures-api-35` 产物。测试跳过、未报告、失败或恢复失败均不能算专项通过。
+云端工作流另有 API 35 的 `fixtures` 必需任务，通过 `tools/run_platform_fixtures.py` 顺序配置并运行下述五项专项。它复用普通矩阵的本轮 APK，运行前核验八产物摘要和提交；结束后恢复设置及缺口 overlay 并重启系统框架回读。原始结果和恢复记录保存在 `platform-fixtures-api-35` 产物。测试跳过、未报告、失败或恢复失败均不能算专项通过。
 
 `KToastLifecycleTest` 与 `KToastScopeTest` 覆盖取消、重入、页面停止恢复、清理和窗口行为；`KToastRuntimePolicyDeviceTest` 与 `KToastLifecycleOwnerTest` 覆盖本版容量、过期、延时转移、Owner 门禁和 View 重建。缺少 fixture 的明确跳过不计成功；SDK 过滤未报告与显式跳过分开记录。
 
@@ -78,6 +78,8 @@ AGP 7.2.2 的旧 Lint 可能输出 Kotlin metadata 1.9 与分析器期望 1.6 �
 `KToastMultiWindowTest` 需要 API 30+，仅在支持自由窗口的专用模拟器启用 `-e multiWindowFixture true`，没有该参数时明确跳过。测试检查实际进入多窗口、宿主边界小于整屏且起点非零，再验证超大自定义内容的整体尺寸、安全坐标和任务调整大小后的作用域行为；不能用全屏测试替代。
 
 专用模拟器可先记录 `settings get global enable_freeform_support` 与 `settings get global force_resizable_activities` 的原值，再分别用 settings put global 将两项设为 1。测试使用 am start 的 --windowingMode 5 与 am task resize，并在清理阶段恢复 --windowingMode 1；结束后还须恢复原开发者设置。原值为 null 时使用 settings delete global 删除对应项，原值非 null 时写回原值。不要在日常设备上强制改变窗口设置。不同平台可能不支持这些 shell 参数，必须以实际进入模式和改变尺寸的断言为准。
+
+切入自由窗口不保证初始任务自动缩小。夹具先按最大窗口尺寸设定居中的半宽、半高任务边界，等待实际进入非全屏且有左侧偏移的窗口，再执行原有 Toast 边界与二次任务缩放断言；设置或模式标记本身不算验证成功。
 
 ## 设备安装、失焦与采证
 

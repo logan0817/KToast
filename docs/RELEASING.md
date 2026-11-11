@@ -91,7 +91,7 @@ python3 -B tools/run_device_matrix.py --api 35 --serial emulator-5554
 
 普通失败另有宿主清理后、Runner 结束后的收尾快照，也包含 SurfaceFlinger；这些串行采集的快照并非同一时刻，不能直接证明失焦首次发生时的原因。成功的采证自检也不证明所有偶发窗口故障已经消除。
 
-独立的 `fixtures` 任务复用同批八产物，在 API 35 专用云端模拟器分阶段执行五项平台专项：非交互推荐时长、按钮交互推荐时长、普通文字不采用交互时长、显示缺口安全区域、自由窗口及任务缩放。入口为 `tools/run_platform_fixtures.py --api 35 --serial emulator-5554`，先核验模拟器身份、提交与产物摘要，再配置独立超时、缺口和自由窗口；自由窗口设置在重启后生效。每项保留原始 Runner，失败继续收集其他专项，跳过、缺失或恢复失败均使任务失败。结束时恢复所有记录的设置与缺口 overlay，并重启回读；不对日常真机执行该入口。
+独立的 `fixtures` 任务复用同批八产物，在 API 35 专用云端模拟器分阶段执行五项平台专项：非交互推荐时长、按钮交互推荐时长、普通文字不采用交互时长、显示缺口安全区域、自由窗口及任务缩放。入口为 `tools/run_platform_fixtures.py --api 35 --serial emulator-5554`，先核验模拟器身份、提交与产物摘要，再配置独立超时、缺口和自由窗口；通过临时 `adb root` 仅重启 Android 系统框架加载自由窗口设置，避免整机 reboot 使云端 emulator 进程退出。每项保留原始 Runner，失败继续收集其他专项，跳过、缺失或恢复失败均使任务失败。结束时恢复所有记录的设置与缺口 overlay，重启系统框架回读，并恢复原 adb 身份；不对日常真机执行该入口。
 
 Actions 的输入、构建报告、逐 API 报告及 `platform-fixtures-api-35` 保留 **14 天**。验收时下载八份原始 ZIP，核对 GitHub 官方 digest、提交、同批八产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与三个 R8 新进程 PID，并保存运行 URL。专项还须核对五项各自通过和 `restoration.success=true`，证据位于 `build/reports/platform-fixtures/result.json`。不同轮次的部分成功不能拼成最终矩阵。
 

@@ -8,18 +8,25 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import run_platform_fixtures as fixtures
+from run_device_matrix import all_tests, required_tests
 
 
 class PlatformFixturesTest(unittest.TestCase):
+    def test_normal_matrix_and_fixtures_cover_every_declared_device_test(self):
+        special = {fixtures.TEST_PACKAGE + test for _, test, _, _ in fixtures.STAGES}
+        self.assertEqual(all_tests(), required_tests(35) | special)
+        self.assertFalse(required_tests(35) & special)
+
     def exercise(self, *, serial='emulator-5554', qemu='1', skipped=None, failed=None,
                  restore_failure=False, artifact_mismatch=False):
         commands = []
         settings = {namespace + '/' + key: 'null' for namespace, key in fixtures.SETTINGS}
         overlay = False
         instrument_count = 0
+        uid = '2000'
 
         def run(command, **kwargs):
-            nonlocal overlay, instrument_count
+            nonlocal overlay, instrument_count, uid
             args = command[3:]
             commands.append(args)
             text = ''
@@ -27,6 +34,10 @@ class PlatformFixturesTest(unittest.TestCase):
                 text = {'ro.kernel.qemu': qemu, 'ro.build.version.sdk': '35',
                         'ro.build.fingerprint': 'test-only', 'ro.product.cpu.abi': 'x86_64',
                         'sys.boot_completed': '1'}[args[2]]
+            elif args[:2] == ['shell', 'id']:
+                text = uid
+            elif args[0] in ('root', 'unroot'):
+                uid = '0' if args[0] == 'root' else '2000'
             elif args[:2] == ['shell', 'settings']:
                 identity = args[3] + '/' + args[4]
                 if args[2] == 'get':
@@ -77,6 +88,10 @@ class PlatformFixturesTest(unittest.TestCase):
         self.assertTrue(all(value == 'null' for value in settings.values()))
         self.assertFalse(overlay)
         self.assertTrue(report['restoration']['success'])
+        self.assertEqual('2000', report['restoration']['adbUid'])
+        self.assertNotIn(['reboot'], commands)
+        self.assertEqual(2, commands.count(['shell', 'stop']))
+        self.assertEqual(2, commands.count(['shell', 'start']))
         self.assertEqual(['10000', '0'], list(report['stages']['noninteractive']['settings'].values()))
         self.assertEqual(['0', '10000'], list(report['stages']['interactive-button']['settings'].values()))
         self.assertTrue(report['stages']['cutout']['overlays'][fixtures.CUTOUT])
@@ -86,7 +101,7 @@ class PlatformFixturesTest(unittest.TestCase):
             with self.subTest(options=options):
                 report, commands, _, _ = self.exercise(**options)
                 self.assertFalse(report['success'])
-                self.assertFalse(any(command[0] in ('install', 'reboot') or
+                self.assertFalse(any(command[0] in ('install', 'reboot', 'root', 'unroot') or
                                      command[:2] == ['shell', 'settings'] for command in commands))
 
     def test_skip_or_failure_collects_all_five_stages_and_restores_settings(self):

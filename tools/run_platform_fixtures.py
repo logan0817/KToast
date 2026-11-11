@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import subprocess
 import time
 
@@ -36,6 +35,7 @@ def run_fixtures(serial, api=35):
     report = {'commit': os.environ.get('GITHUB_SHA'), 'serial': serial, 'success': False, 'stages': {}}
     original = {}
     overlays = {}
+    original_uid = None
 
     def adb(*args, timeout=60):
         process = subprocess.run(['adb', '-s', serial, *args], text=True, stdout=subprocess.PIPE,
@@ -73,6 +73,18 @@ def run_fixtures(serial, api=35):
             time.sleep(1)
         raise ValueError('专项模拟器启动检查超时')
 
+    def restart_framework():
+        # 云端 emulator 的整机 reboot 会使进程退出；重启 framework 同样重建窗口服务。
+        if adb('shell', 'id', '-u').strip() != '0':
+            adb('root')
+            adb('wait-for-device', timeout=60)
+        if adb('shell', 'id', '-u').strip() != '0':
+            raise ValueError('专用模拟器不支持 framework 重启所需的 adb root')
+        adb('shell', 'stop')
+        adb('shell', 'setprop', 'sys.boot_completed', '0')
+        adb('shell', 'start')
+        ready()
+
     def diagnostics(folder):
         folder.mkdir(parents=True, exist_ok=True)
         for name, args in [('logcat', ('logcat', '-d', '-v', 'threadtime'))] + [
@@ -95,6 +107,8 @@ def run_fixtures(serial, api=35):
         if actual != expected['artifacts'] or (report['commit'] and report['commit'] != expected['commit']):
             raise ValueError('专项产物摘要或构建提交不一致')
         report.update(artifacts=actual, buildCommit=expected['commit'])
+        original_uid = adb('shell', 'id', '-u').strip()
+        report['originalAdbUid'] = original_uid
         original = {namespace + '/' + key: adb('shell', 'settings', 'get', namespace, key).strip()
                     for namespace, key in SETTINGS}
         overlays = overlay_states()
@@ -107,9 +121,8 @@ def run_fixtures(serial, api=35):
                            ('window_animation_scale', 0), ('transition_animation_scale', 0),
                            ('animator_duration_scale', 1)):
             setting('global', key, value)
-        # 自由窗口支持在系统启动时读取；先配置后重启，避免只改数据库而未改变窗口能力。
-        adb('reboot')
-        ready()
+        # 自由窗口支持在窗口服务启动时读取，不能仅以数据库回读证明能力已生效。
+        restart_framework()
         for name in ('demo', 'tests'):
             result = adb('install', '-r', str(ROOT / FILES[name]), timeout=120)
             (OUTPUT / (name + '-install.txt')).write_text(result, encoding='utf-8')
@@ -167,12 +180,22 @@ def run_fixtures(serial, api=35):
                 restoration['overlays'] = overlay_states()
                 if restoration['overlays'] != overlays:
                     raise ValueError('缺口 overlay 整组恢复不一致')
-                # 重启后再次检查设置，确保自由窗口配置也恢复到启动时的状态。
-                adb('reboot')
-                ready()
+                restart_framework()
                 for namespace, key in SETTINGS:
                     if adb('shell', 'settings', 'get', namespace, key).strip() != original[namespace + '/' + key]:
                         raise ValueError('重启后设置恢复不一致：' + key)
+                if overlay_states() != overlays:
+                    raise ValueError('重启后缺口 overlay 恢复不一致')
+            except Exception as error:
+                restoration['errors'].append(str(error))
+        if original_uid is not None:
+            try:
+                if original_uid != '0':
+                    adb('unroot')
+                    adb('wait-for-device', timeout=60)
+                restoration['adbUid'] = adb('shell', 'id', '-u').strip()
+                if restoration['adbUid'] != original_uid:
+                    raise ValueError('adb 身份恢复不一致')
             except Exception as error:
                 restoration['errors'].append(str(error))
         restoration['success'] = not restoration['errors']
