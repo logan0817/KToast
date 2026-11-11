@@ -146,7 +146,7 @@ val options = KToastScopeOptions(
 
 诊断事件为 SHOWN、DISMISSED、ERROR。SHOWN 表示渲染调用返回，DISMISSED 的 detail 是已有结束原因，ERROR 的 detail 只包含异常类型，不包含消息正文或异常消息。监听器异常被隔离。诊断是可选观察能力，不保证真正送达，也不改变业务回调的兼容语义。
 
-当前验证矩阵与发布前未覆盖项见 [RELEASING.md](./RELEASING.md)。Compose 扩展仍属于后续独立模块，本版核心没有新增 Compose、协程或 lifecycle 生产依赖。
+当前验证结果与覆盖边界见 [1.3.0 验收记录](releases/1.3.0.md)。Compose 页面可使用已发布的独立 [ktoast-compose 扩展](COMPOSE.md)；单独接入核心仍不增加 Compose、协程或 Lifecycle 生产依赖。
 
 ## 1.2.0 可选扩展
 
