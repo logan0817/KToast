@@ -61,19 +61,25 @@ def run_fixtures(serial, api=35):
         if overlay_states().get(package) != enabled:
             raise ValueError('缺口 overlay 回读不一致：' + package)
 
-    def ready():
+    def ready(require_focus=True):
         adb('wait-for-device', timeout=120)
         deadline = time.monotonic() + 120
+        state = {}
         while time.monotonic() < deadline:
-            if adb('shell', 'getprop', 'sys.boot_completed').strip() == '1':
+            boot = adb('shell', 'getprop', 'sys.boot_completed').strip()
+            if boot == '1':
                 adb('shell', 'input', 'keyevent', '82')
-                state = startup_window_state(adb('shell', 'dumpsys', 'window'))
-                if state['focusedWindows'] and not state['anrFocused'] and not state['keyguardShowing']:
+                window = adb('shell', 'dumpsys', 'window')
+                (OUTPUT / ('startup-window.txt' if require_focus else 'restored-window.txt')).write_text(window, encoding='utf-8')
+                state = startup_window_state(window)
+                # 用例启动要求可交互窗口；恢复只要求框架已启动且窗口服务可读取，随后逐项核验设置。
+                if not require_focus or (state['focusedWindows'] and not state['anrFocused'] and not state['keyguardShowing']):
+                    report['startup' if require_focus else 'restoredFramework'] = {'bootCompleted': boot, **state}
                     return
             time.sleep(1)
-        raise ValueError('专项模拟器启动检查超时')
+        raise ValueError('专项模拟器启动检查超时：' + json.dumps({'bootCompleted': boot, **state}))
 
-    def restart_framework():
+    def restart_framework(require_focus=True):
         # 云端 emulator 的整机 reboot 会使进程退出；重启 framework 同样重建窗口服务。
         if adb('shell', 'id', '-u').strip() != '0':
             adb('root')
@@ -83,7 +89,7 @@ def run_fixtures(serial, api=35):
         adb('shell', 'stop')
         adb('shell', 'setprop', 'sys.boot_completed', '0')
         adb('shell', 'start')
-        ready()
+        ready(require_focus)
 
     def diagnostics(folder):
         folder.mkdir(parents=True, exist_ok=True)
@@ -180,7 +186,7 @@ def run_fixtures(serial, api=35):
                 restoration['overlays'] = overlay_states()
                 if restoration['overlays'] != overlays:
                     raise ValueError('缺口 overlay 整组恢复不一致')
-                restart_framework()
+                restart_framework(require_focus=False)
                 for namespace, key in SETTINGS:
                     if adb('shell', 'settings', 'get', namespace, key).strip() != original[namespace + '/' + key]:
                         raise ValueError('重启后设置恢复不一致：' + key)
@@ -199,6 +205,8 @@ def run_fixtures(serial, api=35):
             except Exception as error:
                 restoration['errors'].append(str(error))
         restoration['success'] = not restoration['errors']
+        if restoration['errors']:
+            diagnostics(OUTPUT / 'restoration-failure')
         report['restoration'] = restoration
         report['success'] = (not report.get('error') and restoration['success'] and
                              len(report['stages']) == len(STAGES) and

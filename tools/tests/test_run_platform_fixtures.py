@@ -18,15 +18,16 @@ class PlatformFixturesTest(unittest.TestCase):
         self.assertFalse(required_tests(35) & special)
 
     def exercise(self, *, serial='emulator-5554', qemu='1', skipped=None, failed=None,
-                 restore_failure=False, artifact_mismatch=False):
+                 restore_failure=False, artifact_mismatch=False, restored_window=None):
         commands = []
         settings = {namespace + '/' + key: 'null' for namespace, key in fixtures.SETTINGS}
         overlay = False
         instrument_count = 0
         uid = '2000'
+        framework_starts = 0
 
         def run(command, **kwargs):
-            nonlocal overlay, instrument_count, uid
+            nonlocal overlay, instrument_count, uid, framework_starts
             args = command[3:]
             commands.append(args)
             text = ''
@@ -53,7 +54,10 @@ class PlatformFixturesTest(unittest.TestCase):
                 else:
                     overlay = args[3] == 'enable'
             elif args[:3] == ['shell', 'dumpsys', 'window']:
-                text = 'WINDOW MANAGER\nmCurrentFocus=Window{abc com.android.launcher/.Launcher}'
+                text = (restored_window if framework_starts == 2 and restored_window is not None else
+                        'WINDOW MANAGER\nmCurrentFocus=Window{abc com.android.launcher/.Launcher}')
+            elif args == ['shell', 'start']:
+                framework_starts += 1
             elif args[0] == 'install':
                 text = 'Success'
             elif args[:3] == ['shell', 'am', 'instrument']:
@@ -119,6 +123,17 @@ class PlatformFixturesTest(unittest.TestCase):
         self.assertTrue(all(stage['success'] for stage in report['stages'].values()))
         self.assertFalse(report['restoration']['success'])
         self.assertTrue(report['restoration']['errors'])
+
+    def test_restoration_does_not_require_an_activity_to_hold_focus(self):
+        report, _, _, _ = self.exercise(restored_window='WINDOW MANAGER\nmCurrentFocus=null')
+        self.assertTrue(report['success'])
+        self.assertEqual([], report['restoredFramework']['focusedWindows'])
+        self.assertTrue(report['restoration']['success'])
+
+    def test_restoration_still_requires_a_valid_window_service(self):
+        report, _, _, _ = self.exercise(restored_window="Can't find service: window")
+        self.assertFalse(report['success'])
+        self.assertFalse(report['restoration']['success'])
 
 
 if __name__ == '__main__':

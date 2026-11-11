@@ -95,6 +95,8 @@ python3 -B tools/run_device_matrix.py --api 35 --serial emulator-5554
 
 Actions 的输入、构建报告、逐 API 报告及 `platform-fixtures-api-35` 保留 **14 天**。验收时下载八份原始 ZIP，核对 GitHub 官方 digest、提交、同批八产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与三个 R8 新进程 PID，并保存运行 URL。专项还须核对五项各自通过和 `restoration.success=true`，证据位于 `build/reports/platform-fixtures/result.json`。不同轮次的部分成功不能拼成最终矩阵。
 
+专项开始前要求启动完成、有效窗口焦点且无锁屏或 ANR 焦点。恢复阶段用例和 Activity 已结束，只要求系统框架启动完成、窗口服务快照有效，再逐项核对原设置、整组 overlay 和 adb 身份；不以存在前台 Activity 作为设置恢复条件。两阶段窗口快照均保留，恢复错误另存系统诊断。
+
 ## 正式版本与本地签名
 
 批准本次发布范围后，核对 `gradle.properties` 的 `VERSION`、`APP_VERSION_NAME`、`APP_VERSION_CODE`，同步 CHANGELOG；正式仓库确认上线前，README 不提前宣称新坐标已可安装。兼容基线独立于版本配置，不能随版本号自动覆盖。
