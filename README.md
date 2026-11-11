@@ -4,19 +4,26 @@
 [![Android](https://img.shields.io/badge/Android-5.0%2B-green.svg)](https://developer.android.com/about/versions/android-5.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[English](README_EN.md) · [文档](docs/README.md) · [版本变更](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md)
+[English](README_EN.md) · [快速开始](#快速开始) · [Compose](#compose-可选扩展) · [下载 Demo](https://github.com/logan0817/KToast/releases/tag/1.3.0) · [完整文档](docs/README.md)
 
-KToast 是支持 Kotlin 和 Java 的 Android 提示库。它提供前台自定义样式、串行队列、去重、可取消请求，以及绑定明确页面的提示作用域。
+KToast 是一个 Android Toast 提示库，支持 Kotlin 和 Java。用一行代码显示短暂提示，也可以选择成功、失败等内置样式，调整外观和回弹动画，或让提示随页面离开自动取消。
 
-核心支持 Android 5.0+，不依赖 Compose、Material 或协程。全局提示在后台可尝试系统 Toast；页面提示随宿主停止取消，适合保存成功、上传状态等短暂反馈。需要用户操作的提示应评估 Snackbar，重要后台消息应使用通知。
+**当前正式版：1.3.0，已发布到 Maven Central，支持 Android 5.0（API 21）及以上。** 默认自动初始化，无需悬浮窗权限。核心库不依赖 Compose、Material 或协程；Fragment 和 Compose 接入可按需添加扩展。
 
-> 当前正式版本为 **1.3.0**，核心、可选 LifecycleOwner 和 Compose 扩展均已发布到 Maven Central。正式仓库 90 个文件、15 份签名及三个独立消费者已验收；CI、真机覆盖与限制见 [1.3.0 验收记录](docs/releases/1.3.0.md)。
+| 想做什么 | 从这里开始 |
+| --- | --- |
+| 先显示一条提示 | [快速开始](#快速开始) |
+| 显示成功、失败、警告或信息样式 | [内置提示样式](#内置提示样式) |
+| 页面离开后自动取消提示 | [选择提示入口](#选择提示入口) |
+| 在 Compose 页面中使用 | [Compose 示例](#compose-可选扩展) |
+| 调整颜色、图标、位置或动画 | [自定义外观](#自定义外观) |
+| 先在手机上体验 | [下载 1.3.0 Demo APK](https://github.com/logan0817/KToast/releases/download/1.3.0/KToast-Demo-1.3.0.apk) |
 
-1.3.0 新增语义/XML 品牌样式、可选 Compose 内容及可配置动画插值器，保留默认缩放回弹并修复圆角裁剪。接入见[样式指南](docs/STYLES.md)、[Compose 指南](docs/COMPOSE.md)与[动画插值器](docs/USAGE.md#动画插值器130)。源码验证见[贡献指南](CONTRIBUTING.md)。
+## 快速开始
 
-## 安装
+### 安装
 
-在 `settings.gradle.kts` 的仓库配置中加入 Maven Central：
+**1. 确认依赖仓库包含 Maven Central。** 在项目的 `settings.gradle.kts`（Groovy 项目为 `settings.gradle`）中检查下面的配置；已经存在就不用重复添加：
 
 ```kotlin
 dependencyResolutionManagement {
@@ -27,7 +34,7 @@ dependencyResolutionManagement {
 }
 ```
 
-在应用模块的 `build.gradle.kts` 中添加已发布版本：
+**2. 在应用模块（通常是 `app`）的 `build.gradle.kts` 中添加核心库：**
 
 ```kotlin
 dependencies {
@@ -35,150 +42,217 @@ dependencies {
 }
 ```
 
-Groovy：
+如果文件名是 `build.gradle`，使用 Groovy 写法：
 
 ```groovy
-implementation 'io.github.logan0817:ktoast:1.3.0'
+dependencies {
+    implementation 'io.github.logan0817:ktoast:1.3.0'
+}
 ```
 
-默认通过 AndroidX App Startup 自动初始化，无需额外权限，也无需申请悬浮窗权限。关闭本库自动初始化时，须在 `Application.onCreate` 调用 `KToast.init(this)`；[手动初始化说明](docs/PAGE_SCOPE.md#接入与生命周期)包含 Manifest 配置。
+**3. 点击 Android Studio 的 Sync Now，等待依赖同步完成。** 无需复制库源码，也无需在 `Application` 中额外初始化。只有主动关闭自动初始化时，才需要[手动初始化](docs/PAGE_SCOPE.md#接入与生命周期)。
 
-## 快速使用
+### 快速使用
 
-Kotlin：
+在现有页面的按钮点击等事件中调用：
 
 ```kotlin
 import com.logan.ktoast.toast
 
+// 放在点击回调或其他需要反馈的位置。
 "保存成功".toast()
 ```
 
-Java：
+Java 使用同一个核心库：
 
 ```java
 import android.widget.Toast;
 import com.logan.ktoast.KToast;
 
+// 放在点击回调或其他需要反馈的位置。
 KToast.show("保存成功", Toast.LENGTH_SHORT);
 ```
 
-单次样式：
+运行应用并触发事件，即可看到提示。普通入口默认显示短提示；连续调用时，默认用新提示替换旧提示。[排队展示](docs/USAGE.md#3-队列展示)需要显式开启。
+
+## 内置提示样式
+
+1.3.0 提供成功、失败、警告和信息样式，自动搭配图标与日夜配色，不用自己设置颜色：
 
 ```kotlin
-import android.graphics.Color
-import com.logan.ktoast.toast
+import com.logan.ktoast.KToast
+import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastType
 
-"上传成功".toast {
-    backgroundColor = Color.parseColor("#2E7D32")
-    textColor = Color.WHITE
-    animationDuration = 150L
-}
+// 在对应操作完成后选择其中一种调用。
+KToast.showStyled("保存成功", KToastStyle(KToastType.SUCCESS))
+KToast.showStyled("保存失败，请重试", KToastStyle(KToastType.ERROR))
 ```
 
-默认模式为 `REPLACE`。完整样式、队列、防抖、去重、按组取消、延时、回调及自定义 View 见 [核心用法](docs/USAGE.md)。
+| 类型 | 适合的提示 |
+| --- | --- |
+| `SUCCESS` | 保存成功、已复制 |
+| `ERROR` | 保存失败、操作失败 |
+| `WARNING` | 内容未填写、即将到期 |
+| `INFO` | 设置将在下次启动生效 |
+| `NORMAL` | 沿用普通外观 |
+
+`showStyled` 返回 `ToastHandle`，用于控制这一次请求。普通提示也可以用 `showHandle` 获取句柄：
+
+```kotlin
+import com.logan.ktoast.KToast
+
+val handle = KToast.showHandle("提示内容")
+// 后续需要提前关闭这条提示时调用。
+handle.cancel()
+```
+
+自有品牌颜色、XML 样式和 Java 用法见[样式指南](docs/STYLES.md)。如果提示只属于当前页面，使用下面的页面入口也能调用 `showStyled`。
 
 ## 选择提示入口
 
-| 场景 | 入口 | 页面停止后的行为 | 可用版本 |
-| --- | --- | --- | --- |
-| 应用全局提示 | `KToast` / `toast` 扩展 | 保留全局控制与后台系统降级规则 | 1.1.0 |
-| 消息属于某个 Activity | `KToastScope` | 取消本轮请求；恢复后作用域可复用 | 1.1.0 |
-| 消息属于 Fragment View 或独立 Owner | `KToastLifecycleScope` | 关闭旧活动期；恢复只接受新请求 | 1.2.0 |
-| 消息属于 Compose 页面 | `rememberKToastScope` | 停止取消；离开 Composition 永久关闭 | 1.3.0 |
+第一次体验可以使用 `toast()`；实际页面中的提示，建议绑定所属页面，避免离开后仍显示旧消息。“作用域”就是提示所属的页面范围。
 
-以上入口共享同一串行展示队列。Activity 作用域示例：
+| 使用位置 | 依赖模块 | 入口 | 页面离开后的行为 |
+| --- | --- | --- | --- |
+| 应用全局消息 | `ktoast` | `KToast` / `toast()` | 使用全局规则；后台可尝试系统 Toast |
+| Activity 页面 | `ktoast` | `KToastScope` | 页面停止时取消，回来后可继续使用 |
+| Fragment 页面 | `ktoast-lifecycle` | `KToastLifecycleScope` | 绑定 View 生命周期，旧 View 销毁后自动关闭 |
+| Compose 页面 | `ktoast-compose` | `rememberKToastScope` | 页面停止时取消，离开 Composition 后关闭 |
+
+三个模块都使用 **1.3.0**。扩展会自动引入同版依赖：`ktoast-compose` → `ktoast-lifecycle` → `ktoast`；只用 Compose 时声明 Compose 模块即可，不必把三个模块都添加一遍。所有入口共享同一个串行展示队列。
+
+### Activity 页面
+
+只需核心库。下面是一个无需 XML 布局的完整页面示例：在自己的包名下新建 Activity，按应用原有方式在 Manifest 注册并打开它，点击按钮即可体验。
 
 ```kotlin
 import android.app.Activity
 import android.os.Bundle
+import android.widget.Button
 import com.logan.ktoast.KToastScope
 
-class EditorActivity : Activity() {
+class ToastExampleActivity : Activity() {
     private lateinit var toastScope: KToastScope
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         toastScope = KToastScope.create(this)
-    }
-
-    // 在页面已启动后的点击等事件中调用。
-    fun onSaved() {
-        toastScope.show("保存成功")
+        setContentView(Button(this).apply {
+            text = "显示提示"
+            setOnClickListener { toastScope.show("这条提示属于当前页面") }
+        })
     }
 }
 ```
 
-Activity 重建后为新实例创建作用域。窗口约束、输入法避让、无障碍时长、主题、Java 示例和线程约定见 [Activity 作用域](docs/PAGE_SCOPE.md)。
-
-## 1.2.0 可选能力
-
-以下 API 从 1.2.0 起提供，当前正式 `1.3.0` 可直接使用。运行策略属于核心库；LifecycleOwner 作用域须添加同版可选扩展。源码开发与本地候选验证见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。
-
-### 可选运行策略
-
-在主线程、初始化后、首个请求或延时任务登记前配置：
-
-```kotlin
-import com.logan.ktoast.KToast
-import com.logan.ktoast.runtime.KToastRuntimePolicy
-
-KToast.setRuntimePolicy(
-    KToastRuntimePolicy(
-        maxPendingRequests = 32,
-        maxQueueWaitMillis = 10_000L,
-        maxDedupeEntries = 256
-    )
-)
-```
-
-三个限制默认均为 `null`，保留旧行为。满额时保留旧请求、拒绝新请求，`REPLACE` 也可能拒绝；等待过期不会打断正在显示的提示。示例值仅作演示，详细规则和 `dropReason` 用法见 [运行策略](docs/RUNTIME_POLICY.md)。
+库自动处理页面停止和销毁，无需额外在 `onDestroy` 清理。页面重建时，为新的 Activity 创建新作用域；不要把作用域保存到单例或 ViewModel。输入法避让、主题及 Java 示例见 [Activity 指南](docs/PAGE_SCOPE.md)。
 
 ### LifecycleOwner 扩展
 
-独立模块坐标为 `io.github.logan0817:ktoast-lifecycle:1.3.0`，传递依赖同版核心和 `lifecycle-common:2.5.1`，不额外引入 Fragment、Compose 或协程。单独接入核心不会引入 Lifecycle。添加扩展时使用同版坐标：
+Fragment 页面添加以下依赖，它已包含核心库：
 
 ```kotlin
-implementation("io.github.logan0817:ktoast-lifecycle:1.3.0")
+dependencies {
+    implementation("io.github.logan0817:ktoast-lifecycle:1.3.0")
+}
 ```
 
-扩展传递依赖同版核心，不必重复声明核心依赖；只需运行策略时使用核心即可。
+在**已有 Fragment** 的 `onViewCreated` 中创建，并为当前 View 绑定事件：
 
 ```kotlin
+import android.os.Bundle
+import android.view.View
 import com.logan.ktoast.lifecycle.KToastLifecycleScope
 
-// 在 Fragment.onViewCreated 中创建并保存。
-val toastScope = KToastLifecycleScope.create(requireActivity(), viewLifecycleOwner)
-// 为当前 View 注册事件；在页面已 STARTED 时点击。
-view.setOnClickListener { toastScope.show("保存成功") }
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+    val toastScope = KToastLifecycleScope.create(requireActivity(), viewLifecycleOwner)
+    // 演示将事件绑在根 View；实际项目可以改成自己的按钮。
+    view.setOnClickListener { toastScope.show("这条提示属于当前 Fragment 页面") }
+}
 ```
 
-View 销毁后旧作用域永久关闭，View 重建时重新创建。完整说明见 [LifecycleOwner 作用域](docs/LIFECYCLE_SCOPE.md)。
+这里使用 `viewLifecycleOwner`，确保旧 View 销毁后提示也取消；View 重建时重新创建。已有 Fragment 工程通常已具备所需宿主和 Fragment 依赖，KToast 扩展本身不添加 Fragment 或 Compose。更多规则见 [Fragment 与 LifecycleOwner 指南](docs/LIFECYCLE_SCOPE.md)。
 
-## Compose 可选扩展
+### Compose 可选扩展
+
+在**已经启用 Compose 的应用**中添加：
 
 ```kotlin
-implementation("io.github.logan0817:ktoast-compose:1.3.0")
+dependencies {
+    implementation("io.github.logan0817:ktoast-compose:1.3.0")
+}
 ```
 
-Compose 扩展传递依赖同版生命周期模块和核心，不必重复声明。使用 `rememberKToastScope()` 在点击等事件中显示，支持 `showStyled` 和自定义 Composable 内容。核心和生命周期模块单独接入不增加 Compose 依赖；宿主、编译器及生命周期要求见 [Compose 指南](docs/COMPOSE.md)。
+在 `ComponentActivity`（或其子类）承载的页面中使用。将下面组件放入现有页面，点击文字显示提示。示例使用 Compose Foundation，请确认应用已有 Foundation 依赖（或已通过现有 UI 依赖引入），版本沿用项目的 Compose 配置，不要求 Material：
 
-## 兼容性与行为边界
+```kotlin
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import com.logan.ktoast.compose.rememberKToastScope
 
-- 最低运行版本为 API 21，库字节码目标为 JVM 1.8，Kotlin metadata 为 1.9；这些信息不代表任意旧编译器或 AGP 均可用。
-- 核心生产依赖为 Kotlin stdlib 1.9.23 和 AndroidX Startup 1.1.1。已验证的消费者组合和平台范围见[验收记录](docs/releases/1.3.0.md)。
-- 窗口、内容工厂和回调在主线程执行；局部配置 DSL 在调用线程执行。全局可变样式应在初始化或主线程统一设置。
-- `onShow` / `SHOWN` 表示渲染调用返回，系统 Toast 完成时间按本地计时估计，均不保证用户实际看到提示。
-- 通常不需要额外混淆规则。接入、系统降级、生命周期和工具链问题见 [排障指南](TROUBLESHOOTING.md)。
+@Composable
+fun ToastExample() {
+    val toastScope = rememberKToastScope()
+    BasicText(
+        text = "显示提示",
+        modifier = Modifier.clickable { toastScope.show("这条提示属于当前 Compose 页面") }
+    )
+}
+```
 
-## 文档与示例
+在点击等事件中调用 `show`，不要直接在 Composable 函数体中显示，否则重组可能重复触发。`showStyled` 和自定义 Composable 内容见 [Compose 指南](docs/COMPOSE.md)；编译器、Compose 依赖和宿主要求也在该指南中。
 
-- [1.3.0 Release 与 Demo 下载](https://github.com/logan0817/KToast/releases/tag/1.3.0)：提供 APK 和 SHA-256 校验文件。Demo 为 Release 构建，使用开发证书签名，仅供体验示例。
-- [文档导航](docs/README.md)：用户指南、API、维护和设计记录。
-- [Demo 源码](app/src/main/java/com/logan/ktoastapp/MainActivity.kt)及[生命周期 Demo](app/src/main/java/com/logan/ktoastapp/LifecycleDemoActivity.kt)：从源码构建当前示例。
-- [贡献指南](CONTRIBUTING.md)：环境准备、测试和提交约定。
-- [发布指南](docs/RELEASING.md)与[版本路线](docs/ROADMAP.md)。
+## 自定义外观
 
-历史演示动画仅展示基础样式；当前版本的设备验收见上方记录：
+只调整某一次提示时，在调用后面的配置块里设置：
+
+```kotlin
+import android.graphics.Color
+import android.view.Gravity
+import com.logan.ktoast.toast
+
+"自定义提示".toast {
+    backgroundColor = Color.parseColor("#2E7D32")
+    textColor = Color.WHITE
+    gravity = Gravity.CENTER
+    yOffset = 0
+}
+```
+
+默认保留缩放回弹，1.3.0 已修复回弹峰值时的圆角裁剪，并可分别配置入场、退场插值器。继续阅读[动画插值器](docs/USAGE.md#动画插值器130)、[全局配置](docs/USAGE.md#全局样式)或[自定义 View](docs/USAGE.md#6-自定义内容-view)。
+
+## 常见问题
+
+**需要权限或手动初始化吗？** 默认无需额外权限，也无需手动调用初始化；使用 AndroidX App Startup 自动初始化。
+
+**为什么连续调用只看到最后一条？** 默认是替换模式。希望逐条显示时，使用[队列模式](docs/USAGE.md#3-队列展示)；需要过滤重复内容时，使用[去重](docs/USAGE.md#5-窗口内忽略重复消息)。
+
+**页面离开后还想显示吗？** 页面作用域会取消自己的请求，不会转移到其他页面。应用级消息可使用全局入口；后台系统 Toast 可能被限流或拦截，重要后台消息请使用通知。需要用户点击操作的反馈可评估 Snackbar。
+
+**需要复制混淆规则吗？** 通常不需要额外规则；已有三个独立消费者的 R8 验证。遇到依赖或显示问题，按[排障指南](TROUBLESHOOTING.md)检查。
+
+**支持哪些构建环境？** 核心最低 API 21，字节码目标 JVM 1.8、Kotlin metadata 1.9；核心生产依赖为 Kotlin stdlib 1.9.23 和 AndroidX Startup 1.1.1。这不代表任意旧编译器均可用，已验证工具链和平台范围见[验收记录](docs/releases/1.3.0.md)。
+
+## 更多文档与示例
+
+| 需要了解 | 文档 |
+| --- | --- |
+| 样式、延时、取消、回调、队列与自定义 View | [核心用法](docs/USAGE.md) |
+| 成功/失败样式、品牌 XML、日夜配色 | [样式指南](docs/STYLES.md) |
+| 页面生命周期、输入法避让、窗口与无障碍适配 | [Activity 指南](docs/PAGE_SCOPE.md) |
+| Fragment View 或独立 LifecycleOwner | [LifecycleOwner 指南](docs/LIFECYCLE_SCOPE.md) |
+| Compose 页面、自定义内容与 Preview | [Compose 指南](docs/COMPOSE.md) |
+| 限制请求积压、等待超时和去重历史 | [运行策略](docs/RUNTIME_POLICY.md)，按需启用，默认不限制 |
+| 升级与版本变化 | [CHANGELOG](CHANGELOG.md) |
+| 从源码构建、贡献与发布 | [贡献指南](CONTRIBUTING.md) · [发布指南](docs/RELEASING.md) |
+
+[完整文档导航](docs/README.md) · [Demo 源码](app/src/main/java/com/logan/ktoastapp/MainActivity.kt) · [1.3.0 Release 与 APK 校验文件](https://github.com/logan0817/KToast/releases/tag/1.3.0)
+
+Demo 使用开发证书签名，仅供体验示例。以下历史动画展示基础样式，不包含全部 1.3.0 新功能：
 
 <img src="GIF.gif" width="350" alt="KToast 基础提示样式演示" />
 

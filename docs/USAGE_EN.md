@@ -256,44 +256,21 @@ import com.logan.ktoast.runtime.KToastContentFactory
 
 ### 7. App-level wrapper
 
-You should keep business semantics inside your app layer instead of hard-coding them into every screen.
-
-See [AppToastExt.kt](../app/src/main/java/com/logan/ktoastapp/AppToastExt.kt):
+1.3.0 includes success, error, warning, and information styles. Use `showStyled` directly for these cases instead of defining colors and icons again. To reuse business messages, add small helpers based on a page scope:
 
 ```kotlin
-import android.graphics.Color
-import com.logan.ktoast.config.KToastConfig
-import com.logan.ktoast.toast
+import com.logan.ktoast.KToastScope
+import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastType
 
-fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#4CAF50")
-        icon = android.R.drawable.ic_dialog_info
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
-}
+fun KToastScope.showSaved() =
+    showStyled("Saved", KToastStyle(KToastType.SUCCESS))
 
-fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_dialog_alert
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
-}
-
-fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_alert
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
-}
+fun KToastScope.showSaveFailed() =
+    showStyled("Could not save. Please retry.", KToastStyle(KToastType.ERROR))
 ```
 
-The example uses built-in Android drawables so it compiles out of the box. Replace them with your own brand assets in a real app.
+Call `toastScope.showSaved()` or `toastScope.showSaveFailed()` when the save result is available. These helpers keep the page's lifecycle behavior. Use [XML branding](STYLES.md) (Chinese) for brand visuals without changing library sources.
 
 ## Debouncing and request handles
 

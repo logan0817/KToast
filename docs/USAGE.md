@@ -256,44 +256,21 @@ import com.logan.ktoast.runtime.KToastContentFactory
 
 ### 7. App 层二次封装
 
-建议把业务语义放在你自己的 App 层，而不是直接写在每个页面里。
-
-可参考 [AppToastExt.kt](../app/src/main/java/com/logan/ktoastapp/AppToastExt.kt)：
+1.3.0 已内置成功、失败、警告和信息样式，普通场景直接使用 `showStyled`，不必再手写一套颜色和图标。需要复用业务文案时，可以在 App 层基于页面作用域封装：
 
 ```kotlin
-import android.graphics.Color
-import com.logan.ktoast.config.KToastConfig
-import com.logan.ktoast.toast
+import com.logan.ktoast.KToastScope
+import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastType
 
-fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#4CAF50")
-        icon = android.R.drawable.ic_dialog_info
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
-}
+fun KToastScope.showSaved() =
+    showStyled("保存成功", KToastStyle(KToastType.SUCCESS))
 
-fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#F44336")
-        icon = android.R.drawable.ic_dialog_alert
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
-}
-
-fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = Color.parseColor("#FF9800")
-        icon = android.R.drawable.ic_dialog_alert
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
-}
+fun KToastScope.showSaveFailed() =
+    showStyled("保存失败，请重试", KToastStyle(KToastType.ERROR))
 ```
 
-这里为了保证示例开箱即编译，图标用了系统内置 drawable；真实项目里替换成你自己的资源即可。
+在页面的保存结果回调中调用 `toastScope.showSaved()` 或 `toastScope.showSaveFailed()`。它们继续遵守该页面的生命周期；品牌视觉使用[品牌 XML](STYLES.md#品牌-xml-与-values-night)，无需修改库源码。
 
 ## 防抖与取消句柄
 

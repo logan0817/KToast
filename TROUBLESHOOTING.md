@@ -19,7 +19,7 @@
 
 Java 使用 `KToast.setDebugMode(boolean)`。1.1.0 已消除旧属性 setter 的源码歧义并保留 JVM 签名；若仍遇到歧义，检查实际解析到的 AAR 是否还是 1.0.5。
 
-## 1.2.0 策略配置失败或消息丢弃
+## 运行策略配置失败或消息丢弃
 
 - `IllegalArgumentException`：参数须为 `null` 或正数，零和负数无效。
 - `IllegalStateException`：检查主线程、初始化，以及是否已有有效请求或旧延时任务登记；首次登记后冻结，不能运行时重置。
@@ -27,7 +27,7 @@ Java 使用 `KToast.setDebugMode(boolean)`。1.1.0 已消除旧属性 setter 的
 - `EXPIRED`：等待有效期从展示资格起算，延时从计划触发、防抖从窗口结束计算；主线程迟到不会重新计时。
 - 普通取消的 `dropReason` 为 `null`；两类丢弃仍使用原 `CANCELED` 状态和原因。
 
-若 1.1.0 找不到这些符号，说明误用了候选示例；先按[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)构建同版候选。完整规则见[运行策略](docs/RUNTIME_POLICY.md)。
+这些 API 从 1.2.0 起提供，当前正式 1.3.0 可直接使用。若找不到符号，先按 [README](README.md#安装)检查依赖版本并同步项目；不需要为使用正式 API 构建本地候选。完整规则见[运行策略](docs/RUNTIME_POLICY.md)。
 
 ## LifecycleOwner 提示不显示
 

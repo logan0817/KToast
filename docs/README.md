@@ -1,6 +1,13 @@
 # 文档导航
 
-KToast 的当前正式版本为 **1.3.0**，核心、可选生命周期和 Compose 扩展均已发布到 Maven Central，并完成正式仓库与三个独立消费者验收。安装见[项目首页](../README.md)，本版证据见 [1.3.0 记录](releases/1.3.0.md)，历史发布见[1.2.0 记录](releases/1.2.0.md)。贡献流程通过 `-PVERSION=1.3.0-SNAPSHOT` 验证本地候选，不与正式仓库验收混用。
+当前正式版为 **1.3.0**。第一次使用先看[快速开始](../README.md#快速开始)：添加依赖、同步项目，然后在点击事件中显示一条提示。按下面的使用场景继续阅读，无需从头看完全部文档。
+
+## 推荐阅读顺序
+
+1. **先运行起来**：[安装与第一条提示](../README.md#快速开始)。也可以先[下载 Demo](https://github.com/logan0817/KToast/releases/tag/1.3.0)体验。
+2. **选择页面入口**：[Activity](PAGE_SCOPE.md)、[Fragment](LIFECYCLE_SCOPE.md)或 [Compose](COMPOSE.md)，让提示在离开页面时自动取消。
+3. **调整显示效果**：[内置成功/失败样式与品牌主题](STYLES.md)，以及[颜色、位置和动画](USAGE.md)。
+4. **有需要再配置**：[排队、去重、延时和取消](USAGE.md#常见场景)；请求较多时再了解[容量和等待超时](RUNTIME_POLICY.md)。
 
 ## 使用库
 
@@ -8,9 +15,11 @@ KToast 的当前正式版本为 **1.3.0**，核心、可选生命周期和 Compo
 | --- | --- |
 | [快速开始](../README.md) / [English](../README_EN.md) | 安装、最小示例、入口选择与兼容边界 |
 | [核心用法](USAGE.md) / [English](USAGE_EN.md) | 样式、延时、队列、去重、取消、回调和自定义 View |
+| [语义样式与品牌主题](STYLES.md) | 成功/失败等内置样式、品牌 XML、日夜配色与覆盖顺序 |
 | [Activity 作用域](PAGE_SCOPE.md) | 页面停止与恢复、窗口约束、输入法、无障碍、主题和 Java 接口 |
-| [运行策略](RUNTIME_POLICY.md) | 1.2.0 的容量、等待有效期、LRU 及拒绝原因 |
-| [LifecycleOwner 作用域](LIFECYCLE_SCOPE.md) | 1.2.0 的独立扩展、Fragment View 绑定及关闭规则 |
+| [LifecycleOwner 作用域](LIFECYCLE_SCOPE.md) | Fragment View 或独立生命周期绑定、停止与关闭规则 |
+| [Compose 页面与内容](COMPOSE.md) | 点击事件、页面作用域、自定义 Composable 内容与 Preview |
+| [运行策略](RUNTIME_POLICY.md) | 可选的待处理容量、等待超时、去重历史上限及拒绝原因 |
 | [排障指南](../TROUBLESHOOTING.md) | 提示未显示、策略冻结、生命周期、工具链及设备测试诊断 |
 | [版本变更](../CHANGELOG.md) | 已发布版本与待发布变更、兼容及迁移说明 |
 
@@ -24,7 +33,10 @@ KToast 的当前正式版本为 **1.3.0**，核心、可选生命周期和 Compo
 | [1.2.0 验收记录](releases/1.2.0.md) | 发布结果、CI 矩阵、产物摘要及覆盖限制 |
 | [1.1.0 发布归档](releases/1.1.0.md) | 历史验收和正式发布证据，不作为当前操作步骤 |
 | [版本路线](ROADMAP.md) | 已交付范围与待评估方向 |
+| [1.3.0 设计约束](design/1.3.0.md) | 样式、Compose、动画、兼容要求与验收标准 |
 | [1.2.0 设计约束](design/1.2.0.md) | 设计取舍、兼容要求与验收标准 |
+
+使用库时安装 Maven Central 的正式 `1.3.0`。只有贡献源码、验证本地候选时才使用 `-PVERSION=1.3.0-SNAPSHOT`；不要把候选构建步骤当作应用接入步骤。正式发布及后续专项验证证据见 [1.3.0 记录](releases/1.3.0.md)。
 
 ## API 与架构
 
@@ -52,11 +64,3 @@ HTML 分别位于 `library-android/build/docs/api/index.html`、`library-lifecyc
 - 保留现有 `README_EN.md`、`docs/API.md` 等已被引用或参与构建的名称；不为格式统一改变公开接口或发布坐标。
 - 文件使用可辨识的功能名称；设计与验收记录按版本归档。旧 `NEXT_VERSION_PLAN.md` 保留导航，后续版本不会覆盖旧设计。
 - 发布前检查相对链接、代码块、示例符号和版本状态；构建缓存、日志、签名材料、个人环境及临时报告不提交。
-
-## 1.3.0 使用指南
-
-- [语义与品牌样式](STYLES.md)：showStyled、XML、values-night、覆盖优先级与快照。
-- [Compose 页面与内容](COMPOSE.md)：可选模块、生命周期、Preview、自定义内容及异常边界。
-- [版本设计](design/1.3.0.md)：范围、兼容、工具链和验收门槛。
-
-正式安装使用 README 的 1.3.0；本地 SNAPSHOT 验证继续使用贡献指南命令。
