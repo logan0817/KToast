@@ -63,6 +63,8 @@ AGP 7.2.2 的旧 Lint 可能输出 Kotlin metadata 1.9 与分析器期望 1.6 �
 
 测试会安装并启动 Demo，设备须解锁、允许前台 Activity 显示。构建通过不等于设备通过，结果应按 API、提交和产物分别记录。云端入口与报告核验见[设备矩阵](docs/RELEASING.md#云端设备矩阵)。普通矩阵不启用下述专用 fixture。
 
+云端工作流另有 API 35 的 `fixtures` 必需任务，通过 `tools/run_platform_fixtures.py` 顺序配置并运行下述五项专项。它复用普通矩阵的本轮 APK，运行前核验八产物摘要和提交；结束后恢复设置及缺口 overlay 并重启回读。原始结果和恢复记录保存在 `platform-fixtures-api-35` 产物。测试跳过、未报告、失败或恢复失败均不能算专项通过。
+
 `KToastLifecycleTest` 与 `KToastScopeTest` 覆盖取消、重入、页面停止恢复、清理和窗口行为；`KToastRuntimePolicyDeviceTest` 与 `KToastLifecycleOwnerTest` 覆盖本版容量、过期、延时转移、Owner 门禁和 View 重建。缺少 fixture 的明确跳过不计成功；SDK 过滤未报告与显式跳过分开记录。
 
 `KToastPlatformTest` 的输入法测试只在 API 30+ 执行，无障碍推荐时长测试只在 API 29+ 执行。后者需要专用测试模拟器把 accessibility_non_interactive_ui_timeout_ms 设为 10000，并给 AndroidJUnitRunner 传入 `-e accessibilityTimeoutFixture true`；缺少该参数时明确跳过，不能计为通过。不要修改使用者日常设备的无障碍设置。测试完成后移除专用模拟器设置或销毁该模拟器。
