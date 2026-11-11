@@ -133,6 +133,41 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  fixtures:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: device-matrix-input
+          path: .
+      - name: Enable hosted runner KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run isolated accessibility, cutout and freeform fixtures
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: Nexus 6
+          avd-name: ktoast-platform-fixtures
+          disable-animations: false
+          enable-hw-keyboard: false
+          script: python3 -B tools/run_platform_fixtures.py --api 35 --serial emulator-5554
+      - name: Preserve fixture results and restoration evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: platform-fixtures-api-35
+          path: build/reports/platform-fixtures/**
+          if-no-files-found: error
+          retention-days: 14
+
   devices:
     needs: build
     runs-on: ubuntu-22.04

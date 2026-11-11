@@ -55,12 +55,36 @@ class KToastMultiWindowTest {
         assumeTrue(InstrumentationRegistry.getArguments().getString("multiWindowFixture") == "true")
         enteredFreeform = true
         windowMode(5)
+        var taskId = 0
+        lateinit var fixtureBounds: Rect
+        rule.scenario.onActivity { host ->
+            taskId = host.taskId
+            val maximum = host.windowManager.maximumWindowMetrics.bounds
+            fixtureBounds = Rect(
+                maximum.left + maximum.width() / 4,
+                maximum.top + maximum.height() / 4,
+                maximum.right - maximum.width() / 4,
+                maximum.bottom - maximum.height() / 4
+            )
+        }
+        // 部分系统切入自由窗口仍保留全屏大小；显式建立非全屏夹具并等待窗口指标更新。
+        shell("am task resize $taskId ${fixtureBounds.left} ${fixtureBounds.top} ${fixtureBounds.right} ${fixtureBounds.bottom}")
+        val fixtureDeadline = SystemClock.uptimeMillis() + 5_000L
+        var fixtureReady = false
+        while (!fixtureReady && SystemClock.uptimeMillis() < fixtureDeadline) {
+            rule.scenario.onActivity { host ->
+                val bounds = host.windowManager.currentWindowMetrics.bounds
+                val maximum = host.windowManager.maximumWindowMetrics.bounds
+                fixtureReady = host.isInMultiWindowMode && bounds.width() < maximum.width() && bounds.left > maximum.left
+            }
+            if (!fixtureReady) SystemClock.sleep(16L)
+        }
+        assertTrue("Fixture did not establish non-fullscreen task bounds", fixtureReady)
         lateinit var content: View
         lateinit var originalHost: MainActivity
         lateinit var originalBounds: Rect
         lateinit var originalScope: KToastScope
         lateinit var handle: ToastHandle
-        var taskId = 0
         rule.scenario.onActivity { host ->
             originalHost = host
             assertTrue("Fixture did not enter multi-window", host.isInMultiWindowMode)
@@ -69,7 +93,6 @@ class KToastMultiWindowTest {
             assertTrue(originalBounds.width() < maximum.width())
             assertTrue(originalBounds.left > maximum.left)
             originalScope = KToastScope.create(host).also { scope = it }
-            taskId = host.taskId
             handle = originalScope.show("freeform", Toast.LENGTH_LONG) {
                 gravity = Gravity.TOP or Gravity.START
                 xOffset = Int.MIN_VALUE
