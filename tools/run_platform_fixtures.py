@@ -1,4 +1,4 @@
-"""在独立云端模拟器分阶段执行五项平台专项，并核验设置恢复。"""
+"""在独立云端模拟器分阶段执行平台专项，并核验设置恢复。"""
 
 import argparse
 import json
@@ -20,9 +20,15 @@ CUTOUT = 'com.android.internal.display.cutout.emulation.tall'
 STAGES = (
     ('noninteractive', 'KToastPlatformTest#recommendedTimeoutKeepsScopeVisibleBeyondLegacyShortDuration',
      'accessibilityTimeoutFixture', (10000, 0)),
+    ('system-timeout', 'KToastPlatformTest#extendedSystemToastRemainsCancelableUntilPlatformDismissal',
+     'accessibilityTimeoutFixture', (10000, 0)),
     ('interactive-button', 'KToastPlatformTest#customButtonUsesInteractiveRecommendedTimeout_withoutBubbleCancel',
      'interactiveTimeoutFixture', (0, 10000)),
     ('interactive-text', 'KToastPlatformTest#customPlainTextDoesNotUseInteractiveTimeout',
+     'interactiveTimeoutFixture', (0, 10000)),
+    ('compose-control', 'KToastComposeAccessibilityTest#declaredComposeControlUsesInteractiveTimeoutAndReleasesComposition',
+     'interactiveTimeoutFixture', (0, 10000)),
+    ('compose-text', 'KToastComposeAccessibilityTest#plainComposeTextDoesNotUseInteractiveTimeout',
      'interactiveTimeoutFixture', (0, 10000)),
     ('cutout', 'KToastWindowTest#cutoutFixtureKeepsEntireContentInsideSafeArea', 'displayCutoutFixture', (0, 0)),
     ('freeform', 'KToastMultiWindowTest#freeformFixtureUsesHostBounds_andHandlesTaskResize',

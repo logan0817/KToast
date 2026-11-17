@@ -77,6 +77,21 @@ fun CustomFeedback() {
 
 自定义内容由应用负责绘制背景、内边距和文字；可使用下方的 `KToastContent`。现有窗口边界、系统栏和可选 IME 避让继续由页面作用域管理。页面窗口不获得焦点，不适合输入框或必须完成的操作；需要用户操作的提示应评估 Snackbar。
 
+### 自定义内容的交互推荐时长（1.3.1 待发布）
+
+Compose 的点击控件使用虚拟无障碍节点，核心的原生 View 扫描无法自动识别它们。1.3.1 新增 `accessibilityContainsControls`，内容包含可用的 `Button`、`Modifier.clickable` 或无障碍操作时，在 `showContent` 的 `localConfig` 中显式设置：
+
+```kotlin
+toastScope.showContent(
+    description = "可撤销的操作",
+    localConfig = { accessibilityContainsControls = true }
+) {
+    // 放入应用自己的交互内容。
+}
+```
+
+该标记仅影响 API 29+ 页面入口的无障碍推荐时长，仍须启用默认的 `useAccessibilityTimeout`；不会开启普通触摸或改变 `cancelOnTouch`。纯文字内容保留默认 `false`，原生 View 中可见且启用的点击控件仍自动识别。时长在开始展示时计算，后续重组不会重新计时；可能出现控件的动态内容应在提交时声明。配置经过请求快照隔离，不改变已有 `showContent` 方法签名。正式 1.3.0 尚无此属性。
+
 ## 页面停止、离开与关闭
 
 页面离开 STARTED 时取消本轮请求，恢复后只接受新请求。离开 Composition、Owner 销毁或显式 `close()` 后永久关闭，移除监听并释放宿主、Owner 和父 Composition 引用。Activity、导航 Owner、SavedState Owner、父 Composition 或 options 改变时，旧入口关闭并绑定新入口。

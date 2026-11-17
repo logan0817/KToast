@@ -260,6 +260,7 @@ internal class ModernToastStrategy : IToastStrategy {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return 0
         var flags = AccessibilityManager.FLAG_CONTENT_TEXT or
             (if (config.icon != null) AccessibilityManager.FLAG_CONTENT_ICONS else 0)
+        if (config.accessibilityContainsControls) flags = flags or AccessibilityManager.FLAG_CONTENT_CONTROLS
         // 自定义子控件也可能提供无障碍点击操作，不能只按气泡关闭开关判断交互。
         val remaining = ArrayDeque<View>()
         remaining.add(content)

@@ -1,46 +1,24 @@
 package com.logan.ktoastapp
 
-import android.graphics.Color
-import androidx.core.graphics.toColorInt
+import com.logan.ktoast.KToast
 import com.logan.ktoast.config.KToastConfig
-import com.logan.ktoast.toast
+import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastType
 
-// 使用者可以根据自己的 UI 设计规范定义颜色
-const val COLOR_SUCCESS = "#4CAF50" //成功样式 (绿色)
-const val COLOR_ERROR = "#F44336"// 错误样式 (红色)
-const val COLOR_WARNING = "#FF9800"//警告样式 (橙色)
-
-/**
- * App 专属的成功提示
- */
-
-// --- 成功样式 (绿色) ---
+/** App 专属的成功提示 */
 fun CharSequence?.toastSuccess(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = COLOR_SUCCESS.toColorInt()
-        icon = R.drawable.ktoast_ic_success
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
+    if (this.isNullOrBlank()) return
+    KToast.showStyled(this, KToastStyle(KToastType.SUCCESS), localConfig = block)
 }
 
-// --- 错误样式 (红色) ---
+/** App 专属的错误提示 */
 fun CharSequence?.toastError(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = COLOR_ERROR.toColorInt()
-        icon = R.drawable.ktoast_ic_error
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
+    if (this.isNullOrBlank()) return
+    KToast.showStyled(this, KToastStyle(KToastType.ERROR), localConfig = block)
 }
 
-// --- 警告样式 (橙色) ---
-
+/** App 专属的警告提示 */
 fun CharSequence?.toastWarning(block: (KToastConfig.() -> Unit)? = null) {
-    this.toast {
-        backgroundColor = COLOR_WARNING.toColorInt()
-        icon = R.drawable.ktoast_ic_warning
-        iconColor = Color.WHITE
-        block?.invoke(this)
-    }
+    if (this.isNullOrBlank()) return
+    KToast.showStyled(this, KToastStyle(KToastType.WARNING), localConfig = block)
 }

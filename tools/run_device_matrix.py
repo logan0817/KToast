@@ -82,7 +82,7 @@ def artifacts(root=ROOT):
 def required_tests(api, root=ROOT):
     required = set()
     source = root / 'app/src/androidTest/java/com/logan/ktoastapp/app'
-    for name in ('MainActivityTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest', 'WindowFailureDiagnosticsTest', 'KToastStyleTest', 'KToastComposeTest'):
+    for name in ('MainActivityTest', 'DemoToastRegressionTest', 'KToastLifecycleTest', 'KToastScopeTest', 'KToastLifecycleOwnerTest', 'KToastRuntimePolicyDeviceTest', 'WindowFailureDiagnosticsTest', 'KToastStyleTest', 'KToastComposeTest'):
         text = (source / (name + '.kt')).read_text(encoding='utf-8')
         methods = re.findall(r'@Test\b(?:(?!\bfun\b).)*\bfun\s+(\w+)', text, re.S)
         if not methods:

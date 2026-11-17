@@ -18,9 +18,9 @@ KToastScope.create 必须在主线程调用。显示、句柄取消、作用域 
 
 ## 兼容行为
 
-旧全局入口保留原宽度、偏移与时长规则，以及跨作用域的全局取消/替换含义。队列和旧全局去重历史没有默认容量上限，高频调用应主动清理。
+旧全局前台自定义入口保留原宽度、偏移与时长规则，以及跨作用域的全局取消/替换含义。系统 Toast 的收尾在 1.3.1 修正，见下文。队列和旧全局去重历史没有默认容量上限，高频调用应主动清理。
 
-onShow 和诊断 SHOWN 表示渲染调用返回，系统 Toast 的完成仍按本地时间估计，不保证用户实际看到提示。诊断 ERROR 的 detail 只包含异常类型，不包含消息正文。
+onShow 和诊断 SHOWN 表示渲染调用返回，不保证用户实际看到提示。诊断 ERROR 的 detail 只包含异常类型，不包含消息正文。
 
 本地生成的文档和签名包不代表对应版本已上传或发布；正式版本以 Maven Central 实际可解析坐标为准。
 
@@ -51,3 +51,9 @@ KToastLifecycleScope 位于独立 ktoast-lifecycle 模块，通过每轮 STARTED
 KToastConfig.animation 使用不可变 KToastAnimation，分别指定 enterInterpolator、exitInterpolator；null 选择原有默认回弹。animationDuration 仍决定时长。maxScale 默认为 1.05，必须为有限的 1～2；窗口预留相应透明边距和阴影空间，实际缩放按此上限约束，避免自定义回弹超出窗口而裁剪圆角。系统 Toast 不读取这些配置。
 
 全局配置、单次 DSL、语义样式、Lifecycle 和 Compose 共用此配置。插值器在主线程执行，必须返回有限数值，提交后不能修改其内部状态。如果插值器抛出 Exception 或返回非有限值，库报告 ERROR 诊断并取消当前请求，随后继续队列。animation 为类体属性以保留已发布的构造、默认参数及 copy ABI；snapshot() 返回包含动画的完整副本，Kotlin 生成的 copy/equals/hashCode 保留原有主构造属性语义。库的配置继承、样式解析和请求登记使用完整快照，局部覆盖不改变其他请求。
+
+## 1.3.1：收尾与无障碍修复（待发布）
+
+KToastConfig.accessibilityContainsControls 默认为 false。Compose 或其他虚拟无障碍控件可在提交时显式设置 true，页面入口将其与原生 View 扫描结果合并，在 API 29+ 且 useAccessibilityTimeout 开启时查询交互推荐时长；该属性不改变触摸行为。snapshot() 保留该类体属性，既有构造、默认参数和 copy/equals/hashCode 语义不变。
+
+系统 Toast 在 API 30+ 优先通过平台隐藏回调结束。未收到展示回调时，以推荐时长加 30 秒作为兜底；收到展示回调后，以推荐时长加 5 秒作为隐藏回调缺失的兜底，先取消原生提示，再按 CANCELED 收尾。API 29 使用推荐时长，API 21–28 使用原短/长时长，计时结束先取消原生提示再按 COMPLETED 收尾；低版本仍不能确认实际送达。终态只通知一次，取消后的旧回调不能影响后续请求。

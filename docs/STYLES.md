@@ -104,7 +104,9 @@ fun showBranded(scope: KToastScope) = scope.showStyled(
 }
 ```
 
-品牌 XML 只覆盖显式提供的属性。保留语义图标时无需配置 `kToastIcon`；替换时使用 drawable 资源，明确隐藏时设置 `kToastShowIcon=false`。文字色和图标色可以独立配置，修改背景时应一并检查两者的对比度。`kToastShowIcon=true` 不会为没有图标的 `NORMAL` 自动创建图标。
+1.3.1（待发布）修正了宿主同名属性意外补入的边界。正式 1.3.0 暂未包含修复；隐藏图标可继续使用 `kToastShowIcon=false`。
+
+品牌 XML 只覆盖该 style 及其父 style 显式声明的属性，子 style 的声明优先；空 style 保留之前的完整配置。宿主主题中同名的 `kToast*` 属性不会自动补入品牌未声明的字段。保留语义图标时无需配置 `kToastIcon`；替换时使用 drawable 资源，明确隐藏时设置 `kToastShowIcon=false`。文字色和图标色可以独立配置，修改背景时应一并检查两者的对比度。`kToastShowIcon=true` 不会为没有图标的 `NORMAL` 自动创建图标。
 
 也可以引用 `?android:attr/textColorPrimary` 等主题属性。页面样式使用明确宿主 Activity 的 Context 解析，全局入口使用 Application Context，因此同一个主题属性可能解析为不同值。`followHostTheme` 控制的是品牌解析之前的基础背景/文字色；即使未开启它，品牌 XML 中显式写出的主题属性仍使用相应 Context 解析。
 
@@ -132,7 +134,7 @@ XML 不设置显示时长、调度策略、回调或内容工厂；这些继续�
 1. 复制本次全局基础配置。
 2. 页面开启 `followHostTheme` 时，叠加宿主背景和文字色。
 3. 应用非 `NORMAL` 的语义颜色与图标。
-4. 应用品牌 XML 中显式提供的属性。
+4. 应用品牌 XML 及父 style 中显式声明的属性，属性值中的 `?attr` 使用宿主主题解析。
 5. 执行本次 `localConfig`，然后保存最终配置副本。
 
 不会临时改写全局配置。同一个 `KToastStyle` 只保存不可变的类型和资源 ID，不持有 Context/View；每次提交独立解析，适合重复使用。已接纳的队列请求保留当次配置，即使调用方保存了局部 DSL 接收者并在之后修改，也不会改变该请求。资源或日夜配置之后发生变化，不会自动重新解释已排队/显示的样式。

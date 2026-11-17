@@ -31,7 +31,7 @@ Gradle 内部模块名与公开坐标不同：`library-android` 发布为 `ktoas
 ## 构建本地候选与消费者
 
 ```bash
-./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.3.0-SNAPSHOT --console=plain
+./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.3.1-SNAPSHOT --console=plain
 ```
 
 根候选任务检查核心/生命周期 JVM 测试、三个模块的库 Lint、Python 工具与发布模型，生成 AAR、POM、Gradle metadata、sources、Dokka 文档及对应校验报告。不签名、不上传，也不执行消费者设备运行。普通任务不需要先 `clean`。
@@ -40,18 +40,18 @@ Gradle 内部模块名与公开坐标不同：`library-android` 发布为 `ktoas
 
 ```kotlin
 dependencies {
-    implementation("io.github.logan0817:ktoast:1.3.0-SNAPSHOT")
+    implementation("io.github.logan0817:ktoast:1.3.1-SNAPSHOT")
     // 需要 LifecycleOwner 作用域时使用这一项；它会传递依赖同版核心。
-    // implementation("io.github.logan0817:ktoast-lifecycle:1.3.0-SNAPSHOT")
+    // implementation("io.github.logan0817:ktoast-lifecycle:1.3.1-SNAPSHOT")
 }
 ```
 
 三个独立消费者分别验证核心、生命周期与 Compose：
 
 ```bash
-./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
-./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
-./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT --console=plain
+./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT --console=plain
+./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT --console=plain
 ```
 
 核心/生命周期消费者固定 AGP 7.2.2、Gradle 7.4.2、Kotlin 1.9.22、compileSdk 31、JVM 1.8，使用同一 JDK 17、SDK 和共享缓存。构建会核对实际解析 AAR 的 SHA，防止验证到旧 SNAPSHOT。该组合内置 Lint 的 Kotlin metadata 提示仍存在，不能推广为任意旧工具链兼容。Compose 消费者独立使用 AGP 8.13.0、Gradle 8.14.3、Kotlin 1.9.23、compileSdk 36、JVM 1.8；仅从指定本地候选/暂存仓库解析三个同版 KToast AAR 并比对摘要。

@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "docs/api/ktoast-1.0.5.json"
 RELEASE_BASELINE = ROOT / "docs/api/ktoast-1.2.0.json"
 ADDITIONS = ROOT / "docs/api/ktoast-1.3.0-additions.json"
+NEXT_ADDITIONS = ROOT / "docs/api/ktoast-1.3.1-additions.json"
 
 
 def dump_class(javap, classpath, name):
@@ -130,6 +131,9 @@ def inspect_api(javap, classes, source_dir=ROOT / "library-android/src/main/java
     if compare_api(released, previous, approved_120):
         raise ValueError("1.2.0 正式基线与已审阅历史增量不一致")
     additions = json.loads(ADDITIONS.read_text(encoding="utf-8"))["classes"]
+    # 旧增量已发布，不为下一版重写；compare_api 同时拒绝重复、删除和未批准成员。
+    for name, members in json.loads(NEXT_ADDITIONS.read_text(encoding="utf-8"))["classes"].items():
+        additions.setdefault(name, []).extend(members)
     actual = public_api(javap, classes, source_dir)
     errors = compare_api(actual, released, additions)
     if errors:

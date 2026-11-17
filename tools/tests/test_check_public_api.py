@@ -11,7 +11,7 @@ from zipfile import ZipFile
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from check_public_api import ROOT, compare_api, public_api, synthetic_class
+from check_public_api import ROOT, compare_api, inspect_api, public_api, synthetic_class
 
 
 class PublicApiTest(unittest.TestCase):
@@ -56,6 +56,18 @@ class PublicApiTest(unittest.TestCase):
         header = b'\xca\xfe\xba\xbe\x00\x00\x00\x34' + struct.pack('>H', 6)
         self.assertFalse(synthetic_class(header + pool + struct.pack('>H', 0x0031)))
         self.assertTrue(synthetic_class(header + pool + struct.pack('>H', 0x1031)))
+
+    def test_next_increment_preserves_released_members_and_rejects_missing_new_property(self):
+        released = json.loads((ROOT / "docs/api/ktoast-1.2.0.json").read_text())["classes"]
+        for filename in ("ktoast-1.3.0-additions.json", "ktoast-1.3.1-additions.json"):
+            for name, members in json.loads((ROOT / "docs/api" / filename).read_text())["classes"].items():
+                released.setdefault(name, []).extend(members)
+        with patch("check_public_api.public_api", return_value=released):
+            self.assertEqual(released, inspect_api("javap", Path("unused"))["publicApi"])
+            config = released["com.logan.ktoast.config.KToastConfig"]
+            config[:] = [member for member in config if "getAccessibilityContainsControls" not in member["declaration"]]
+            with self.assertRaisesRegex(ValueError, "API 不匹配"):
+                inspect_api("javap", Path("unused"))
 
     def test_inventory_detects_new_public_types_and_excludes_internal_and_anonymous(self):
         with tempfile.TemporaryDirectory() as temporary:

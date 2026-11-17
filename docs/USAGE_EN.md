@@ -313,6 +313,10 @@ For the full set, see [KToastConfig.kt](../library-android/src/main/java/com/log
 
 ## Lifecycle callbacks
 
+In the upcoming 1.3.1 release, system toasts on API 30+ finish on the platform hidden callback. Missing callbacks are bounded: before a shown callback, the watchdog waits the recommended display duration plus 30 seconds; after it, the watchdog waits the recommended duration plus 5 seconds. A watchdog cancels the native toast and ends with `CANCELED`. API 29 uses the accessibility-recommended duration; API 21–28 retain the short/long duration. These older APIs cancel the native toast before timed `COMPLETED` cleanup and cannot confirm delivery. `onShow` still means that the rendering call returned; terminal callbacks remain at most once.
+
+The upcoming 1.3.1 `KToastConfig.accessibilityContainsControls` property lets page content explicitly declare virtual accessibility controls, including Compose click actions. It defaults to `false` and is combined with native View detection when `useAccessibilityTimeout` is enabled on API 29+. It does not enable touch input. `snapshot()` preserves it; the released constructor and generated `copy/equals/hashCode` contracts remain unchanged. This property is not available in 1.3.0.
+
 ```kotlin
 import com.logan.ktoast.toastHandle
 import com.logan.ktoast.runtime.KToastCallbacks

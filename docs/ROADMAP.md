@@ -23,6 +23,10 @@
 
 2026-11-10 发布。正式 main 五版本矩阵、三模块签名及公开仓库、三个正式消费者 Debug/R8 与 API 33 真机新进程均已验收。契约与覆盖限制见 [1.3.0 记录](releases/1.3.0.md)和[设计](design/1.3.0.md)，接入见[样式](STYLES.md)与 [Compose](COMPOSE.md)。
 
+## 1.3.1：稳定性修复（待发布）
+
+1.3.1 已进入本地发布准备，聚焦系统 Toast、品牌属性隔离、Compose 无障碍时长及 Demo 修复，尚未发布。候选与设备验收范围见[下个版本方案](NEXT_VERSION_PLAN.md)，变更见 [CHANGELOG](../CHANGELOG.md#131待发布)。
+
 ## 持续兼容约束
 
 | 层次 | 维护约束 |

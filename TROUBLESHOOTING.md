@@ -45,7 +45,7 @@ hide/show 或自定义路由若不改变 Owner 的 STARTED 状态，库不会自
 
 ## 候选与消费者不一致
 
-生成三模块候选后运行三个独立消费者，命令见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。显式使用 `-PktoastVersion=1.3.0-SNAPSHOT`；`ktoastPublication` 仅接受 `candidate` 和 `staging`，两者都是仓库 `build/` 下的本地目录。
+生成三模块候选后运行三个独立消费者，命令见[贡献指南](CONTRIBUTING.md#构建本地候选与消费者)。显式使用 `-PktoastVersion=1.3.1-SNAPSHOT`；`ktoastPublication` 仅接受 `candidate` 和 `staging`，两者都是仓库 `build/` 下的本地目录。
 
 消费者 preBuild 分别核对 Debug 与 Release 实际 AAR SHA，不能只检查文件存在。Staging 构建会覆盖 publication 元数据；测试 SNAPSHOT 前重新生成 Candidate，不混用正式版本和 SNAPSHOT 报告。扩展必须和核心同版。
 
@@ -58,18 +58,20 @@ AGP 7.2.2 的旧 Lint 可能输出 Kotlin metadata 1.9 与分析器期望 1.6 �
 在允许测试安装的专用设备上执行：
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest -PVERSION=1.3.0-SNAPSHOT --console=plain
+./gradlew :app:connectedDebugAndroidTest -PVERSION=1.3.1-SNAPSHOT --console=plain
 ```
 
 测试会安装并启动 Demo，设备须解锁、允许前台 Activity 显示。构建通过不等于设备通过，结果应按 API、提交和产物分别记录。云端入口与报告核验见[设备矩阵](docs/RELEASING.md#云端设备矩阵)。普通矩阵不启用下述专用 fixture。
 
-云端工作流另有 API 35 的 `fixtures` 必需任务，通过 `tools/run_platform_fixtures.py` 顺序配置并运行下述五项专项。它复用普通矩阵的本轮 APK，运行前核验八产物摘要和提交；结束后恢复设置及缺口 overlay 并重启系统框架回读。原始结果和恢复记录保存在 `platform-fixtures-api-35` 产物。测试跳过、未报告、失败或恢复失败均不能算专项通过。
+云端工作流另有 API 35 的 `fixtures` 必需任务，通过 `tools/run_platform_fixtures.py` 顺序配置并运行八项专项（含新增的系统 Toast 和两项 Compose 时长回归）。它复用普通矩阵的本轮 APK，运行前核验八产物摘要和提交；结束后恢复设置及缺口 overlay 并重启系统框架回读。原始结果和恢复记录保存在 `platform-fixtures-api-35` 产物。测试跳过、未报告、失败或恢复失败均不能算专项通过。
 
 `KToastLifecycleTest` 与 `KToastScopeTest` 覆盖取消、重入、页面停止恢复、清理和窗口行为；`KToastRuntimePolicyDeviceTest` 与 `KToastLifecycleOwnerTest` 覆盖本版容量、过期、延时转移、Owner 门禁和 View 重建。缺少 fixture 的明确跳过不计成功；SDK 过滤未报告与显式跳过分开记录。
 
 `KToastPlatformTest` 的输入法测试只在 API 30+ 执行，无障碍推荐时长测试只在 API 29+ 执行。后者需要专用测试模拟器把 accessibility_non_interactive_ui_timeout_ms 设为 10000，并给 AndroidJUnitRunner 传入 `-e accessibilityTimeoutFixture true`；缺少该参数时明确跳过，不能计为通过。不要修改使用者日常设备的无障碍设置。测试完成后移除专用模拟器设置或销毁该模拟器。
 
 自定义交互控件的两项时长回归使用另一套独立配置：专用模拟器 accessibility_interactive_ui_timeout_ms=10000，accessibility_non_interactive_ui_timeout_ms 保持默认，Runner 参数为 `-e interactiveTimeoutFixture true`。分别运行 customButtonUsesInteractiveRecommendedTimeout_withoutBubbleCancel 与 customPlainTextDoesNotUseInteractiveTimeout，验证按钮采用交互时长、可执行无障碍点击，而普通自定义文字按普通时长结束。测试会先断言平台对文字推荐 2000ms、对控件至少推荐 5000ms，防止全局延长文字掩盖控件判断问题；不要与上一项的非交互 10000ms 配置混用。记录原设置后再配置，结束时恢复原值。
+
+系统 Toast 专项 `extendedSystemToastRemainsCancelableUntilPlatformDismissal` 在 API 30+ 复用非交互 10000ms 配置，验证超过原短时长后句柄仍可取消。`KToastComposeAccessibilityTest` 的两项回归复用交互 10000ms 配置，验证显式声明的 Compose 操作采用交互时长、可执行语义点击且取消释放 Composition，纯 Compose 文字仍按普通时长结束。
 
 `KToastWindowTest` 在 API 30+ 验证显示期间 START 随宿主 RTL/LTR 切换定位，以及底部提示在输入法出现后移动到键盘上方。输入法场景必须显式使用底部 Gravity，不能沿用 Demo 的全局居中样式后仅断言“未重叠”，否则可能没有真正验证避让逻辑。宿主与提示子窗口分别观察绘制，避免只在宿主绘制前读取尚未更新的子窗口位置；失败信息包含可见键盘、实际屏幕位置与请求定位参数。界面变化以实际窗口位置为准，不能把初次显示位置正确等同于动态适配正确。
 

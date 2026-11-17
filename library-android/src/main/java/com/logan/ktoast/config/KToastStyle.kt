@@ -60,53 +60,67 @@ data class KToastStyle @JvmOverloads constructor(
         require(context.resources.getResourceTypeName(styleRes) == "style") {
             "KToastStyle.styleRes must reference a style resource."
         }
+        // 空主题只判断品牌及父样式的声明，实际取值仍通过宿主解析 ?attr。
+        val declarations = context.resources.newTheme().obtainStyledAttributes(styleRes, R.styleable.KToastStyle)
+        val declared = try {
+            BooleanArray(R.styleable.KToastStyle.size) { declarations.hasValue(it) }
+        } finally {
+            declarations.recycle()
+        }
         val values = context.obtainStyledAttributes(styleRes, R.styleable.KToastStyle)
         val metrics = context.resources.displayMetrics
         fun dp(index: Int, fallback: Float): Float =
             if (values.hasValue(index)) values.getDimension(index, 0f) / metrics.density else fallback
         try {
-            config.textColor = values.getColor(R.styleable.KToastStyle_kToastTextColor, config.textColor)
-            config.backgroundColor = values.getColor(R.styleable.KToastStyle_kToastBackgroundColor, config.backgroundColor)
-            config.backgroundRadius = dp(R.styleable.KToastStyle_kToastBackgroundRadius, config.backgroundRadius)
-            if (values.hasValue(R.styleable.KToastStyle_kToastTextSize)) {
-                val value = TypedValue()
-                values.getValue(R.styleable.KToastStyle_kToastTextSize, value)
-                // 保留 sp 原值，避免大字体的非线性缩放在再次设置 TextView 字号时被重复计算。
-                config.textSize = if (value.type == TypedValue.TYPE_DIMENSION &&
-                    (value.data and TypedValue.COMPLEX_UNIT_MASK) == TypedValue.COMPLEX_UNIT_SP) {
-                    TypedValue.complexToFloat(value.data)
-                } else {
-                    val pixels = values.getDimension(R.styleable.KToastStyle_kToastTextSize, 0f)
-                    if (Build.VERSION.SDK_INT >= 34) {
-                        TypedValue.deriveDimension(TypedValue.COMPLEX_UNIT_SP, pixels, metrics)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        (pixels / metrics.scaledDensity)
+            for (index in declared.indices) {
+                if (!declared[index]) continue
+                when (index) {
+                    R.styleable.KToastStyle_kToastTextColor -> config.textColor = values.getColor(index, config.textColor)
+                    R.styleable.KToastStyle_kToastBackgroundColor -> config.backgroundColor = values.getColor(index, config.backgroundColor)
+                    R.styleable.KToastStyle_kToastBackgroundRadius -> config.backgroundRadius = dp(index, config.backgroundRadius)
+                    R.styleable.KToastStyle_kToastTextSize -> if (values.hasValue(index)) {
+                        val value = TypedValue()
+                        values.getValue(index, value)
+                        // 保留 sp 原值，避免大字体的非线性缩放在再次设置 TextView 字号时被重复计算。
+                        config.textSize = if (value.type == TypedValue.TYPE_DIMENSION &&
+                            (value.data and TypedValue.COMPLEX_UNIT_MASK) == TypedValue.COMPLEX_UNIT_SP) {
+                            TypedValue.complexToFloat(value.data)
+                        } else {
+                            val pixels = values.getDimension(index, 0f)
+                            if (Build.VERSION.SDK_INT >= 34) {
+                                TypedValue.deriveDimension(TypedValue.COMPLEX_UNIT_SP, pixels, metrics)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                (pixels / metrics.scaledDensity)
+                            }
+                        }
                     }
+                    R.styleable.KToastStyle_kToastPaddingHorizontal -> config.paddingHorizontal = dp(index, config.paddingHorizontal.toFloat()).roundToInt()
+                    R.styleable.KToastStyle_kToastPaddingVertical -> config.paddingVertical = dp(index, config.paddingVertical.toFloat()).roundToInt()
+                    R.styleable.KToastStyle_kToastIcon -> if (values.hasValue(index)) {
+                        config.icon = values.getResourceId(index, 0).takeIf { it != 0 }
+                    }
+                    R.styleable.KToastStyle_kToastIconColor -> if (values.hasValue(index)) {
+                        config.iconColor = values.getColor(index, config.textColor)
+                    }
+                    R.styleable.KToastStyle_kToastIconSize -> config.iconSize = dp(index, config.iconSize)
+                    R.styleable.KToastStyle_kToastIconPadding -> config.iconPadding = dp(index, config.iconPadding.toFloat()).roundToInt()
+                    R.styleable.KToastStyle_kToastMaxLines -> config.maxLines = values.getInt(index, config.maxLines)
+                    R.styleable.KToastStyle_kToastMaxWidthRatio -> config.maxWidthRatio = values.getFloat(index, config.maxWidthRatio)
+                    R.styleable.KToastStyle_kToastMinWidth -> config.minWidth = dp(index, config.minWidth.toFloat()).roundToInt()
+                    R.styleable.KToastStyle_kToastMinHeight -> config.minHeight = dp(index, config.minHeight.toFloat()).roundToInt()
+                    R.styleable.KToastStyle_kToastBorderColor -> if (values.hasValue(index)) {
+                        config.borderColor = values.getColor(index, 0)
+                    }
+                    R.styleable.KToastStyle_kToastBorderWidth -> config.borderWidth = dp(index, config.borderWidth.toFloat()).roundToInt()
+                    R.styleable.KToastStyle_kToastGravity -> config.gravity = values.getInt(index, config.gravity)
+                    R.styleable.KToastStyle_kToastXOffset -> config.xOffset = values.getDimensionPixelOffset(index, config.xOffset)
+                    R.styleable.KToastStyle_kToastYOffset -> config.yOffset = values.getDimensionPixelOffset(index, config.yOffset)
                 }
             }
-            config.paddingHorizontal = dp(R.styleable.KToastStyle_kToastPaddingHorizontal, config.paddingHorizontal.toFloat()).roundToInt()
-            config.paddingVertical = dp(R.styleable.KToastStyle_kToastPaddingVertical, config.paddingVertical.toFloat()).roundToInt()
-            if (values.hasValue(R.styleable.KToastStyle_kToastIcon)) {
-                config.icon = values.getResourceId(R.styleable.KToastStyle_kToastIcon, 0).takeIf { it != 0 }
-            }
-            if (values.hasValue(R.styleable.KToastStyle_kToastIconColor)) {
-                config.iconColor = values.getColor(R.styleable.KToastStyle_kToastIconColor, config.textColor)
-            }
-            config.iconSize = dp(R.styleable.KToastStyle_kToastIconSize, config.iconSize)
-            config.iconPadding = dp(R.styleable.KToastStyle_kToastIconPadding, config.iconPadding.toFloat()).roundToInt()
-            if (!values.getBoolean(R.styleable.KToastStyle_kToastShowIcon, true)) config.icon = null
-            config.maxLines = values.getInt(R.styleable.KToastStyle_kToastMaxLines, config.maxLines)
-            config.maxWidthRatio = values.getFloat(R.styleable.KToastStyle_kToastMaxWidthRatio, config.maxWidthRatio)
-            config.minWidth = dp(R.styleable.KToastStyle_kToastMinWidth, config.minWidth.toFloat()).roundToInt()
-            config.minHeight = dp(R.styleable.KToastStyle_kToastMinHeight, config.minHeight.toFloat()).roundToInt()
-            if (values.hasValue(R.styleable.KToastStyle_kToastBorderColor)) {
-                config.borderColor = values.getColor(R.styleable.KToastStyle_kToastBorderColor, 0)
-            }
-            config.borderWidth = dp(R.styleable.KToastStyle_kToastBorderWidth, config.borderWidth.toFloat()).roundToInt()
-            config.gravity = values.getInt(R.styleable.KToastStyle_kToastGravity, config.gravity)
-            config.xOffset = values.getDimensionPixelOffset(R.styleable.KToastStyle_kToastXOffset, config.xOffset)
-            config.yOffset = values.getDimensionPixelOffset(R.styleable.KToastStyle_kToastYOffset, config.yOffset)
+            // 隐藏优先于图标声明，不依赖 aapt 分配的属性顺序。
+            if (declared[R.styleable.KToastStyle_kToastShowIcon] &&
+                !values.getBoolean(R.styleable.KToastStyle_kToastShowIcon, true)) config.icon = null
         } finally {
             values.recycle()
         }
