@@ -3,12 +3,15 @@ package com.logan.ktoast.compatibility
 import com.logan.ktoast.KToast
 import com.logan.ktoast.KToastScope
 import com.logan.ktoast.config.KToastStyle
+import com.logan.ktoast.config.KToastConfig
 import com.logan.ktoast.config.KToastType
 import com.logan.ktoast.runtime.KToastBehavior
 import com.logan.ktoast.runtime.KToastDisplayMode
 import com.logan.ktoast.runtime.ToastHandle
 
 fun verifyKotlinConsumer(scope: KToastScope) {
+    val accessible = KToastConfig().apply { accessibilityContainsControls = true }
+    check(accessible.snapshot().accessibilityContainsControls)
     KToast.debugMode = true
     check(KToast.debugMode)
     KToast.debugMode = false

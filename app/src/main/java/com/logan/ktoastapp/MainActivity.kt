@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     // 模拟延时任务的句柄，用于测试取消
     private var delayedTask: Runnable? = null
+    private var delayedCancelCallback: Runnable? = null
     private lateinit var pageToastScope: KToastScope
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -258,14 +259,21 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnDelayedCancel.setOnClickListener {
-            delayedTask = getString(R.string.demo_toast_delayed_cancel_pending).toastDelayed(3000L)
+            clearDelayedCancelDemo()
+            val task = getString(R.string.demo_toast_delayed_cancel_pending).toastDelayed(3000L)
+                ?: return@setOnClickListener
+            delayedTask = task
 
-            demoHandler.postDelayed({
-                KToast.cancelDelayed(delayedTask)
+            val callback = Runnable {
+                if (delayedTask !== task) return@Runnable
+                KToast.cancelDelayed(task)
                 delayedTask = null
+                delayedCancelCallback = null
                 getString(R.string.demo_toast_delayed_cancel_success).toast()
                 recordAction(R.string.demo_delayed_cancel, R.string.demo_guide_try_system)
-            }, 1000)
+            }
+            delayedCancelCallback = callback
+            demoHandler.postDelayed(callback, 1000L)
         }
 
         binding.switchDebug.setOnCheckedChangeListener { _, isChecked ->
@@ -299,8 +307,8 @@ class MainActivity : AppCompatActivity() {
             recordAction(R.string.demo_app_warning, R.string.demo_guide_try_wrapper)
         }
         binding.btnCancelAll.setOnClickListener {
+            clearDelayedCancelDemo()
             KToast.cancel()
-            delayedTask = null
             demoHandler.removeCallbacksAndMessages(null)
             recordAction(R.string.demo_action_cancel_all, R.string.demo_guide_try_smoke)
         }
@@ -308,11 +316,17 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         pageToastScope.close()
+        clearDelayedCancelDemo()
         demoHandler.removeCallbacksAndMessages(null)
-        KToast.cancelDelayed(delayedTask)
-        delayedTask = null
         _binding = null
         super.onDestroy()
+    }
+
+    private fun clearDelayedCancelDemo() {
+        delayedCancelCallback?.let(demoHandler::removeCallbacks)
+        delayedCancelCallback = null
+        KToast.cancelDelayed(delayedTask)
+        delayedTask = null
     }
 
     private fun showCodeContentFactoryToast() {

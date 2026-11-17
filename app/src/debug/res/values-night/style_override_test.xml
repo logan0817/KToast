@@ -1,0 +1,4 @@
+<resources>
+    <color name="ktoast_override_test_background">#CDEFFF</color>
+    <color name="ktoast_override_test_host_text">#FEDCBA</color>
+</resources>

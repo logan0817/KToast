@@ -1,5 +1,15 @@
 # 版本变更
 
+## 1.3.1（待发布）
+
+- 系统 Toast 在 API 30+ 以平台隐藏回调结束，展示前后的有界兜底先取消原生提示再收尾；API 29 使用系统推荐时长，低版本保留基础时长。修复无障碍延长展示后句柄提前结束、无法继续取消的问题。
+- 品牌 XML 仅覆盖自身及父样式声明的属性，避免宿主同名属性意外覆盖语义配置；显式主题引用继续按宿主解析。
+- 新增 `KToastConfig.accessibilityContainsControls`，供 Compose 或其他虚拟无障碍控件显式声明交互内容；页面提示合并此标记查询推荐时长。默认关闭，`snapshot()` 保留该属性，既有构造和 copy 接口不变。
+- 修复 Demo 连续点击延时撤回时取消错任务的问题，重点击、取消全部及销毁均清理所属轮次；业务提示封装复用内置语义配色与图标。
+- 增加系统提示收尾单元测试、品牌覆盖和 Demo 设备回归，以及系统/Compose 无障碍时长专项；保留已发布 API 基线，下一版新增接口单独登记。
+
+三模块正式版本元数据为 `1.3.1`，本地与 CI 候选使用 `1.3.1-SNAPSHOT`，Demo 为 `1.3.1` / versionCode `9`。当前处于发布准备阶段，设备矩阵及专项、合并后 CI、正式签名包和 Central 发布验收尚未完成；新配置不包含在 Maven Central 的 1.3.0 中。
+
 ## 1.3.0（2026-11-10）
 
 - 新增 KToastType 与不可变 KToastStyle，提供 Normal/Success/Error/Warning/Info 语义、明暗配色、自有矢量图标及可复用 XML 品牌样式；全局、Activity、LifecycleOwner 新增返回 ToastHandle 的 showStyled。
@@ -12,7 +22,7 @@
 - 新增 `KToastAnimation`，支持分别配置入场、退场插值器及最大缩放边界；通过 `KToastConfig.animation` 全局或单次设置，`snapshot()` 完整复制配置并保留既有构造与 copy 二进制接口。
 - 修正最大回弹倍率配合长文本时的测量不稳定；自定义插值器抛出 Exception 或返回非有限值时报告错误、取消当前提示并继续队列。
 
-1.3.0 三个模块已正式发布到 Maven Central，完成最终 main 五档矩阵、90 个公开文件、15 份签名、三个正式消费者的 Debug/R8 构建和 API 33 真机新进程验收。本地和 CI 候选继续显式使用 `-PVERSION=1.3.0-SNAPSHOT`，实际结果与覆盖限制见 [1.3.0 记录](docs/releases/1.3.0.md)。方案与兼容边界见 [1.3.0 设计](docs/design/1.3.0.md)，使用见[样式](docs/STYLES.md)与 [Compose](docs/COMPOSE.md)。实际完成状态以本次验证记录为准。
+1.3.0 三个模块已正式发布到 Maven Central，完成最终 main 五档矩阵、90 个公开文件、15 份签名、三个正式消费者的 Debug/R8 构建和 API 33 真机新进程验收。该版验收使用 `-PVERSION=1.3.0-SNAPSHOT`，实际结果与覆盖限制见 [1.3.0 记录](docs/releases/1.3.0.md)。方案与兼容边界见 [1.3.0 设计](docs/design/1.3.0.md)，使用见[样式](docs/STYLES.md)与 [Compose](docs/COMPOSE.md)。实际完成状态以本次验证记录为准。
 
 ## 1.2.0（2026-10-15）
 

@@ -101,6 +101,8 @@ API 30+ 读取当前窗口指标和 Insets，旧版本使用宿主 DecorView 与
 
 自定义 View 不得已有父容器。页面提示会加入内部根容器，清理时从该容器移除，以便复用。cancelOnTouch=true 会由库接管根内容的点击监听器，结束后清除库监听器；需要复杂业务交互时建议在子 View 安装监听器。cancelOnTouch=false 时窗口透传普通触摸，但自定义控件仍可能提供无障碍点击操作，因此推荐时长不会仅凭该开关判断是否含控件。时长在显示时计算，后续内容交互状态变化不会重置计时。创建、测量、挂载和更新失败时，页面请求取消，不转移到其他页面或系统 Toast。
 
+1.3.1（待发布）的 `KToastConfig.accessibilityContainsControls=true` 可显式标记原生 View 扫描无法识别的虚拟交互控件，例如 Compose 内容。默认 `false`，只与扫描结果合并，不开启触摸；仍受 API 29+ 和 `useAccessibilityTimeout` 控制。`snapshot()` 保留此属性；为兼容旧版本，Kotlin 自动生成的 `copy/equals/hashCode` 仍只处理主构造属性。
+
 ## Java 与诊断
 
 ```java

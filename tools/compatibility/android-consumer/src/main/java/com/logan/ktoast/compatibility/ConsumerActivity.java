@@ -46,6 +46,12 @@ public final class ConsumerActivity extends Activity {
                 if (config.snapshot().getAnimation() != animation) {
                     throw new AssertionError("Java animation snapshot failed");
                 }
+                config.setAccessibilityContainsControls(true);
+                KToastConfig accessibleSnapshot = config.snapshot();
+                config.setAccessibilityContainsControls(false);
+                if (!accessibleSnapshot.getAccessibilityContainsControls()) {
+                    throw new AssertionError("Java accessibility snapshot failed");
+                }
                 ToastHandle handle = scope.show("scoped Java", config);
                 if (handle.getState() != ToastHandle.State.SHOWING || !handle.cancel()) {
                     throw new AssertionError("Java scope presentation or cancellation failed");

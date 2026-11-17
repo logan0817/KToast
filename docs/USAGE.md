@@ -313,6 +313,8 @@ handle?.cancel()
 
 ## 生命周期回调
 
+1.3.1（待发布）对系统 Toast 使用更准确的收尾：API 30+ 收到平台隐藏回调后结束；若始终未收到展示通知，等待“推荐展示时长 + 30 秒”后取消，收到展示通知后若隐藏通知丢失，则在“推荐展示时长 + 5 秒”后取消。兜底取消使用 `CANCELED`，不声称已正常展示。API 29 按系统无障碍推荐时长计时，API 21–28 使用原短/长时长，计时结束先取消原生提示再按 `COMPLETED` 收尾。低版本没有隐藏回调，仍不能保证真实送达。`onShow` 继续仅表示渲染调用返回，终态回调仍最多一次。
+
 ```kotlin
 import com.logan.ktoast.toastHandle
 import com.logan.ktoast.runtime.KToastCallbacks

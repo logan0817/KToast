@@ -33,9 +33,10 @@ INSTRUMENTATION_STATUS_CODE: -4
 class DeviceMatrixTest(unittest.TestCase):
     def test_real_required_source_count_and_modern_subset(self):
         additional = {name for name in required_tests(21)
-                      if 'KToastStyleTest#' in name or 'KToastComposeTest#' in name}
+                      if 'KToastStyleTest#' in name or 'KToastComposeTest#' in name or 'DemoToastRegressionTest#' in name}
         self.assertTrue(any('KToastStyleTest#' in name for name in additional))
         self.assertTrue(any('KToastComposeTest#' in name for name in additional))
+        self.assertEqual(6, sum('DemoToastRegressionTest#' in name for name in additional))
         self.assertEqual(40 + len(additional), len(required_tests(21)))
         self.assertEqual(43 + len(additional), len(required_tests(30)))
         self.assertIn(matrix.TEST_PACKAGE + 'KToastLifecycleTest#roundedContentBounceStaysInsideWindowForGlobalAndScopedRequests',

@@ -205,7 +205,7 @@ def main():
     parser.add_argument("--aar", type=Path, default=ROOT / "library-android/build/outputs/aar/library-android-release.aar")
     parser.add_argument("--publication", type=Path, default=ROOT / "library-android/build/publications/release")
     parser.add_argument("--sources", type=Path, default=ROOT / "library-android/build/intermediates/source_jar/release/release-sources.jar")
-    parser.add_argument("--javadoc", type=Path, default=ROOT / "library-android/build/libs/library-android-1.3.0-SNAPSHOT-javadoc.jar")
+    parser.add_argument("--javadoc", type=Path, default=ROOT / "library-android/build/libs/library-android-1.3.1-SNAPSHOT-javadoc.jar")
     parser.add_argument("--javap", default="javap")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()

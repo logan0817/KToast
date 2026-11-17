@@ -1,0 +1,48 @@
+<resources>
+    <color name="ktoast_override_test_background">#345678</color>
+    <color name="ktoast_override_test_host_text">#ABCDEF</color>
+
+    <!-- 每个品牌属性都有宿主值，确保漏掉任何字段的声明过滤都会被回归发现。 -->
+    <style name="KToastOverrideTestHost" parent="@android:style/Theme.Material.Light">
+        <item name="kToastTextColor">@color/ktoast_override_test_host_text</item>
+        <item name="kToastBackgroundColor">#010203</item>
+        <item name="kToastBackgroundRadius">71dp</item>
+        <item name="kToastTextSize">72sp</item>
+        <item name="kToastPaddingHorizontal">73dp</item>
+        <item name="kToastPaddingVertical">74dp</item>
+        <item name="kToastIcon">@drawable/ktoast_style_error</item>
+        <item name="kToastIconColor">#040506</item>
+        <item name="kToastIconSize">75dp</item>
+        <item name="kToastIconPadding">76dp</item>
+        <item name="kToastShowIcon">false</item>
+        <item name="kToastMaxLines">77</item>
+        <item name="kToastMaxWidthRatio">0.31</item>
+        <item name="kToastMinWidth">78dp</item>
+        <item name="kToastMinHeight">79dp</item>
+        <item name="kToastBorderColor">#070809</item>
+        <item name="kToastBorderWidth">80dp</item>
+        <item name="kToastGravity">top|end</item>
+        <item name="kToastXOffset">81dp</item>
+        <item name="kToastYOffset">82dp</item>
+    </style>
+    <style name="KToastOverrideTestEmpty" parent="" />
+    <style name="KToastOverrideTestPartial" parent="">
+        <item name="kToastBackgroundRadius">11dp</item>
+    </style>
+    <style name="KToastOverrideTestParent" parent="">
+        <item name="kToastBackgroundColor">@color/ktoast_override_test_background</item>
+        <item name="kToastTextColor">?attr/kToastTextColor</item>
+        <item name="kToastPaddingVertical">?attr/kToastPaddingVertical</item>
+        <item name="kToastIcon">@drawable/ktoast_style_warning</item>
+    </style>
+    <style name="KToastOverrideTestParent.Child">
+        <item name="kToastPaddingHorizontal">15dp</item>
+        <item name="kToastBackgroundColor">#00000000</item>
+    </style>
+    <style name="KToastOverrideTestHidden" parent="KToastOverrideTestParent">
+        <item name="kToastShowIcon">false</item>
+    </style>
+    <style name="KToastOverrideTestShown" parent="">
+        <item name="kToastShowIcon">true</item>
+    </style>
+</resources>

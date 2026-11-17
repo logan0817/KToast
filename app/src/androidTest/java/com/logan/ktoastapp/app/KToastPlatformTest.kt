@@ -19,6 +19,7 @@ import androidx.test.espresso.action.ViewActions.click
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.logan.ktoast.KToastScope
+import com.logan.ktoast.KToast
 import com.logan.ktoast.KToastScopeOptions
 import com.logan.ktoast.runtime.KToastCallbacks
 import com.logan.ktoast.runtime.KToastContentFactory
@@ -43,7 +44,10 @@ class KToastPlatformTest {
     private var scope: KToastScope? = null
 
     @After fun cleanup() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync { scope?.close() }
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            scope?.close()
+            KToast.cancel()
+        }
     }
 
     @Test
@@ -129,6 +133,37 @@ class KToastPlatformTest {
         rule.scenario.onActivity {
             assertEquals(ToastHandle.State.SHOWING, handle.state)
             assertTrue(handle.cancel())
+            assertEquals(0L, dismissed.count)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 30)
+    fun extendedSystemToastRemainsCancelableUntilPlatformDismissal() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("accessibilityTimeoutFixture") == "true")
+        val dismissed = CountDownLatch(1)
+        var fallbacks = 0
+        var terminals = 0
+        lateinit var handle: ToastHandle
+        rule.scenario.onActivity { host ->
+            val manager = host.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+            assertTrue(manager.getRecommendedTimeoutMillis(2000, AccessibilityManager.FLAG_CONTENT_TEXT) >= 5000)
+            // 用可控的窗口内容失败触发真实系统 Toast，避免依赖后台启动或通知权限。
+            handle = KToast.showHandle("extended system toast", callbacks = KToastCallbacks(
+                onFallbackToSystem = { fallbacks++ },
+                onDismiss = { _, _ -> terminals++; dismissed.countDown() }
+            )) {
+                contentFactory = KToastContentFactory { _, _, _ -> error("system toast fixture") }
+            }
+            assertEquals(1, fallbacks)
+        }
+        assertFalse("System handle finished before the extended toast", dismissed.await(2500L, TimeUnit.MILLISECONDS))
+        rule.scenario.onActivity {
+            assertEquals(ToastHandle.State.SHOWING, handle.state)
+            assertTrue(handle.cancel())
+            assertFalse(handle.cancel())
+            assertEquals(ToastHandle.DismissReason.CANCELED, handle.dismissReason)
+            assertEquals(1, terminals)
             assertEquals(0L, dismissed.count)
         }
     }

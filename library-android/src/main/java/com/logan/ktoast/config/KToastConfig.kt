@@ -85,6 +85,12 @@ data class KToastConfig(
     /** 入场/退场插值器及回弹边界；保留已发布主构造与 copy 的 JVM 接口。 */
     var animation: KToastAnimation = KToastAnimation()
 
-    /** 包含动画的完整配置副本；Kotlin 自动生成的 copy/equals 只包含主构造属性。 */
-    fun snapshot(): KToastConfig = copy().also { it.animation = animation }
+    /** 自定义内容含虚拟无障碍点击控件时显式启用，例如 Compose Button；仅延长页面提示的推荐时长。 */
+    var accessibilityContainsControls: Boolean = false
+
+    /** 包含类体属性的完整副本；Kotlin 自动生成的 copy/equals 只包含主构造属性。 */
+    fun snapshot(): KToastConfig = copy().also {
+        it.animation = animation
+        it.accessibilityContainsControls = accessibilityContainsControls
+    }
 }

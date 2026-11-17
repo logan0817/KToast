@@ -84,11 +84,11 @@ class PlatformFixturesTest(unittest.TestCase):
             report = json.loads((output / 'fixtures/result.json').read_text())
         return report, commands, settings, overlay
 
-    def test_all_five_stages_require_real_terminal_success_and_restore_original_values(self):
+    def test_all_eight_stages_require_real_terminal_success_and_restore_original_values(self):
         report, commands, settings, overlay = self.exercise()
         self.assertTrue(report['success'])
-        self.assertEqual(5, len(report['stages']))
-        self.assertEqual(5, sum(command[:3] == ['shell', 'am', 'instrument'] for command in commands))
+        self.assertEqual(8, len(report['stages']))
+        self.assertEqual(8, sum(command[:3] == ['shell', 'am', 'instrument'] for command in commands))
         self.assertTrue(all(value == 'null' for value in settings.values()))
         self.assertFalse(overlay)
         self.assertTrue(report['restoration']['success'])
@@ -98,6 +98,9 @@ class PlatformFixturesTest(unittest.TestCase):
         self.assertEqual(2, commands.count(['shell', 'start']))
         self.assertEqual(['10000', '0'], list(report['stages']['noninteractive']['settings'].values()))
         self.assertEqual(['0', '10000'], list(report['stages']['interactive-button']['settings'].values()))
+        self.assertEqual(['10000', '0'], list(report['stages']['system-timeout']['settings'].values()))
+        self.assertEqual(['0', '10000'], list(report['stages']['compose-control']['settings'].values()))
+        self.assertEqual(['0', '10000'], list(report['stages']['compose-text']['settings'].values()))
         self.assertTrue(report['stages']['cutout']['overlays'][fixtures.CUTOUT])
 
     def test_real_devices_and_unverified_artifacts_never_reach_mutations(self):
@@ -108,12 +111,12 @@ class PlatformFixturesTest(unittest.TestCase):
                 self.assertFalse(any(command[0] in ('install', 'reboot', 'root', 'unroot') or
                                      command[:2] == ['shell', 'settings'] for command in commands))
 
-    def test_skip_or_failure_collects_all_five_stages_and_restores_settings(self):
+    def test_skip_or_failure_collects_all_eight_stages_and_restores_settings(self):
         for options in ({'skipped': 2}, {'failed': 5}):
             with self.subTest(options=options):
                 report, _, settings, _ = self.exercise(**options)
                 self.assertFalse(report['success'])
-                self.assertEqual(5, len(report['stages']))
+                self.assertEqual(8, len(report['stages']))
                 self.assertTrue(report['restoration']['success'])
                 self.assertTrue(all(value == 'null' for value in settings.values()))
 

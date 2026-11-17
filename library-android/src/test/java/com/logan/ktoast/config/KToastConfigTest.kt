@@ -17,5 +17,14 @@ class KToastConfigTest {
         assertEquals(0, config.borderWidth)
         assertNull(config.borderColor)
         assertNull(config.contentFactory)
+        assertEquals(false, config.accessibilityContainsControls)
+    }
+
+    @Test fun snapshotPreservesExplicitAccessibilityControlsWithoutSharingMutableConfig() {
+        val original = KToastConfig().apply { accessibilityContainsControls = true }
+        val snapshot = original.snapshot()
+        original.accessibilityContainsControls = false
+        assertEquals(true, snapshot.accessibilityContainsControls)
+        assertEquals(false, original.accessibilityContainsControls)
     }
 }

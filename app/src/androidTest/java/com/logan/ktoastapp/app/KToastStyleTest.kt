@@ -94,6 +94,68 @@ class KToastStyleTest {
         }
     }
 
+    @Test fun emptyAndPartialBrandsIgnoreEveryUndeclaredHostAttribute() {
+        for (night in listOf(Configuration.UI_MODE_NIGHT_NO, Configuration.UI_MODE_NIGHT_YES)) {
+            val context = overrideTestContext(night)
+            val base = KToastConfig(
+                textColor = 0xFF102030.toInt(), backgroundColor = 0xFF405060.toInt(),
+                icon = com.logan.ktoast.R.drawable.ktoast_style_info,
+                iconColor = 0xFF708090.toInt(), borderColor = 0xFF112233.toInt(), borderWidth = 3
+            )
+            val original = base.snapshot()
+            for (type in KToastType.values()) {
+                val expected = KToastStyle(type).resolve(context, base)
+                val empty = KToastStyle(type, R.style.KToastOverrideTestEmpty).resolve(context, base)
+                val partial = KToastStyle(type, R.style.KToastOverrideTestPartial).resolve(context, base)
+                assertEquals("empty brand: $type / $night", expected, empty)
+                assertEquals("partial brand: $type / $night", expected.copy(backgroundRadius = 11f), partial)
+                assertSame(base.animation, partial.animation)
+            }
+            assertEquals(original, base)
+        }
+    }
+
+    @Test fun inheritedBrandAttributesResolveAgainstHostAndRespectNightResources() {
+        for (night in listOf(Configuration.UI_MODE_NIGHT_NO, Configuration.UI_MODE_NIGHT_YES)) {
+            val context = overrideTestContext(night)
+            val base = KToastConfig()
+            val semantic = KToastStyle(KToastType.SUCCESS).resolve(context, base)
+            val expected = semantic.copy(
+                backgroundColor = if (night == Configuration.UI_MODE_NIGHT_YES) 0xFFCDEFFF.toInt() else 0xFF345678.toInt(),
+                textColor = if (night == Configuration.UI_MODE_NIGHT_YES) 0xFFFEDCBA.toInt() else 0xFFABCDEF.toInt(),
+                paddingVertical = 74,
+                icon = com.logan.ktoast.R.drawable.ktoast_style_warning
+            )
+            assertEquals(expected, KToastStyle(KToastType.SUCCESS, R.style.KToastOverrideTestParent).resolve(context, base))
+            assertEquals(expected.copy(backgroundColor = 0, paddingHorizontal = 15),
+                KToastStyle(KToastType.SUCCESS, R.style.KToastOverrideTestParent_Child).resolve(context, base))
+            val hostValue = TypedValue()
+            assertTrue(context.theme.resolveAttribute(com.logan.ktoast.R.attr.kToastBackgroundColor, hostValue, true))
+            assertEquals(0xFF010203.toInt(), hostValue.data)
+        }
+    }
+
+    @Test fun explicitFalseHidesIconsWhileTrueDoesNotCreateOne() {
+        val context = overrideTestContext(Configuration.UI_MODE_NIGHT_NO)
+        val base = KToastConfig(icon = com.logan.ktoast.R.drawable.ktoast_style_info)
+        for (type in KToastType.values()) {
+            assertNull("explicitly hidden: $type",
+                KToastStyle(type, R.style.KToastOverrideTestHidden).resolve(context, base).icon)
+            val expected = KToastStyle(type).resolve(context, base)
+            assertEquals(expected, KToastStyle(type, R.style.KToastOverrideTestShown).resolve(context, base))
+        }
+        assertNull(KToastStyle(styleRes = R.style.KToastOverrideTestShown).resolve(context).icon)
+        assertEquals(com.logan.ktoast.R.drawable.ktoast_style_info, base.icon)
+    }
+
+    private fun overrideTestContext(night: Int): ContextThemeWrapper {
+        val target = InstrumentationRegistry.getInstrumentation().targetContext
+        val configuration = Configuration(target.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or night
+        }
+        return ContextThemeWrapper(target.createConfigurationContext(configuration), R.style.KToastOverrideTestHost)
+    }
+
     @Test fun styledOrderUsesBaseHostSemanticBrandThenLocalForAllEntrypoints() {
         rule.scenario.onActivity { host ->
             KToast.cancel()

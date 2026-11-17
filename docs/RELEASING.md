@@ -1,6 +1,6 @@
 # 发布指南
 
-当前正式版本为 **1.3.0**，三个模块已发布并完成公开仓库与真实消费者验收，见 [1.3.0 记录](releases/1.3.0.md)。本页维护已验证的本机 GPG/agent 与 Central USER_MANAGED 流程；以下 `1.3.0` 命令是本次发布记录的示例，**该坐标已发布，禁止重跑上传或 publish**。后续版本须先确定新的未发布版本，再取得对应授权。源码与 CI 候选继续显式使用 `1.3.0-SNAPSHOT`。历史证据见 [1.2.0](releases/1.2.0.md)和 [1.1.0](releases/1.1.0.md)。
+当前正式版本为 **1.3.0**，三个模块已发布并完成公开仓库与真实消费者验收，见 [1.3.0 记录](releases/1.3.0.md)。本页维护已验证的本机 GPG/agent 与 Central USER_MANAGED 流程。当前准备 **1.3.1（待发布）**，源码与 CI 候选使用 `1.3.1-SNAPSHOT`；下述正式签名和上传命令以 1.3.1 为目标，只有完成发布门槛并取得对应授权后才能执行。**1.3.0 坐标已发布，禁止重复上传或 publish。**历史证据见 [1.2.0](releases/1.2.0.md)和 [1.1.0](releases/1.1.0.md)。
 
 1.3.0 已同批发布 `io.github.logan0817:ktoast`、`ktoast-lifecycle` 与 `ktoast-compose`。扩展传递依赖同版下层模块，不允许混用不匹配版本。操作前先确认本次具体目标；提交、推送、PR、合并、Central 上传、正式发布、标签和 GitHub Release 分别按授权执行。
 
@@ -33,16 +33,16 @@
 使用 [贡献指南](../CONTRIBUTING.md#开发环境)约定的已有 JDK、SDK、Wrapper 和缓存，不需要 `clean`：
 
 ```bash
-./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.3.0-SNAPSHOT --console=plain
-./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
-./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
-./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT --console=plain
+./gradlew verifyReleaseCandidate :app:assembleDebug :app:assembleDebugAndroidTest -PVERSION=1.3.1-SNAPSHOT --console=plain
+./tools/compatibility/android-consumer/gradlew -p tools/compatibility/android-consumer assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT --console=plain
+./tools/compatibility/lifecycle-consumer/gradlew -p tools/compatibility/lifecycle-consumer assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT --console=plain
+./tools/compatibility/compose-consumer/gradlew -p tools/compatibility/compose-consumer assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT --console=plain
 python3 -B tools/verify_binary_consumers.py --java-home "$JAVA_HOME" --sdk "$ANDROID_HOME" --gradle-home "$HOME/.gradle"
 ```
 
 `verifyReleaseCandidate` 聚合核心/生命周期 JVM、三库 Lint、Python 工具和三模块候选产物。消费者构建、冻结字节码和设备运行仍需独立执行。候选仓库为 `build/candidate-repository`，默认不签名且只接受 SNAPSHOT。
 
-报告使用 `build/reports/compatibility/ktoast-candidate.json` 与 `ktoast-lifecycle-candidate.json`、`ktoast-compose-candidate.json`，不使用历史单模块 `candidate.json` 认证当前候选。验证包含 AAR、POM、Gradle metadata、sources、真实 Dokka HTML，以及正式 1.0.5/1.1.0/1.2.0 API 基线和精确新增清单。
+报告使用 `build/reports/compatibility/ktoast-candidate.json` 与 `ktoast-lifecycle-candidate.json`、`ktoast-compose-candidate.json`，不使用历史单模块 `candidate.json` 认证当前候选。验证包含 AAR、POM、Gradle metadata、sources、真实 Dokka HTML，以及正式 1.0.5/1.1.0/1.2.0 API 基线、已发布 1.3.0 精确增量及待发布 1.3.1 精确增量清单。
 
 发布工具或签名配置变化时，另行运行真实 Gradle 回归，不在外层 Gradle 任务内嵌套启动：
 
@@ -91,9 +91,9 @@ python3 -B tools/run_device_matrix.py --api 35 --serial emulator-5554
 
 普通失败另有宿主清理后、Runner 结束后的收尾快照，也包含 SurfaceFlinger；这些串行采集的快照并非同一时刻，不能直接证明失焦首次发生时的原因。成功的采证自检也不证明所有偶发窗口故障已经消除。
 
-独立的 `fixtures` 任务复用同批八产物，在 API 35 专用云端模拟器分阶段执行五项平台专项：非交互推荐时长、按钮交互推荐时长、普通文字不采用交互时长、显示缺口安全区域、自由窗口及任务缩放。入口为 `tools/run_platform_fixtures.py --api 35 --serial emulator-5554`，先核验模拟器身份、提交与产物摘要，再配置独立超时、缺口和自由窗口；通过临时 `adb root` 仅重启 Android 系统框架加载自由窗口设置，避免整机 reboot 使云端 emulator 进程退出。每项保留原始 Runner，失败继续收集其他专项，跳过、缺失或恢复失败均使任务失败。结束时恢复所有记录的设置与缺口 overlay，重启系统框架回读，并恢复原 adb 身份；不对日常真机执行该入口。
+独立的 `fixtures` 任务复用同批八产物，在 API 35 专用云端模拟器分阶段执行八项平台专项：非交互推荐时长、系统 Toast 延长后取消、按钮交互推荐时长、普通文字不采用交互时长、Compose 交互推荐时长、Compose 普通文字时长、显示缺口安全区域、自由窗口及任务缩放。入口为 `tools/run_platform_fixtures.py --api 35 --serial emulator-5554`，先核验模拟器身份、提交与产物摘要，再配置独立超时、缺口和自由窗口；通过临时 `adb root` 仅重启 Android 系统框架加载自由窗口设置，避免整机 reboot 使云端 emulator 进程退出。每项保留原始 Runner，失败继续收集其他专项，跳过、缺失或恢复失败均使任务失败。结束时恢复所有记录的设置与缺口 overlay，重启系统框架回读，并恢复原 adb 身份；不对日常真机执行该入口。
 
-Actions 的输入、构建报告、逐 API 报告及 `platform-fixtures-api-35` 保留 **14 天**。验收时下载八份原始 ZIP，核对 GitHub 官方 digest、提交、同批八产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与三个 R8 新进程 PID，并保存运行 URL。专项还须核对五项各自通过和 `restoration.success=true`，证据位于 `build/reports/platform-fixtures/result.json`。不同轮次的部分成功不能拼成最终矩阵。
+Actions 的输入、构建报告、逐 API 报告及 `platform-fixtures-api-35` 保留 **14 天**。验收时下载八份原始 ZIP，核对 GitHub 官方 digest、提交、同批八产物 SHA、原始 Runner、必需集合、API/指纹/ABI 与三个 R8 新进程 PID，并保存运行 URL。专项还须核对八项各自通过和 `restoration.success=true`，证据位于 `build/reports/platform-fixtures/result.json`。不同轮次的部分成功不能拼成最终矩阵。
 
 专项开始前要求启动完成、有效窗口焦点且无锁屏或 ANR 焦点。恢复阶段用例和 Activity 已结束，只要求系统框架启动完成、窗口服务快照有效，再逐项核对原设置、整组 overlay 和 adb 身份；不以存在前台 Activity 作为设置恢复条件。两阶段窗口快照均保留，恢复错误另存系统诊断。
 
@@ -101,7 +101,7 @@ Actions 的输入、构建报告、逐 API 报告及 `platform-fixtures-api-35` 
 
 批准本次发布范围后，核对 `gradle.properties` 的 `VERSION`、`APP_VERSION_NAME`、`APP_VERSION_CODE`，同步 CHANGELOG；正式仓库确认上线前，README 不提前宣称新坐标已可安装。兼容基线独立于版本配置，不能随版本号自动覆盖。
 
-下面命令中的 `1.3.0` 是已完成发布的历史示例；后续发布须替换为已确认的新未发布版本，获得对应授权后执行；不得向已发布坐标重复上传。执行本地准备不等于授权上传或正式发布。签名默认关闭；两种模式均要求 `--no-configuration-cache`，不使用公开 build scan 或调试日志保存签名环境。
+下面命令对应待发布的 `1.3.1`；执行前核对该版本仍未发布、最终提交及对应授权，不得向已发布坐标重复上传。执行本地准备不等于授权上传或正式发布。签名默认关闭；两种模式均要求 `--no-configuration-cache`，不使用公开 build scan 或调试日志保存签名环境。
 
 ### 本机 GPG 模式
 
@@ -116,10 +116,10 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 公钥文件必须来自已确认的发布密钥，并独立核对指纹，不从待验签名推导“期望指纹”。设置 `KTOAST_PUBLIC_KEY_FILE` 为本机公钥文件路径，再执行本地准备：
 
 ```bash
-./gradlew prepareCentralBundle -PVERSION=1.3.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
+./gradlew prepareCentralBundle -PVERSION=1.3.1 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
 ```
 
-根任务同时生成三个模块的 Staging publication，再校验 `build/central/ktoast-1.3.0.zip` 与相邻 `.report.json`。三模块共 **15 类制品、15 份签名、90 个 ZIP 文件**：AAR、sources、javadoc、POM、module 各自有签名及四种制品校验和。ZIP 不含密钥、公钥、报告或 `maven-metadata.xml`。
+根任务同时生成三个模块的 Staging publication，再校验 `build/central/ktoast-1.3.1.zip` 与相邻 `.report.json`。三模块共 **15 类制品、15 份签名、90 个 ZIP 文件**：AAR、sources、javadoc、POM、module 各自有签名及四种制品校验和。ZIP 不含密钥、公钥、报告或 `maven-metadata.xml`。
 
 ### 受控内存签名
 
@@ -129,7 +129,7 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 
 验收工具验证三个模块的当前源码、API、依赖、真实文档、签名指纹与校验和。报告必须 `rehearsal=false`、`source.dirty=false`，且提交、版本和逐文件摘要与本次包一致；源码编辑期间的预验报告不能用于上传。
 
-用同版 Staging 运行三个消费者，分别在前述构建命令中传入 `-PktoastPublication=staging -PktoastVersion=1.3.0`。核对两变体解析的 AAR 与已验收候选关系，完成相应 R8 设备验证。SNAPSHOT 与正式版本的文档标签、POM 和 metadata 可能不同，需解释差异，不能仅凭版本号认定相同。
+用同版 Staging 运行三个消费者，分别在前述构建命令中传入 `-PktoastPublication=staging -PktoastVersion=1.3.1`。核对两变体解析的 AAR 与已验收候选关系，完成相应 R8 设备验证。SNAPSHOT 与正式版本的文档标签、POM 和 metadata 可能不同，需解释差异，不能仅凭版本号认定相同。
 
 隔离测试密钥演练使用 `tools/prepare_central_bundle.py --artifacts ktoast ktoast-lifecycle ktoast-compose`、`--rehearsal` 及 `-TEST-KEY.zip` 名称；测试包禁止上传。演练后恢复 SNAPSHOT Candidate，再验证候选消费者，避免 Staging 覆盖的 publication 元数据被混用。
 
@@ -140,10 +140,10 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 唯一上传入口是根任务：
 
 ```bash
-./gradlew :publishToMavenCentral -PVERSION=1.3.0 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
+./gradlew :publishToMavenCentral -PVERSION=1.3.1 -PsignPublication=true -PsigningMode=gpg -PcentralPublicKeyFile="$KTOAST_PUBLIC_KEY_FILE" --no-configuration-cache --console=plain
 ```
 
-本命令会执行外部上传，仅在授权后运行。批次名为 `io.github.logan0817-KToast-1.3.0`，包含三个模块，固定 **USER_MANAGED**，不会自动正式发布。
+本命令会执行外部上传，仅在授权后运行。批次名为 `io.github.logan0817-KToast-1.3.1`，包含三个模块，固定 **USER_MANAGED**，不会自动正式发布。
 
 根入口先检查环境，再生成、验收签名 ZIP，校对插件本地 staging 与冻结包的全部 90 文件并再次验签。插件为签名派生的 60 份校验和只有在全部验证后才从插件临时目录规范化移除，实际传输集合与冻结包一致。缺项、未知文件、字节差异、演练包和脏源码均拒绝。
 
@@ -157,8 +157,8 @@ signing.gnupg.keyName=<40 或 64 位完整十六进制指纹>
 
 ```bash
 python3 -B tools/verify_central_deployment.py \
-  --bundle build/central/ktoast-1.3.0.zip \
-  --bundle-report build/central/ktoast-1.3.0.report.json \
+  --bundle build/central/ktoast-1.3.1.zip \
+  --bundle-report build/central/ktoast-1.3.1.report.json \
   --deployment-id "$KTOAST_DEPLOYMENT_ID" \
   --status "build/central/$KTOAST_DEPLOYMENT_ID/status.json" \
   --downloads "build/central/$KTOAST_DEPLOYMENT_ID/artifacts" \
@@ -179,11 +179,11 @@ python3 -B tools/verify_central_deployment.py \
 
 ## 三模块入口与工具链
 
-当前源码版本为已发布 `1.3.0`；正式仓库验收见本版记录，不直接把历史命令替换为新发布操作。本地候选统一使用 `verifyReleaseCandidate -PVERSION=1.3.0-SNAPSHOT`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
+当前源码元数据为待发布 `1.3.1`；正式可用版本仍为 `1.3.0`，历史验收不能替代本版设备与发布证据。本地候选统一使用 `verifyReleaseCandidate -PVERSION=1.3.1-SNAPSHOT`，新增 `verifyComposeCandidateArtifacts`。三个模块依次为 `ktoast`、`ktoast-lifecycle`、`ktoast-compose`，扩展与核心必须同版。
 
 Compose 需要真实 sources/Dokka、AAR、POM/Gradle metadata、精确公开 API 和直接依赖检查，发布包不得漏掉任一模块。包验证按版本保留历史单/双模块规则；>=1.3 必须三模块。根上传入口与人工发布模式保持，候选生成与配置 dry-run 不触发上传。
 
-独立消费者包括 `tools/compatibility/compose-consumer`，执行 `assembleDebug assembleRelease -PktoastVersion=1.3.0-SNAPSHOT` 并比对三个实际解析 AAR。Compose 消费者使用现代工具链；旧核心/生命周期消费者保留 AGP 7.2.2 的验证意义，不要求它们编译 Compose。
+独立消费者包括 `tools/compatibility/compose-consumer`，执行 `assembleDebug assembleRelease -PktoastVersion=1.3.1-SNAPSHOT` 并比对三个实际解析 AAR。Compose 消费者使用现代工具链；旧核心/生命周期消费者保留 AGP 7.2.2 的验证意义，不要求它们编译 Compose。
 
 矩阵输入新增 Compose AAR 和 R8 APK，共八份受测产物；三个 R8 消费者分别核对本次新进程 PASS。当前工作流保留五个 API/必需检查、原始证据及缓存权限，增加新模块路径与同批产物。本地成功不代替另行授权后的 PR/main 云端验收，专用 fixture 与厂商真机分别记录。
 
